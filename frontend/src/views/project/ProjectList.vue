@@ -1,0 +1,853 @@
+<template>
+  <div class="page-root">
+    <!-- 页面头部 -->
+    <div class="page-header">
+      <div class="header-left">
+        <h2 class="page-title">项目管理</h2>
+        <el-button type="primary" :icon="Plus" @click="handleCreate">新建项目</el-button>
+      </div>
+      <div class="header-right">
+        <el-input
+          v-model="searchForm.name"
+          placeholder="搜索项目名称"
+          :prefix-icon="Search"
+          clearable
+          style="width: 240px; margin-right: 16px"
+          @clear="handleSearch"
+          @keyup.enter="handleSearch"
+        />
+        <el-select
+          v-model="searchForm.status"
+          placeholder="项目状态"
+          clearable
+          style="width: 140px; margin-right: 16px"
+          @change="handleSearch"
+        >
+          <el-option label="未开始" value="NOT_STARTED" />
+          <el-option label="进行中" value="IN_PROGRESS" />
+          <el-option label="已暂停" value="SUSPENDED" />
+          <el-option label="已归档" value="ARCHIVED" />
+        </el-select>
+        <el-button-group>
+          <el-button
+            :type="viewMode === 'table' ? 'primary' : ''"
+            @click="viewMode = 'table'"
+          >
+            <el-icon><List /></el-icon>
+            列表
+          </el-button>
+          <el-button
+            :type="viewMode === 'kanban' ? 'primary' : ''"
+            @click="viewMode = 'kanban'"
+          >
+            <el-icon><Grid /></el-icon>
+            看板
+          </el-button>
+        </el-button-group>
+      </div>
+    </div>
+
+    <!-- 看板视图 -->
+    <div v-if="viewMode === 'kanban'" class="kanban-view">
+      <el-row :gutter="16">
+        <el-col v-for="status in projectStatuses" :key="status.value" :xs="24" :sm="12" :md="6">
+          <div
+            class="kanban-column"
+            :data-status="status.value"
+            @dragover.prevent="handleDragOver"
+            @dragleave="handleDragLeave"
+            @drop="handleDrop"
+          >
+            <div class="column-header">
+              <div class="column-title">
+                <div class="status-dot" :style="{ backgroundColor: status.color }"></div>
+                <span>{{ status.label }}</span>
+                <span class="project-count">{{ getProjectsByStatus(status.value).length }}</span>
+              </div>
+            </div>
+            <div class="column-body">
+              <div
+                v-for="project in getProjectsByStatus(status.value)"
+                :key="project.id"
+                class="project-card"
+                draggable="true"
+                @dragstart="handleDragStart(project, $event)"
+                @click="handleView(project)"
+              >
+                <div class="card-header">
+                  <div class="project-icon" :style="{ backgroundColor: status.color }">
+                    <el-icon :size="20"><FolderOpened /></el-icon>
+                  </div>
+                  <el-dropdown trigger="click" @command="(cmd) => handleCommand(cmd, project)">
+                    <el-icon class="more-icon" @click.stop><MoreFilled /></el-icon>
+                    <template #dropdown>
+                      <el-dropdown-menu>
+                        <el-dropdown-item command="view" :icon="View">查看</el-dropdown-item>
+                        <el-dropdown-item command="gantt" :icon="View">甘特图</el-dropdown-item>
+                        <el-dropdown-item command="edit" :icon="Edit">编辑</el-dropdown-item>
+                        <el-dropdown-item command="delete" :icon="Delete" divided>删除</el-dropdown-item>
+                      </el-dropdown-menu>
+                    </template>
+                  </el-dropdown>
+                </div>
+                <h3 class="project-name">{{ project.name }}</h3>
+                <p class="project-code">{{ project.code }}</p>
+                <p class="project-description">{{ project.description || '暂无描述' }}</p>
+                <div class="card-footer">
+                  <div class="project-meta">
+                    <span class="meta-item">
+                      <el-icon><User /></el-icon>
+                      {{ getManagerName(project.managerId) || '未设置' }}
+                    </span>
+                  </div>
+                  <div class="project-time">
+                    <span>{{ formatDate(project.createTime) }}</span>
+                  </div>
+                </div>
+              </div>
+              <el-empty
+                v-if="getProjectsByStatus(status.value).length === 0"
+                description="暂无项目"
+                :image-size="60"
+              />
+            </div>
+          </div>
+        </el-col>
+      </el-row>
+    </div>
+
+    <!-- 表格视图（简化版：8列核心信息） -->
+    <div v-else class="table-view">
+      <el-table :data="projectList" stripe style="width: 100%">
+        <el-table-column prop="name" label="项目名称" min-width="200">
+          <template #default="{ row }">
+            <div class="table-project-name">
+              <div
+                class="project-dot"
+                :style="{ backgroundColor: getStatusColor(row.status) }"
+              ></div>
+              <el-link type="primary" @click="handleView(row)">{{ row.name }}</el-link>
+            </div>
+          </template>
+        </el-table-column>
+        <el-table-column prop="status" label="状态" width="90">
+          <template #default="{ row }">
+            <el-tag :type="getStatusType(row.status)" size="small">
+              {{ getStatusText(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="managerName" label="项目经理" width="110">
+          <template #default="{ row }">
+            {{ getManagerName(row.managerId) || '未设置' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="planStartDate" label="计划开始时间" width="110">
+          <template #default="{ row }">
+            {{ row.planStartDate || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="planEndDate" label="计划结束时间" width="110">
+          <template #default="{ row }">
+            <span :class="{ 'text-danger': isOverdue(row.planEndDate) }">
+              {{ row.planEndDate || '-' }}
+            </span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="createUserName" label="创建人" width="100">
+          <template #default="{ row }">
+            {{ row.createUserName || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="createTime" label="创建时间" width="160">
+          <template #default="{ row }">
+            {{ formatDate(row.createTime) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="120" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="success" :icon="Grid" @click="handleGantt(row)">甘特图</el-button>
+            <el-dropdown trigger="click">
+              <el-button link :icon="MoreFilled" />
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item :icon="View" @click.native="handleView(row)">查看详情</el-dropdown-item>
+                  <el-dropdown-item :icon="Edit" @click.native="handleEdit(row)">编辑项目</el-dropdown-item>
+                  <el-dropdown-item :icon="Delete" divided @click.native="handleDelete(row)">删除项目</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <!-- 空状态 -->
+      <el-empty v-if="projectList.length === 0" description="暂无项目数据" />
+    </div>
+
+    <!-- 分页 -->
+    <div v-if="total > 0 && viewMode === 'table'" class="pagination">
+      <el-pagination
+        v-model:current-page="searchForm.pageNum"
+        v-model:page-size="searchForm.pageSize"
+        :total="total"
+        :page-sizes="[10, 20, 50, 100]"
+        layout="total, sizes, prev, pager, next, jumper"
+        :pager-count="7"
+        @size-change="fetchProjects"
+        @current-change="fetchProjects"
+      />
+    </div>
+
+    <!-- 新建/编辑项目对话框 -->
+    <el-dialog
+      v-model="dialogVisible"
+      :title="dialogTitle"
+      width="600px"
+      :close-on-click-modal="false"
+    >
+      <el-form ref="formRef" :model="formData" :rules="formRules" label-width="120px">
+        <!-- 项目名称 -->
+        <el-form-item label="项目名称" prop="name">
+          <el-input v-model="formData.name" placeholder="请输入项目名称" />
+        </el-form-item>
+
+        <!-- 项目类型（单独一行，横向卡片） -->
+        <el-form-item label="项目类型" prop="projectType" required>
+          <!-- 新建时可选择，编辑时禁用 -->
+          <el-radio-group v-model="formData.projectType" class="project-type-group" :disabled="!!formData.id">
+            <el-radio value="SCHEDULE" class="project-type-radio">
+              <div class="project-type-option">
+                <div class="type-header">
+                  <el-icon :size="24" color="#409eff"><Calendar /></el-icon>
+                  <span class="type-title">常规型项目（CG）</span>
+                </div>
+                <div class="type-divider"></div>
+                <div class="type-features">
+                  <div class="feature-item">• 日常项目</div>
+                  <div class="feature-item">• 快速上手</div>
+                </div>
+              </div>
+            </el-radio>
+            <el-radio value="LARGE_SCALE" class="project-type-radio">
+              <div class="project-type-option">
+                <div class="type-header">
+                  <el-icon :size="24" color="#67c23a"><FolderOpened /></el-icon>
+                  <span class="type-title">中大型项目（DX）</span>
+                </div>
+                <div class="type-divider"></div>
+                <div class="type-features">
+                  <div class="feature-item">• 支持迭代管理</div>
+                  <div class="feature-item">• 敏捷开发</div>
+                </div>
+              </div>
+            </el-radio>
+          </el-radio-group>
+          <!-- 编辑时显示提示 -->
+          <div v-if="formData.id" style="font-size: 12px; color: #e6a23c; margin-top: 8px;">
+            ⚠️ 项目类型创建后不可修改
+          </div>
+        </el-form-item>
+
+        <!-- 项目编码提示（自动生成） -->
+        <el-form-item label="项目编码">
+          <el-input :value="formData.code || '创建后自动生成（如 CG1、DX1）'" disabled />
+          <div style="font-size: 12px; color: #909399; margin-top: 4px;">
+            常规项目：CG1、CG2... | 中大型项目：DX1、DX2...
+          </div>
+        </el-form-item>
+
+        <!-- 项目经理 -->
+        <el-form-item label="项目经理" prop="managerId">
+          <el-select v-model="formData.managerId" placeholder="请选择项目经理" style="width: 100%">
+            <el-option
+              v-for="user in userList"
+              :key="user.id"
+              :label="user.nickname"
+              :value="user.id"
+            />
+          </el-select>
+        </el-form-item>
+
+        <!-- 计划开始时间（独占一行） -->
+        <el-form-item label="计划开始时间" prop="planStartDate">
+          <el-date-picker
+            v-model="formData.planStartDate"
+            type="date"
+            placeholder="选择开始日期"
+            style="width: 100%"
+            value-format="YYYY-MM-DD"
+          />
+        </el-form-item>
+
+        <!-- 计划结束时间（独占一行） -->
+        <el-form-item label="计划结束时间" prop="planEndDate">
+          <el-date-picker
+            v-model="formData.planEndDate"
+            type="date"
+            placeholder="选择结束日期"
+            style="width: 100%"
+            value-format="YYYY-MM-DD"
+          />
+        </el-form-item>
+
+        <!-- 项目描述（独占一行） -->
+        <el-form-item label="项目描述" prop="description">
+          <el-input
+            v-model="formData.description"
+            type="textarea"
+            :rows="3"
+            placeholder="请输入项目描述"
+          />
+        </el-form-item>
+
+        <!-- 项目状态（隐藏，创建时默认 NOT_STARTED） -->
+        <el-form-item v-if="formData.id" label="项目状态" prop="status">
+          <el-select v-model="formData.status" placeholder="请选择项目状态" style="width: 100%">
+            <el-option label="未开始" value="NOT_STARTED" />
+            <el-option label="进行中" value="IN_PROGRESS" />
+            <el-option label="已暂停" value="SUSPENDED" />
+            <el-option label="已归档" value="ARCHIVED" />
+          </el-select>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleSubmit" :loading="submitLoading">确定</el-button>
+      </template>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, reactive, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
+import {
+  Plus,
+  Search,
+  Grid,
+  List,
+  FolderOpened,
+  User,
+  MoreFilled,
+  Edit,
+  Delete,
+  View,
+  Calendar
+} from '@element-plus/icons-vue'
+import { getProjectList, createProject, updateProject, deleteProject } from '@/api/project'
+import { getAllUsers, type UserInfo } from '@/api/user'
+import { getProjectStatusOptions, getProjectStatusInfo } from '@/utils/statusMapping'
+
+const router = useRouter()
+
+// 视图模式（默认列表）
+const viewMode = ref<'kanban' | 'table'>('table')
+
+// 项目状态配置
+const projectStatuses = getProjectStatusOptions()
+
+// 拖拽相关
+const draggedProject = ref<any>(null)
+
+// 根据状态获取项目（使用computed以优化性能和响应式）
+const notStartedProjects = computed(() => projectList.value.filter(project => project.status === 'NOT_STARTED'))
+const inProgressProjects = computed(() => projectList.value.filter(project => project.status === 'IN_PROGRESS'))
+const suspendedProjects = computed(() => projectList.value.filter(project => project.status === 'SUSPENDED'))
+const archivedProjects = computed(() => projectList.value.filter(project => project.status === 'ARCHIVED'))
+
+// 辅助函数：根据状态值返回对应项目列表
+const getProjectsByStatus = (status: string) => {
+  const statusMap: Record<string, any[]> = {
+    'NOT_STARTED': notStartedProjects.value,
+    'IN_PROGRESS': inProgressProjects.value,
+    'SUSPENDED': suspendedProjects.value,
+    'ARCHIVED': archivedProjects.value
+  }
+  return statusMap[status] || []
+}
+
+// 拖拽开始
+const handleDragStart = (project: ProjectInfo, event: DragEvent) => {
+  draggedProject.value = project
+  if (event.dataTransfer) {
+    event.dataTransfer.setData('text/plain', project.id.toString())
+    event.dataTransfer.effectAllowed = 'move'
+  }
+  // 添加拖拽样式
+  ;(event.target as HTMLElement).classList.add('dragging')
+}
+
+// 拖拽经过
+const handleDragOver = (event: DragEvent) => {
+  event.preventDefault()
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'move'
+  }
+  // 添加拖拽悬停样式
+  const column = (event.currentTarget as HTMLElement)
+  column.classList.add('drag-over')
+}
+
+// 拖拽离开
+const handleDragLeave = (event: DragEvent) => {
+  const column = (event.currentTarget as HTMLElement)
+  column.classList.remove('drag-over')
+}
+
+// 放置项目
+const handleDrop = async (event: DragEvent) => {
+  event.preventDefault()
+  const targetStatus = (event.currentTarget as HTMLElement).getAttribute('data-status')
+
+  // 移除拖拽样式
+  const draggingElements = document.querySelectorAll('.dragging')
+  draggingElements.forEach(el => el.classList.remove('dragging'))
+
+  // 移除所有列的拖拽悬停样式
+  const dragOverElements = document.querySelectorAll('.drag-over')
+  dragOverElements.forEach(el => el.classList.remove('drag-over'))
+
+  if (draggedProject.value && targetStatus && draggedProject.value.status !== targetStatus) {
+    try {
+      await updateProject({
+        id: draggedProject.value.id,
+        status: targetStatus
+      })
+      ElMessage.success('项目状态已更新')
+      fetchProjects() // 刷新项目列表
+    } catch (error) {
+      console.error('更新项目状态失败:', error)
+      ElMessage.error('更新项目状态失败')
+    }
+  }
+
+  draggedProject.value = null
+}
+
+// 搜索表单
+const searchForm = reactive({
+  name: '',
+  status: undefined as string | undefined,
+  pageNum: 1,
+  pageSize: 10
+})
+
+// 项目列表
+const projectList = ref<any[]>([])
+const total = ref(0)
+
+// 对话框
+const dialogVisible = ref(false)
+const dialogTitle = ref('')
+const submitLoading = ref(false)
+
+// 表单数据
+const formData = reactive({
+  id: undefined as number | undefined,
+  name: '',
+  code: '',
+  projectType: 'SCHEDULE',
+  description: '',
+  managerId: undefined as number | undefined,
+  status: 'NOT_STARTED',
+  planStartDate: '',
+  planEndDate: ''
+})
+
+// 表单规则（动态计算，编辑时不需要验证项目类型）
+const formRules = computed(() => {
+  const isEdit = !!formData.id
+  return {
+    name: [{ required: true, message: '请输入项目名称', trigger: 'blur' }],
+    projectType: isEdit ? [] : [{ required: true, message: '请选择项目类型', trigger: 'change' }],
+    managerId: [{ required: true, message: '请选择项目经理', trigger: 'change' }]
+  }
+})
+
+const formRef = ref<FormInstance>()
+
+// 用户列表
+const userList = ref<UserInfo[]>([])
+
+// 获取用户列表
+const fetchUsers = async () => {
+  try {
+    const res = await getAllUsers()
+    if (res.list) {
+      userList.value = res.list
+    }
+  } catch (error) {
+    console.error('获取用户列表失败:', error)
+  }
+}
+
+// 获取项目列表
+const fetchProjects = async () => {
+  try {
+    const res = await getProjectList(searchForm)
+    // PageResult 格式：{ list: [], total: 0 }
+    projectList.value = res.list || []
+    total.value = res.total || 0
+  } catch (error) {
+    console.error('获取项目列表失败:', error)
+  }
+}
+
+// 搜索
+const handleSearch = () => {
+  searchForm.pageNum = 1
+  fetchProjects()
+}
+
+// 新建项目
+const handleCreate = () => {
+  dialogTitle.value = '新建项目'
+  dialogVisible.value = true
+  resetForm()
+}
+
+// 查看项目
+const handleView = (project: ProjectInfo) => {
+  router.push(`/projects/${project.id}`)
+}
+
+// 查看甘特图
+const handleGantt = (project: ProjectInfo) => {
+  router.push(`/projects/${project.id}/gantt`)
+}
+
+// 编辑项目
+const handleEdit = (project: ProjectInfo) => {
+  dialogTitle.value = '编辑项目'
+  dialogVisible.value = true
+  Object.assign(formData, {
+    id: project.id,
+    name: project.name,
+    code: project.code,
+    projectType: project.projectType,
+    description: project.description,
+    managerId: project.managerId,
+    status: project.status,
+    planStartDate: project.planStartDate || '',
+    planEndDate: project.planEndDate || ''
+  })
+}
+
+// 删除项目
+const handleDelete = (project: ProjectInfo) => {
+  ElMessageBox.confirm(`确定要删除项目 "${project.name}" 吗？`, '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning'
+  })
+    .then(async () => {
+      try {
+        await deleteProject(project.id)
+        ElMessage.success('删除成功')
+        fetchProjects()
+      } catch (error) {
+        console.error('删除项目失败:', error)
+      }
+    })
+    .catch(() => {})
+}
+
+// 卡片操作命令
+const handleCommand = (command: string, project: ProjectInfo) => {
+  if (command === 'view') {
+    handleView(project)
+  } else if (command === 'gantt') {
+    handleGantt(project)
+  } else if (command === 'edit') {
+    handleEdit(project)
+  } else if (command === 'delete') {
+    handleDelete(project)
+  }
+}
+
+// 提交表单
+const handleSubmit = async () => {
+  if (!formRef.value) return
+
+  await formRef.value.validate(async (valid) => {
+    if (valid) {
+      submitLoading.value = true
+      try {
+        if (formData.id) {
+          // 编辑
+          await updateProject({
+            id: formData.id,
+            name: formData.name,
+            projectType: formData.projectType,
+            description: formData.description,
+            managerId: formData.managerId,
+            status: formData.status,
+            planStartDate: formData.planStartDate || undefined,
+            planEndDate: formData.planEndDate || undefined
+          })
+          ElMessage.success('更新成功')
+        } else {
+          // 新建（code 由后端自动生成）
+          await createProject({
+            name: formData.name,
+            projectType: formData.projectType,
+            description: formData.description,
+            managerId: formData.managerId!,
+            planStartDate: formData.planStartDate || undefined,
+            planEndDate: formData.planEndDate || undefined
+          })
+          ElMessage.success('创建成功')
+        }
+        dialogVisible.value = false
+        fetchProjects()
+      } catch (error) {
+        console.error('提交失败:', error)
+      } finally {
+        submitLoading.value = false
+      }
+    }
+  })
+}
+
+// 重置表单
+const resetForm = () => {
+  formData.id = undefined
+  formData.name = ''
+  formData.code = ''
+  formData.projectType = 'SCHEDULE'
+  formData.description = ''
+  formData.managerId = undefined
+  formData.status = 'NOT_STARTED'
+  formData.planStartDate = ''
+  formData.planEndDate = ''
+  formRef.value?.clearValidate()
+}
+
+// 获取项目状态信息
+const getStatusColor = (status: string) => getProjectStatusInfo(status).color
+const getStatusType = (status: string) => getProjectStatusInfo(status).type
+const getStatusText = (status: string) => getProjectStatusInfo(status).text
+
+// 获取项目经理名称
+const getManagerName = (managerId: number) => {
+  if (!managerId) return null
+  const user = userList.value.find(u => u.id === managerId)
+  return user?.nickname
+}
+
+// 格式化日期
+const formatDate = (date: string) => {
+  if (!date) return '-'
+  return new Date(date).toLocaleString('zh-CN', {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+// 判断是否逾期（3天内橙色，已逾期红色）
+const isOverdue = (endDate: string) => {
+  if (!endDate) return false
+  const end = new Date(endDate)
+  const now = new Date()
+  const diffDays = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+  return diffDays < 3 // 小于3天视为即将逾期或已逾期
+}
+
+onMounted(() => {
+  fetchUsers()
+  fetchProjects()
+})
+</script>
+
+<style scoped>
+/* ========== 项目特定样式 ========== */
+
+/* 项目图标 */
+.project-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+
+/* 项目信息 */
+.project-name {
+  margin: 0 0 8px 0;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.project-code {
+  margin: 0 0 8px 0;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.project-description {
+  margin: 0 0 12px 0;
+  font-size: 12px;
+  color: #595959;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 36px;
+}
+
+.project-meta {
+  display: flex;
+  align-items: center;
+}
+
+.meta-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: #595959;
+}
+
+.project-time {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+/* 表格视图 */
+.table-project-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.project-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+/* 逾期警告 */
+.text-danger {
+  color: #f56c6c;
+  font-weight: 500;
+}
+
+/* ========== 项目类型选择样式（紧凑卡片横向排列）========== */
+.project-type-group :deep(.el-radio-group) {
+  display: flex !important;
+  width: 100%;
+}
+
+.project-type-group :deep(.el-radio) {
+  flex: 1;
+  margin-right: 20px !important;
+  margin-bottom: 0 !important;
+  border: 2px solid #dcdfe6 !important;
+  border-radius: 8px !important;
+  padding: 16px !important;
+  transition: all 0.3s;
+  background: #fff !important;
+  cursor: pointer;
+  height: auto !important;
+  line-height: normal !important;
+}
+
+/* 最后一个卡片不需要右边距 */
+.project-type-group :deep(.el-radio:last-child) {
+  margin-right: 0 !important;
+}
+
+/* 隐藏默认的 radio 圆点 */
+.project-type-group :deep(.el-radio__input) {
+  display: none !important;
+}
+
+.project-type-group :deep(.el-radio__inner) {
+  display: none !important;
+}
+
+.project-type-group :deep(.el-radio__original) {
+  display: none !important;
+}
+
+.project-type-group :deep(.el-radio__label) {
+  width: 100% !important;
+  padding: 0 !important;
+  margin-left: 0 !important;
+}
+
+/* 悬停效果 */
+.project-type-group :deep(.el-radio:hover) {
+  border-color: #409eff !important;
+  background-color: #f0f7ff !important;
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.2) !important;
+  transform: translateY(-2px);
+}
+
+/* 选中状态 */
+.project-type-group :deep(.el-radio.is-checked) {
+  border-color: #409eff !important;
+  background-color: #ecf5ff !important;
+  box-shadow: 0 2px 12px rgba(64, 158, 255, 0.3) !important;
+}
+
+/* 禁用状态（编辑时） */
+.project-type-group :deep(.el-radio.is-disabled) {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+}
+
+.project-type-group :deep(.el-radio.is-disabled.is-checked) {
+  opacity: 0.8 !important;
+  background-color: #f5f7fa !important;
+  border-color: #c0c4cc !important;
+}
+
+.project-type-option {
+  width: 100%;
+}
+
+.type-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.type-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+
+.type-divider {
+  height: 1px;
+  background: #e4e7ed;
+  margin-bottom: 12px;
+}
+
+.type-features {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.feature-item {
+  font-size: 13px;
+  color: #606266;
+  line-height: 1.5;
+}
+</style>

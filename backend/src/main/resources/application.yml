@@ -1,0 +1,105 @@
+server:
+  port: 8080
+  address: 0.0.0.0
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
+
+spring:
+  profiles:
+    active: dev  # 默认使用开发环境，生产环境改为 prod
+  # DevTools 热部署配置
+  devtools:
+    restart:
+      enabled: true  # 启用热部署
+      additional-paths: src/main/java  # 监控的目录
+      exclude: static/**,public/**  # 排除静态资源
+    livereload:
+      enabled: true  # 启用浏览器自动刷新
+  datasource:
+    url: jdbc:mysql://localhost:3306/gsms?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:123456}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    serialization:
+      write-dates-as-timestamps: false
+    # 禁用 ISO 8601 格式，使用自定义格式
+    default-property-inclusion: non_null
+  # Flyway 数据库迁移配置
+  flyway:
+    enabled: false
+    # 迁移脚本位置
+    locations: classpath:db/migration
+    # 在已有数据库上建立基线（线上V1/V2未用Flyway，需要baseline）
+    baseline-on-migrate: true
+    # 基线版本号（设为2表示已有V1、V2，从V3开始执行）
+    baseline-version: 1
+    # 基线描述
+    baseline-description: "Baseline for existing database with V1 and V2 applied"
+    # 编码
+    encoding: UTF-8
+    # SQL 脚本占位符前缀（避免与 MyBatis 冲突）
+    placeholder-replacement: false
+    # 校验迁移脚本（线上未使用Flyway，首次引入时设为false）
+    validate-on-migrate: true
+    # 允许乱序迁移（生产环境建议false）
+    out-of-order: false
+    # 清理模式（生产环境必须false）
+    clean-disabled: true
+
+# 日志配置
+logging:
+  level:
+    com.gsms.gsms: INFO
+    org.springframework: WARN
+    org.mybatis: DEBUG
+  file:
+    path: /tmp/logs
+
+# MyBatis-Plus 配置
+mybatis-plus:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.gsms.gsms.model.entity
+  # 枚举包扫描路径，用于自动注册枚举类型处理器
+  type-enums-package: com.gsms.gsms.model.enums
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    # 默认枚举类型处理器（使用 MyBatis-Plus 的枚举处理器）
+    default-enum-type-handler: com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler
+  global-config:
+    db-config:
+      # 逻辑删除配置（如果需要）
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+
+# PageHelper 分页配置
+pagehelper:
+  helperDialect: mysql
+  reasonable: true
+  supportMethodsArguments: true
+  params: count=countSql
+  pageSizeZero: false
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+  packages-to-scan: com.gsms.gsms.controller
+  paths-to-match: /api/**
+
+# JWT配置
+jwt:
+  secret: gsms_dev_secret_key_2025  # 开发环境密钥
+  expiration: 86400000              # 24小时（毫秒）
+
+# CORS配置
+cors:
+  allowed-origins:
+    - http://localhost:3000
+    - http://127.0.0.1:3000

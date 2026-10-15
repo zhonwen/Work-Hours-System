@@ -1,0 +1,237 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gsms.gsms.repository.TaskMapper">
+    <!-- 结果映射 -->
+    <resultMap id="TaskResultMap" type="com.gsms.gsms.model.entity.Task">
+        <id column="id" property="id"/>
+        <result column="project_id" property="projectId"/>
+        <result column="project_name" property="projectName"/>
+        <result column="iteration_id" property="iterationId"/>
+        <result column="iteration_name" property="iterationName"/>
+        <result column="parent_id" property="parentId"/>
+        <result column="title" property="title"/>
+        <result column="description" property="description"/>
+        <result column="type" property="type"
+                typeHandler="com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler"/>
+        <result column="priority" property="priority"
+                typeHandler="com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler"/>
+        <result column="assignee_id" property="assigneeId"/>
+        <result column="status" property="status"
+                typeHandler="com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler"/>
+        <result column="plan_start_date" property="planStartDate"/>
+        <result column="plan_end_date" property="planEndDate"/>
+        <result column="actual_start_date" property="actualStartDate"/>
+        <result column="actual_end_date" property="actualEndDate"/>
+        <result column="estimate_hours" property="estimateHours"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="is_deleted" property="isDeleted"/>
+    </resultMap>
+
+    <!-- 查询所有字段 -->
+    <sql id="selectAllFields">
+        id, project_id, iteration_id, parent_id, title, description, type, priority, assignee_id, status,
+        plan_start_date, plan_end_date, actual_start_date, actual_end_date, estimate_hours,
+        create_user_id, update_user_id, create_time, update_time, is_deleted
+    </sql>
+
+    <!-- 根据ID查询任务 -->
+    <select id="selectById" parameterType="long" resultMap="TaskResultMap">
+        SELECT <include refid="selectAllFields"/>
+        FROM gsms_task
+        WHERE id = #{id} AND is_deleted = 0
+    </select>
+
+    <!-- 根据ID查询任务（仅限用户可访问的项目） -->
+    <select id="selectByIdForUser" parameterType="map" resultMap="TaskResultMap">
+        SELECT DISTINCT t.id, t.project_id, t.iteration_id, t.title, t.description, t.type, t.priority, 
+               t.assignee_id, t.status, t.plan_start_date, t.plan_end_date, t.actual_start_date, t.actual_end_date, 
+               t.estimate_hours, t.create_user_id, t.update_user_id, t.create_time, t.update_time, t.is_deleted
+        FROM gsms_task t
+        INNER JOIN gsms_project_member pm ON t.project_id = pm.project_id AND pm.is_deleted = 0
+        WHERE t.id = #{id} AND t.is_deleted = 0 AND pm.user_id = #{userId}
+    </select>
+
+    <!-- 根据项目ID查询任务 -->
+    <select id="selectByProjectId" parameterType="long" resultMap="TaskResultMap">
+        SELECT <include refid="selectAllFields"/>
+        FROM gsms_task
+        WHERE project_id = #{projectId} AND is_deleted = 0
+        ORDER BY create_time DESC
+    </select>
+
+    <!-- 根据条件查询任务 -->
+    <select id="selectByCondition" resultMap="TaskResultMap">
+        SELECT t.id, t.project_id, p.name as project_name, t.iteration_id, i.name as iteration_name, t.parent_id, t.title, t.description, t.type, t.priority,
+               t.assignee_id, t.status, t.plan_start_date, t.plan_end_date, t.actual_start_date, t.actual_end_date,
+               t.estimate_hours, t.create_user_id, t.update_user_id, t.create_time, t.update_time, t.is_deleted
+        FROM gsms_task t
+        LEFT JOIN gsms_project p ON t.project_id = p.id AND p.is_deleted = 0
+        LEFT JOIN gsms_iteration i ON t.iteration_id = i.id AND i.is_deleted = 0
+        <where>
+            AND t.is_deleted = 0
+            <if test="projectId != null">
+                AND t.project_id = #{projectId}
+            </if>
+            <if test="assigneeId != null">
+                AND t.assignee_id = #{assigneeId}
+            </if>
+            <if test="status != null">
+                AND t.status = #{status, typeHandler=com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler}
+            </if>
+        </where>
+        ORDER BY
+            CASE WHEN t.parent_id IS NULL THEN 0 ELSE 1 END,
+            COALESCE(t.parent_id, t.id),
+            t.create_time DESC
+    </select>
+
+    <!-- 根据条件查询用户可访问的任务（基于项目成员表） -->
+    <select id="selectAccessibleTasksByCondition" resultMap="TaskResultMap">
+        SELECT t.id, t.project_id, p.name as project_name, t.iteration_id, i.name as iteration_name, t.parent_id, t.title, t.description, t.type, t.priority,
+               t.assignee_id, t.status, t.plan_start_date, t.plan_end_date, t.actual_start_date, t.actual_end_date,
+               t.estimate_hours, t.create_user_id, t.update_user_id, t.create_time, t.update_time, t.is_deleted
+        FROM gsms_task t
+        LEFT JOIN gsms_project p ON t.project_id = p.id AND p.is_deleted = 0
+        LEFT JOIN gsms_iteration i ON t.iteration_id = i.id AND i.is_deleted = 0
+        <where>
+            AND t.is_deleted = 0
+            AND EXISTS (
+                SELECT 1 FROM gsms_project_member pm
+                WHERE pm.project_id = t.project_id
+                AND pm.user_id = #{userId}
+                AND pm.is_deleted = 0
+            )
+            <if test="projectId != null">
+                AND t.project_id = #{projectId}
+            </if>
+            <if test="assigneeId != null">
+                AND t.assignee_id = #{assigneeId}
+            </if>
+            <if test="status != null">
+                AND t.status = #{status, typeHandler=com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler}
+            </if>
+        </where>
+        ORDER BY
+            CASE WHEN t.parent_id IS NULL THEN 0 ELSE 1 END,
+            COALESCE(t.parent_id, t.id),
+            t.create_time DESC
+    </select>
+
+    <!-- 根据任务ID列表查询任务 -->
+    <select id="selectTasksByIds" resultMap="TaskResultMap">
+        SELECT t.id, t.project_id, p.name as project_name, t.iteration_id, i.name as iteration_name, t.parent_id, t.title, t.description, t.type, t.priority,
+               t.assignee_id, t.status, t.plan_start_date, t.plan_end_date, t.actual_start_date, t.actual_end_date,
+               t.estimate_hours, t.create_user_id, t.update_user_id, t.create_time, t.update_time, t.is_deleted
+        FROM gsms_task t
+        LEFT JOIN gsms_project p ON t.project_id = p.id AND p.is_deleted = 0
+        LEFT JOIN gsms_iteration i ON t.iteration_id = i.id AND i.is_deleted = 0
+        <where>
+            AND t.is_deleted = 0
+            AND t.id IN
+            <foreach collection="taskIds" item="id" open="(" close=")" separator=",">
+                #{id}
+            </foreach>
+        </where>
+        ORDER BY
+            CASE WHEN t.parent_id IS NULL THEN 0 ELSE 1 END,
+            COALESCE(t.parent_id, t.id),
+            t.create_time DESC
+    </select>
+
+    <!-- 批量查询子任务（通过父任务ID列表） -->
+    <select id="selectSubtasksByParentIds" resultMap="TaskResultMap">
+        SELECT t.id, t.project_id, p.name as project_name, t.iteration_id, i.name as iteration_name, t.parent_id, t.title, t.description, t.type, t.priority,
+               t.assignee_id, t.status, t.plan_start_date, t.plan_end_date, t.actual_start_date, t.actual_end_date,
+               t.estimate_hours, t.create_user_id, t.update_user_id, t.create_time, t.update_time, t.is_deleted
+        FROM gsms_task t
+        LEFT JOIN gsms_project p ON t.project_id = p.id AND p.is_deleted = 0
+        LEFT JOIN gsms_iteration i ON t.iteration_id = i.id AND i.is_deleted = 0
+        <where>
+            AND t.is_deleted = 0
+            AND t.parent_id IS NOT NULL
+            AND t.parent_id IN
+            <foreach collection="parentIds" item="id" open="(" close=")" separator=",">
+                #{id}
+            </foreach>
+        </where>
+        ORDER BY t.parent_id, t.create_time DESC
+    </select>
+
+    <!-- 插入任务 -->
+    <insert id="insert" parameterType="com.gsms.gsms.model.entity.Task"
+            useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO gsms_task(project_id, iteration_id, parent_id, title, description, type, priority, assignee_id,
+                        status, plan_start_date, plan_end_date, estimate_hours, create_user_id, update_user_id)
+        VALUES(#{projectId}, #{iterationId}, #{parentId}, #{title}, #{description},
+               #{type, typeHandler=com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler},
+               #{priority, typeHandler=com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler},
+               #{assigneeId},
+               #{status, typeHandler=com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler},
+               #{planStartDate}, #{planEndDate}, #{estimateHours}, #{createUserId}, #{updateUserId})
+    </insert>
+
+    <!-- 更新任务 -->
+    <update id="update" parameterType="com.gsms.gsms.model.entity.Task">
+        UPDATE gsms_task
+        <set>
+            <if test="projectId != null">project_id = #{projectId},</if>
+            <if test="iterationId != null">iteration_id = #{iterationId},</if>
+            <if test="parentId != null">parent_id = #{parentId},</if>
+            <if test="title != null and title != ''">title = #{title},</if>
+            <if test="description != null and description != ''">description = #{description},</if>
+            <if test="type != null">type = #{type, typeHandler=com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler},</if>
+            <if test="priority != null">priority = #{priority, typeHandler=com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler},</if>
+            <if test="assigneeId != null">assignee_id = #{assigneeId},</if>
+            <if test="status != null">status = #{status, typeHandler=com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler},</if>
+            <if test="planStartDate != null">plan_start_date = #{planStartDate},</if>
+            <if test="planEndDate != null">plan_end_date = #{planEndDate},</if>
+            <if test="actualStartDate != null">actual_start_date = #{actualStartDate},</if>
+            <if test="actualEndDate != null">actual_end_date = #{actualEndDate},</if>
+            <if test="estimateHours != null">estimate_hours = #{estimateHours},</if>
+            <if test="updateUserId != null">update_user_id = #{updateUserId},</if>
+            update_time = CURRENT_TIMESTAMP
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <!-- 更新任务的迭代ID（支持设置为null） -->
+    <update id="updateIterationId" parameterType="com.gsms.gsms.model.entity.Task">
+        UPDATE gsms_task
+        SET iteration_id = #{iterationId},
+            update_user_id = #{updateUserId},
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 更新任务状态（支持将 actualStartDate 和 actualEndDate 更新为 null） -->
+    <update id="updateStatus" parameterType="com.gsms.gsms.model.entity.Task">
+        UPDATE gsms_task
+        SET status = #{status, typeHandler=com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler},
+            actual_start_date = #{actualStartDate},
+            actual_end_date = #{actualEndDate},
+            update_user_id = #{updateUserId},
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id}
+    </update>
+
+    <!-- 根据ID逻辑删除任务 -->
+    <update id="deleteById" parameterType="long">
+        UPDATE gsms_task SET is_deleted = 1, update_time = CURRENT_TIMESTAMP WHERE id = #{id}
+    </update>
+
+    <!-- 根据父任务ID查询子任务 -->
+    <select id="selectSubtasks" parameterType="map" resultMap="TaskResultMap">
+        SELECT DISTINCT t.id, t.project_id, p.name as project_name, t.iteration_id, i.name as iteration_name,
+               t.parent_id, t.title, t.description, t.type, t.priority, t.assignee_id, t.status,
+               t.plan_start_date, t.plan_end_date, t.actual_start_date, t.actual_end_date,
+               t.estimate_hours, t.create_user_id, t.update_user_id, t.create_time, t.update_time, t.is_deleted
+        FROM gsms_task t
+        INNER JOIN gsms_project_member pm ON t.project_id = pm.project_id AND pm.is_deleted = 0
+        LEFT JOIN gsms_project p ON t.project_id = p.id AND p.is_deleted = 0
+        LEFT JOIN gsms_iteration i ON t.iteration_id = i.id AND i.is_deleted = 0
+        WHERE t.parent_id = #{parentId} AND t.is_deleted = 0 AND pm.user_id = #{userId}
+        ORDER BY t.create_time DESC
+    </select>
+</mapper>
