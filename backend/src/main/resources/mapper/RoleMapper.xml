@@ -108,12 +108,11 @@
         WHERE rp.role_id = #{roleId} AND rp.is_deleted = 0
     </select>
 
-    <!-- 删除角色的所有权限 -->
-    <update id="deletePermissionsByRoleId" parameterType="long">
-        UPDATE sys_role_permission
-        SET is_deleted = 1
+    <!-- 删除角色的所有权限（物理删除，避免唯一键冲突） -->
+    <delete id="deletePermissionsByRoleId" parameterType="long">
+        DELETE FROM sys_role_permission
         WHERE role_id = #{roleId}
-    </update>
+    </delete>
 
     <!-- 批量插入角色权限关联 -->
     <insert id="insertRolePermissions">
@@ -124,12 +123,11 @@
         </foreach>
     </insert>
 
-    <!-- 删除角色权限关联 -->
-    <update id="deleteRolePermission">
-        UPDATE sys_role_permission
-        SET is_deleted = 1
+    <!-- 删除角色权限关联（物理删除，避免唯一键冲突） -->
+    <delete id="deleteRolePermission">
+        DELETE FROM sys_role_permission
         WHERE role_id = #{roleId} AND permission_id = #{permissionId}
-    </update>
+    </delete>
 
     <!-- 查询拥有该角色的用户ID列表 -->
     <select id="selectUserIdsByRoleId" parameterType="long" resultType="long">
@@ -145,12 +143,11 @@
         WHERE ur.user_id = #{userId} AND ur.is_deleted = 0
     </select>
 
-    <!-- 删除用户的所有角色 -->
-    <update id="deleteUserRoles" parameterType="long">
-        UPDATE sys_user_role
-        SET is_deleted = 1
+    <!-- 删除用户的所有角色（物理删除，避免唯一键冲突） -->
+    <delete id="deleteUserRoles" parameterType="long">
+        DELETE FROM sys_user_role
         WHERE user_id = #{userId}
-    </update>
+    </delete>
 
     <!-- 批量插入用户角色关联 -->
     <insert id="insertUserRoles">
@@ -161,11 +158,10 @@
         </foreach>
     </insert>
 
-    <!-- 删除用户角色关联 -->
-    <update id="deleteUserRole">
-        UPDATE sys_user_role
-        SET is_deleted = 1
+    <!-- 删除用户角色关联（物理删除，避免唯一键冲突） -->
+    <delete id="deleteUserRole">
+        DELETE FROM sys_user_role
         WHERE user_id = #{userId} AND role_id = #{roleId}
-    </update>
+    </delete>
 
 </mapper>

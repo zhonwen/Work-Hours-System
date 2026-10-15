@@ -63,6 +63,8 @@ logging:
 
 # MyBatis-Plus 配置
 mybatis-plus:
+  # 生产环境从 classpath 读取（JAR 内打包的 XML）
+  # 开发环境会在 application-dev.yml 中覆盖为外部目录
   mapper-locations: classpath:mapper/*.xml
   type-aliases-package: com.gsms.gsms.model.entity
   # 枚举包扫描路径，用于自动注册枚举类型处理器

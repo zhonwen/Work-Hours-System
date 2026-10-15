@@ -40,7 +40,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://host.docker.internal:3306/gsms?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai&useSSL=false&allowPublicKeyRetrieval=true
       SPRING_DATASOURCE_USERNAME: root
       SPRING_DATASOURCE_PASSWORD: 123456
-      SPRING_PROFILES_ACTIVE: dev
+      SPRING_PROFILES_ACTIVE: prod
       TZ: Asia/Shanghai
     extra_hosts:
       - "host.docker.internal:host-gateway"
