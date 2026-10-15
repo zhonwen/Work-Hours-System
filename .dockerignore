@@ -30,9 +30,6 @@ logs/
 # Frontend (not needed in backend build)
 frontend/
 
-# Migration scripts (Docker uses its own init)
-backend/src/main/resources/db/migration/
-
 # CI/CD
 .github/
 .gitlab-ci.yml

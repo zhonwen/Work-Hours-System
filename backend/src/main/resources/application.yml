@@ -32,21 +32,21 @@ spring:
     default-property-inclusion: non_null
   # Flyway 数据库迁移配置
   flyway:
-    enabled: false
+    enabled: true
     # 迁移脚本位置
     locations: classpath:db/migration
     # 在已有数据库上建立基线（线上V1/V2未用Flyway，需要baseline）
-    baseline-on-migrate: true
+    baseline-on-migrate: false
     # 基线版本号（设为2表示已有V1、V2，从V3开始执行）
-    baseline-version: 1
+    baseline-version: 0
     # 基线描述
-    baseline-description: "Baseline for existing database with V1 and V2 applied"
+    baseline-description: "Baseline for empty database"
     # 编码
     encoding: UTF-8
     # SQL 脚本占位符前缀（避免与 MyBatis 冲突）
     placeholder-replacement: false
     # 校验迁移脚本（线上未使用Flyway，首次引入时设为false）
-    validate-on-migrate: true
+    validate-on-migrate: false
     # 允许乱序迁移（生产环境建议false）
     out-of-order: false
     # 清理模式（生产环境必须false）
