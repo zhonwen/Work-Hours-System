@@ -189,13 +189,6 @@ const fetchUserMenus = async () => {
 
 // 处理菜单选择事件
 const handleMenuSelect = (index: string) => {
-  console.log('菜单选择:', index)
-  if (index && index.startsWith('/')) {
-    router.push(index).catch(err => {
-      console.error('路由跳转失败:', err)
-    })
-  }
-}
   try {
     const menus = await getUserMenuTree()
     menuTree.value = menus
