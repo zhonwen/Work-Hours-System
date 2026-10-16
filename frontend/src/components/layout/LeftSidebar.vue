@@ -15,6 +15,7 @@
       v-if="menuTree.length > 0"
       :default-active="activeMenu"
       :collapse="isCollapse"
+      @select="handleMenuSelect"
       router
       class="sidebar-menu"
     >
@@ -176,6 +177,25 @@ const userAvatar = ref('')
 
 // 加载用户菜单
 const fetchUserMenus = async () => {
+  try {
+    const menus = await getUserMenuTree()
+    menuTree.value = menus
+    console.log('菜单加载成功:', menus)
+  } catch (error) {
+    console.error('加载菜单失败:', error)
+    ElMessage.error('加载菜单失败')
+  }
+}
+
+// 处理菜单选择事件
+const handleMenuSelect = (index: string) => {
+  console.log('菜单选择:', index)
+  if (index && index.startsWith('/')) {
+    router.push(index).catch(err => {
+      console.error('路由跳转失败:', err)
+    })
+  }
+}
   try {
     const menus = await getUserMenuTree()
     menuTree.value = menus
