@@ -11,7 +11,7 @@
     <groupId>com.teammaster</groupId>
     <artifactId>teammaster</artifactId>
     <version>1.0.0-SNAPSHOT</version>
-    <name>TeamMaster</name>
+    <name>TeamChron</name>
     <description>统领工时管理平台</description>
     <properties>
         <java.version>1.8</java.version>

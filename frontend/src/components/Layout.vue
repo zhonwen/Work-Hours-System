@@ -8,8 +8,8 @@
         :data-theme-type="themeStore.currentTheme.sidebarType"
       >
         <div class="logo-container">
-          <img src="@/assets/logo/logo-tm-letters.svg" alt="TeamMaster" class="logo-icon" :width="isCollapse ? 28 : 32" />
-          <span v-if="!isCollapse" class="logo-text">TeamMaster</span>
+          <img src="@/assets/logo/logo-tm-letters.png" alt="TeamChron" class="logo-icon" :width="isCollapse ? 28 : 32" />
+          <span v-if="!isCollapse" class="logo-text">TeamChron</span>
         </div>
 
         <!-- 动态菜单 -->

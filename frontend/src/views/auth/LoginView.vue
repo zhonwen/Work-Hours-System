@@ -3,8 +3,8 @@
     <el-card class="login-card">
       <template #header>
         <div class="login-header">
-          <img src="@/assets/logo/logo-tm-letters.svg" alt="TeamMaster" class="login-logo" />
-          <h2>TeamMaster</h2>
+          <img src="@/assets/logo/logo-tm-letters.png" alt="TeamChron" class="login-logo" />
+          <h2>TeamChron</h2>
           <p class="login-subtitle">统领工时管理平台</p>
         </div>
       </template>
@@ -128,7 +128,7 @@ const handleLogin = async () => {
 
 .login-logo {
   width: 64px;
-  height: 64px;
+  object-fit: cover;
   margin-bottom: 10px;
 }
 

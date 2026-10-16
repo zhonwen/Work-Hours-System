@@ -4,7 +4,7 @@
       <template #header>
         <div class="card-header">
           <h2>用户注册</h2>
-          <p class="subtitle">TeamMaster - 统领工时管理平台</p>
+          <p class="subtitle">TeamChron - 统领工时管理平台</p>
         </div>
       </template>
 

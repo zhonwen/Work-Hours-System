@@ -1,7 +1,7 @@
 {
-  "name": "teammaster-frontend",
+  "name": "teamchron-frontend",
   "version": "1.0.0",
-  "description": "TeamMaster 统领工时管理平台 - 前端应用",
+  "description": "TeamChron 统领工时管理平台 - 前端应用",
   "type": "module",
   "scripts": {
     "dev": "vite --port 3000",
