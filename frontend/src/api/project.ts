@@ -24,6 +24,7 @@ export interface ProjectCreateReq {
   description?: string
   managerId: number
   status: string
+  memberIds?: number[] // 新增：参与成员ID列表
 }
 
 export const createProject = (data: ProjectCreateReq) => {
@@ -36,6 +37,7 @@ export interface ProjectUpdateReq {
   name?: string
   description?: string
   status?: string
+  memberIds?: number[] // 新增：参与成员ID列表
 }
 
 export const updateProject = (data: ProjectUpdateReq) => {

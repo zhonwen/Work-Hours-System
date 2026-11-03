@@ -10,6 +10,7 @@ import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
 import javax.validation.constraints.Size;
 import java.time.LocalDate;
+import java.util.List;
 
 /**
  * 项目更新请求（继承公共字段 + 更新专属字段）
@@ -56,6 +57,9 @@ public class ProjectUpdateReq {
     @Schema(description = "实际结束日期（格式：yyyy-MM-dd）", example = "2025-12-25")
     @DateTimeFormat(pattern = "yyyy-MM-dd")
     private LocalDate actualEndDate;
+
+    @Schema(description = "参与成员ID列表（更新项目时批量添加/移除成员）", example = "[1, 2, 3]")
+    private List<Long> memberIds;
 
     // Getter and Setter
     public Long getId() {
@@ -147,5 +151,13 @@ public class ProjectUpdateReq {
 
     public void setActualEndDate(LocalDate actualEndDate) {
         this.actualEndDate = actualEndDate;
+    }
+
+    public List<Long> getMemberIds() {
+        return memberIds;
+    }
+
+    public void setMemberIds(List<Long> memberIds) {
+        this.memberIds = memberIds;
     }
 }

@@ -324,6 +324,10 @@ const getRoleType = (roleType: number) => {
   border-bottom: 1px solid #f0f0f0;
 }
 
+.section-header .el-button {
+  flex-shrink: 0;
+}
+
 /* 成员列表 */
 .member-list {
   display: flex;

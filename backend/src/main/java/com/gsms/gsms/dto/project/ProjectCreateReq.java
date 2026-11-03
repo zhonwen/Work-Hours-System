@@ -10,6 +10,7 @@ import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Pattern;
 import javax.validation.constraints.Size;
 import java.time.LocalDate;
+import java.util.List;
 
 /**
  * 项目创建请求（继承公共字段）
@@ -50,6 +51,9 @@ public class ProjectCreateReq {
     @Schema(description = "计划结束日期（格式：yyyy-MM-dd）", example = "2025-12-31")
     @DateTimeFormat(pattern = "yyyy-MM-dd")
     private LocalDate planEndDate;
+
+    @Schema(description = "参与成员ID列表（创建项目时批量添加成员）", example = "[1, 2, 3]")
+    private List<Long> memberIds;
 
     // Getter and Setter
     public String getName() {
@@ -114,5 +118,13 @@ public class ProjectCreateReq {
 
     public void setPlanEndDate(LocalDate planEndDate) {
         this.planEndDate = planEndDate;
+    }
+
+    public List<Long> getMemberIds() {
+        return memberIds;
+    }
+
+    public void setMemberIds(List<Long> memberIds) {
+        this.memberIds = memberIds;
     }
 }

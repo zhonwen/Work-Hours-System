@@ -1,7 +1,7 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios'
-import { ElMessage } from 'element-plus'
 import router from '@/router'
 import { useAuthStore } from '@/stores/auth'
+import { message as toast } from '@/utils/message'
 
 // 创建 axios 实例
 const service: AxiosInstance = axios.create({
@@ -57,8 +57,8 @@ service.interceptors.response.use(
       return resultData
     }
 
-    // 业务错误
-    ElMessage.error(message || '请求失败')
+    // 业务错误（节流，避免与页面 catch 重复弹窗）
+    toast.error(message || '请求失败')
     return Promise.reject(new Error(message || '请求失败'))
   },
   (error) => {
@@ -70,7 +70,7 @@ service.interceptors.response.use(
 
       switch (status) {
         case 401: {
-          ElMessage.error('未授权，请重新登录')
+          toast.error('未授权，请重新登录')
           // 清除认证信息并跳转到登录页
           const authStore = useAuthStore()
           authStore.clearAuth()
@@ -78,21 +78,21 @@ service.interceptors.response.use(
           break
         }
         case 403:
-          ElMessage.error('没有权限访问')
+          toast.error('没有权限访问')
           break
         case 404:
-          ElMessage.error('请求的资源不存在')
+          toast.error('请求的资源不存在')
           break
         case 500:
-          ElMessage.error('服务器错误')
+          toast.error('服务器错误')
           break
         default:
-          ElMessage.error(error.response.data?.message || '请求失败')
+          toast.error(error.response.data?.message || '请求失败')
       }
     } else if (error.request) {
-      ElMessage.error('网络错误，请检查网络连接')
+      toast.error('网络错误，请检查网络连接')
     } else {
-      ElMessage.error('请求失败，请稍后重试')
+      toast.error('请求失败，请稍后重试')
     }
 
     return Promise.reject(error)

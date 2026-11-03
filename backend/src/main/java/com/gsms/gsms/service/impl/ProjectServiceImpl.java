@@ -17,6 +17,7 @@ import com.gsms.gsms.infra.exception.BusinessException;
 import com.gsms.gsms.infra.utils.UserContext;
 import com.gsms.gsms.repository.ProjectMapper;
 import com.gsms.gsms.repository.ProjectMemberMapper;
+import com.gsms.gsms.repository.UserMapper;
 import com.gsms.gsms.service.AuthService;
 import com.gsms.gsms.service.ProjectService;
 import com.gsms.gsms.service.CacheService;
@@ -39,13 +40,15 @@ public class ProjectServiceImpl implements ProjectService {
 
     private final ProjectMapper projectMapper;
     private final ProjectMemberMapper projectMemberMapper;
+    private final UserMapper userMapper;
     private final AuthService authService;
     private final CacheService cacheService;
 
     public ProjectServiceImpl(ProjectMapper projectMapper, ProjectMemberMapper projectMemberMapper,
-                             AuthService authService, CacheService cacheService) {
+                             UserMapper userMapper, AuthService authService, CacheService cacheService) {
         this.projectMapper = projectMapper;
         this.projectMemberMapper = projectMemberMapper;
+        this.userMapper = userMapper;
         this.authService = authService;
         this.cacheService = cacheService;
     }
@@ -167,6 +170,42 @@ public class ProjectServiceImpl implements ProjectService {
         // 注意：MyBatis会自动将生成的ID回填到project对象中，无需反查数据库
         projectMemberMapper.insertProjectMember(project.getId(), currentUserId, 1, currentUserId);
 
+        // 确保项目经理是项目成员（如果项目经理不是创建人）
+        if (project.getManagerId() != null && !project.getManagerId().equals(currentUserId)) {
+            // 检查项目经理是否已经在成员列表中
+            boolean managerInList = createReq.getMemberIds() != null && createReq.getMemberIds().contains(project.getManagerId());
+            if (!managerInList) {
+                // 验证用户存在
+                if (userMapper.selectById(project.getManagerId()) == null) {
+                    throw new BusinessException(CommonErrorCode.NOT_FOUND);
+                }
+                // 添加项目经理为项目管理员（角色类型：1）
+                projectMemberMapper.insertProjectMember(project.getId(), project.getManagerId(), 1, currentUserId);
+                log.info("添加项目经理为项目成员: projectId={}, managerId={}", project.getId(), project.getManagerId());
+            }
+        }
+
+        // 批量添加参与成员（如果提供了成员列表）
+        if (createReq.getMemberIds() != null && !createReq.getMemberIds().isEmpty()) {
+            for (Long memberId : createReq.getMemberIds()) {
+                // 跳过创建人（已经添加）
+                if (memberId.equals(currentUserId)) {
+                    continue;
+                }
+                // 跳过项目经理（已经添加）
+                if (memberId.equals(project.getManagerId())) {
+                    continue;
+                }
+                // 验证用户存在
+                if (userMapper.selectById(memberId) == null) {
+                    throw new BusinessException(CommonErrorCode.NOT_FOUND);
+                }
+                // 添加为普通成员（角色类型：2）
+                projectMemberMapper.insertProjectMember(project.getId(), memberId, 2, currentUserId);
+            }
+            log.info("批量添加项目成员: projectId={}, memberCount={}", project.getId(), createReq.getMemberIds().size());
+        }
+
         return ProjectInfoResp.from(project);
     }
 
@@ -195,6 +234,44 @@ public class ProjectServiceImpl implements ProjectService {
             throw new BusinessException(ProjectErrorCode.PROJECT_UPDATE_FAILED);
         }
 
+        // 处理成员列表更新（如果提供了成员列表）
+        if (updateReq.getMemberIds() != null) {
+            // 获取当前项目成员
+            List<Long> currentMemberIds = projectMemberMapper.selectUserIdsByProjectId(project.getId());
+
+            // 移除不在新列表中的成员
+            for (Long currentMemberId : currentMemberIds) {
+                if (!updateReq.getMemberIds().contains(currentMemberId)) {
+                    // 移除成员（软删除）
+                    projectMemberMapper.deleteProjectMember(project.getId(), currentMemberId);
+                    log.info("移除项目成员: projectId={}, userId={}", project.getId(), currentMemberId);
+                }
+            }
+
+            // 添加新成员
+            for (Long newMemberId : updateReq.getMemberIds()) {
+                if (!currentMemberIds.contains(newMemberId)) {
+                    // 验证用户存在
+                    if (userMapper.selectById(newMemberId) == null) {
+                        throw new BusinessException(CommonErrorCode.NOT_FOUND);
+                    }
+                    // 添加为普通成员（角色类型：2）
+                    projectMemberMapper.insertProjectMember(project.getId(), newMemberId, 2, currentUserId);
+                    log.info("添加项目成员: projectId={}, userId={}", project.getId(), newMemberId);
+                }
+            }
+        }
+
+        // 确保项目经理是项目成员
+        if (project.getManagerId() != null) {
+            List<Long> currentMemberIds = projectMemberMapper.selectUserIdsByProjectId(project.getId());
+            if (!currentMemberIds.contains(project.getManagerId())) {
+                // 如果项目经理不是成员，添加为项目管理员（角色类型：1）
+                projectMemberMapper.insertProjectMember(project.getId(), project.getManagerId(), 1, currentUserId);
+                log.info("添加项目经理为项目成员: projectId={}, managerId={}", project.getId(), project.getManagerId());
+            }
+        }
+
         Project updatedProject = projectMapper.selectById(project.getId());
         return ProjectInfoResp.from(updatedProject);
     }
@@ -212,6 +289,16 @@ public class ProjectServiceImpl implements ProjectService {
             throw new BusinessException(ProjectErrorCode.PROJECT_NOT_FOUND);
         }
 
+        // 修改项目编码，添加删除日期和项目ID后缀，确保绝对唯一
+        String oldCode = existProject.getCode();
+        String dateSuffix = java.time.LocalDate.now().toString().replace("-", "");
+        String newCode = oldCode + "_deleted_" + dateSuffix + "_" + id;
+        existProject.setCode(newCode);
+        existProject.setUpdateUserId(currentUserId);
+        projectMapper.update(existProject);
+        log.info("修改删除项目编码: projectId={}, oldCode={}, newCode={}", id, oldCode, newCode);
+
+        // 软删除项目
         int result = projectMapper.deleteById(id);
         if (result <= 0) {
             throw new BusinessException(ProjectErrorCode.PROJECT_DELETE_FAILED);

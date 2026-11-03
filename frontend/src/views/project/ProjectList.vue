@@ -172,8 +172,21 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item :icon="View" @click.native="handleView(row)">查看详情</el-dropdown-item>
-                  <el-dropdown-item :icon="Edit" @click.native="handleEdit(row)">编辑项目</el-dropdown-item>
-                  <el-dropdown-item :icon="Delete" divided @click.native="handleDelete(row)">删除项目</el-dropdown-item>
+                  <el-dropdown-item
+                    v-if="canManageProject"
+                    :icon="Edit"
+                    @click.native="handleEdit(row)"
+                  >
+                    编辑项目
+                  </el-dropdown-item>
+                  <el-dropdown-item
+                    v-if="canManageProject"
+                    :icon="Delete"
+                    divided
+                    @click.native="handleDelete(row)"
+                  >
+                    删除项目
+                  </el-dropdown-item>
                 </el-dropdown-menu>
               </template>
             </el-dropdown>
@@ -301,6 +314,27 @@
           />
         </el-form-item>
 
+        <!-- 参与成员（新建和编辑时都可以选择） -->
+        <el-form-item label="参与成员">
+          <el-select
+            v-model="formData.memberIds"
+            placeholder="请选择参与成员（可多选）"
+            multiple
+            filterable
+            style="width: 100%"
+          >
+            <el-option
+              v-for="user in userList"
+              :key="user.id"
+              :label="user.nickname"
+              :value="user.id"
+            />
+          </el-select>
+          <div style="font-size: 12px; color: #909399; margin-top: 4px;">
+            💡 提示：选择的成员将自动加入项目，默认角色为"普通成员"
+          </div>
+        </el-form-item>
+
         <!-- 项目状态（隐藏，创建时默认 NOT_STARTED） -->
         <el-form-item v-if="formData.id" label="项目状态" prop="status">
           <el-select v-model="formData.status" placeholder="请选择项目状态" style="width: 100%">
@@ -336,17 +370,27 @@ import {
   View,
   Calendar
 } from '@element-plus/icons-vue'
-import { getProjectList, createProject, updateProject, deleteProject } from '@/api/project'
+import { getProjectList, createProject, updateProject, deleteProject, getProjectMembers } from '@/api/project'
 import { getAllUsers, type UserInfo } from '@/api/user'
 import { getProjectStatusOptions, getProjectStatusInfo } from '@/utils/statusMapping'
+import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
+const authStore = useAuthStore()
 
 // 视图模式（默认列表）
 const viewMode = ref<'kanban' | 'table'>('table')
 
 // 项目状态配置
 const projectStatuses = getProjectStatusOptions()
+
+// 检查用户是否可以管理项目（系统管理员或项目经理）
+const canManageProject = computed(() => {
+  const userRoles = authStore.userRoles
+  if (!userRoles || userRoles.length === 0) return false
+  // 只有系统管理员和项目经理可以管理项目
+  return userRoles.some(role => role.code === 'ADMIN' || role.code === 'PROJECT_MANAGER')
+})
 
 // 拖拽相关
 const draggedProject = ref<any>(null)
@@ -453,7 +497,8 @@ const formData = reactive({
   managerId: undefined as number | undefined,
   status: 'NOT_STARTED',
   planStartDate: '',
-  planEndDate: ''
+  planEndDate: '',
+  memberIds: [] as number[] // 新增：参与成员ID列表
 })
 
 // 表单规则（动态计算，编辑时不需要验证项目类型）
@@ -519,9 +564,19 @@ const handleGantt = (project: ProjectInfo) => {
 }
 
 // 编辑项目
-const handleEdit = (project: ProjectInfo) => {
+const handleEdit = async (project: ProjectInfo) => {
   dialogTitle.value = '编辑项目'
   dialogVisible.value = true
+
+  // 获取项目成员列表
+  let memberIds: number[] = []
+  try {
+    const members = await getProjectMembers(project.id)
+    memberIds = members.map((m: any) => m.userId)
+  } catch (error) {
+    console.error('获取项目成员失败:', error)
+  }
+
   Object.assign(formData, {
     id: project.id,
     name: project.name,
@@ -531,7 +586,8 @@ const handleEdit = (project: ProjectInfo) => {
     managerId: project.managerId,
     status: project.status,
     planStartDate: project.planStartDate || '',
-    planEndDate: project.planEndDate || ''
+    planEndDate: project.planEndDate || '',
+    memberIds: memberIds
   })
 }
 
@@ -590,7 +646,8 @@ const handleSubmit = async () => {
             managerId: formData.managerId,
             status: formData.status,
             planStartDate: formData.planStartDate || undefined,
-            planEndDate: formData.planEndDate || undefined
+            planEndDate: formData.planEndDate || undefined,
+            memberIds: formData.memberIds // 新增：传递参与成员ID列表
           })
           ElMessage.success('更新成功')
         } else {
@@ -601,7 +658,8 @@ const handleSubmit = async () => {
             description: formData.description,
             managerId: formData.managerId!,
             planStartDate: formData.planStartDate || undefined,
-            planEndDate: formData.planEndDate || undefined
+            planEndDate: formData.planEndDate || undefined,
+            memberIds: formData.memberIds // 新增：传递参与成员ID列表
           })
           ElMessage.success('创建成功')
         }

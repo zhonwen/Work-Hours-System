@@ -141,7 +141,8 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
+import { type FormInstance, type FormRules } from 'element-plus'
+import { message } from '@/utils/message'
 import { User, UserFilled, Message, Phone, Lock } from '@element-plus/icons-vue'
 import { register, type RegisterReq } from '@/api/auth'
 
@@ -228,11 +229,11 @@ const handleRegister = async () => {
     registerData.value = data
     registerSuccess.value = true
 
-    ElMessage.success('注册成功')
+    message.success('注册成功')
   } catch (error: any) {
-    if (error !== false) { // 表单验证失败时error为false
+    if (error !== false) { // 表单验证失败时error为false；业务错误已由拦截器提示，此处节流去重
       console.error('注册失败:', error)
-      ElMessage.error(error.message || '注册失败，请稍后重试')
+      message.error(error.message || '注册失败，请稍后重试')
     }
   } finally {
     loading.value = false

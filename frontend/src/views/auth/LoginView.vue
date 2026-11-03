@@ -42,10 +42,10 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
 import type { FormInstance } from 'element-plus'
 import { login } from '@/api/auth'
 import { useAuthStore } from '@/stores/auth'
+import { message } from '@/utils/message'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -102,7 +102,7 @@ const handleLogin = async () => {
         // 不阻塞登录流程，即使权限加载失败也允许用户进入
       }
 
-      ElMessage.success('登录成功')
+      message.success('登录成功')
 
       // 使用 setTimeout 确保状态更新完成后再跳转
       setTimeout(() => {
@@ -113,9 +113,10 @@ const handleLogin = async () => {
         })
       }, 100)
     } catch (error: unknown) {
+      // 业务错误已由 request 拦截器提示；此处仅兜底本地异常，并经节流去重
       console.error('登录错误:', error)
       const errorMsg = error instanceof Error ? error.message : '登录失败'
-      ElMessage.error(errorMsg)
+      message.error(errorMsg)
     } finally {
       loading.value = false
     }

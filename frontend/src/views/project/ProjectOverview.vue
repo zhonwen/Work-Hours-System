@@ -130,7 +130,12 @@
 
       <!-- 团队概览 -->
       <div class="team-section">
-        <h3 class="section-title">团队成员 ({{ memberCount }})</h3>
+        <div class="section-header">
+          <h3 class="section-title">团队成员 ({{ memberCount }})</h3>
+          <el-button type="primary" size="small" :icon="Plus" @click="handleAddMember">
+            添加成员
+          </el-button>
+        </div>
         <div class="member-grid">
           <div
             v-for="member in members.slice(0, 8)"
@@ -142,6 +147,14 @@
               <div class="member-name">{{ member.nickname }}</div>
               <div class="member-role">{{ getRoleText(member.roleType) }}</div>
             </div>
+            <el-button
+              link
+              type="danger"
+              size="small"
+              @click="handleRemoveMember(member)"
+            >
+              移除
+            </el-button>
           </div>
           <div v-if="members.length > 8" class="member-card more-members">
             <el-avatar :size="40">+{{ members.length - 8 }}</el-avatar>
@@ -206,13 +219,52 @@
         <el-empty v-else description="暂无最近活动" :image-size="80" />
       </div>
     </div>
+
+    <!-- 添加成员对话框 -->
+    <el-dialog
+      v-model="addMemberDialogVisible"
+      title="添加项目成员"
+      width="500px"
+      :close-on-click-modal="false"
+    >
+      <el-form :model="memberFormData" label-width="100px">
+        <el-form-item label="选择用户">
+          <el-select
+            v-model="memberFormData.userId"
+            placeholder="请选择用户"
+            filterable
+            style="width: 100%"
+          >
+            <el-option
+              v-for="user in availableUsers"
+              :key="user.id"
+              :label="user.nickname"
+              :value="user.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="角色类型">
+          <el-radio-group v-model="memberFormData.roleType">
+            <el-radio :value="1">项目管理员</el-radio>
+            <el-radio :value="2">普通成员</el-radio>
+            <el-radio :value="3">只读访客</el-radio>
+          </el-radio-group>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="addMemberDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="handleAddMemberSubmit" :loading="addMemberLoading">
+          确定
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Calendar,
   User,
@@ -221,9 +273,11 @@ import {
   Clock,
   TrendCharts,
   Timer,
-  Warning
+  Warning,
+  Plus
 } from '@element-plus/icons-vue'
-import { getProjectDetail, getProjectMembers, type ProjectMember } from '@/api/project'
+import { getProjectDetail, getProjectMembers, addProjectMember, removeProjectMember, type ProjectMember } from '@/api/project'
+import { getAllUsers, type UserInfo } from '@/api/user'
 import { getTasksByProjectId, type TaskInfo } from '@/api/task'
 import { getIterationList, type IterationInfo } from '@/api/iteration'
 
@@ -237,8 +291,17 @@ const project = ref<any>(null)
 const members = ref<ProjectMember[]>([])
 const tasks = ref<TaskInfo[]>([])
 const iterations = ref<IterationInfo[]>([])
+const availableUsers = ref<UserInfo[]>([])
 const loading = ref(false)
 const router = useRouter()
+
+// 添加成员对话框
+const addMemberDialogVisible = ref(false)
+const addMemberLoading = ref(false)
+const memberFormData = ref({
+  userId: undefined as number | undefined,
+  roleType: 2 // 默认为普通成员
+})
 
 // 关键指标
 const metrics = reactive({
@@ -290,6 +353,16 @@ const fetchMembers = async () => {
     members.value = res || []
   } catch (error) {
     console.error('获取项目成员失败:', error)
+  }
+}
+
+// 获取可用用户列表
+const fetchAvailableUsers = async () => {
+  try {
+    const res = await getAllUsers()
+    availableUsers.value = res.list || []
+  } catch (error) {
+    console.error('获取用户列表失败:', error)
   }
 }
 
@@ -434,6 +507,7 @@ onMounted(async () => {
     await Promise.all([
       fetchProject(),
       fetchMembers(),
+      fetchAvailableUsers(),
       fetchTasks(),
       fetchIterations()
     ])
@@ -441,6 +515,59 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+// 打开添加成员对话框
+const handleAddMember = () => {
+  memberFormData.value = {
+    userId: undefined,
+    roleType: 2
+  }
+  addMemberDialogVisible.value = true
+}
+
+// 提交添加成员
+const handleAddMemberSubmit = async () => {
+  if (!memberFormData.value.userId) {
+    ElMessage.warning('请选择用户')
+    return
+  }
+
+  addMemberLoading.value = true
+  try {
+    await addProjectMember(props.projectId, memberFormData.value.userId, memberFormData.value.roleType)
+    ElMessage.success('添加成功')
+    addMemberDialogVisible.value = false
+    await fetchMembers()
+  } catch (error) {
+    console.error('添加成员失败:', error)
+    ElMessage.error('添加失败')
+  } finally {
+    addMemberLoading.value = false
+  }
+}
+
+// 移除成员
+const handleRemoveMember = async (member: ProjectMember) => {
+  try {
+    await ElMessageBox.confirm(
+      `确定要移除成员 "${member.nickname}" 吗？移除后将无法访问此项目。`,
+      '警告',
+      {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+    await removeProjectMember(props.projectId, member.userId)
+    ElMessage.success('移除成功')
+    await fetchMembers()
+  } catch (error) {
+    if (error !== 'cancel') {
+      console.error('移除成员失败:', error)
+      ElMessage.error('移除失败')
+    }
+  }
+}
 </script>
 
 <style scoped>
@@ -623,6 +750,13 @@ onMounted(async () => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
 .member-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -637,6 +771,7 @@ onMounted(async () => {
   background: #f5f5f5;
   border-radius: 6px;
   transition: all 0.3s;
+  position: relative;
 }
 
 .member-card:hover {

@@ -93,7 +93,7 @@
     <select id="selectByCode" parameterType="java.lang.String" resultMap="ProjectResultMap">
         SELECT <include refid="selectAllFields"/>
         FROM gsms_project
-        WHERE code = #{code}
+        WHERE code = #{code} AND is_deleted = 0
     </select>
 
     <!-- 根据编码前缀查询最大编号 -->

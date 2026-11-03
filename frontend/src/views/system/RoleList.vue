@@ -163,10 +163,17 @@
         stripe
         border
         max-height="500"
-        @selection-change="handlePermissionSelectionChange"
         row-key="id"
       >
-        <el-table-column type="selection" width="55" :reserve-selection="true" />
+        <el-table-column width="55">
+          <template #default="{ row }">
+            <el-checkbox
+              v-model="row.selected"
+              :disabled="!isRowSelectable(row)"
+              @change="handleCheckboxChange(row)"
+            />
+          </template>
+        </el-table-column>
         <el-table-column prop="module" label="模块" width="120" />
         <el-table-column prop="permissionType" label="权限类型" width="100">
           <template #default="{ row }">
@@ -207,7 +214,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, nextTick, watch } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { Plus, Search } from '@element-plus/icons-vue'
 import {
@@ -271,18 +278,45 @@ const selectedPermissions = ref<PermissionInfo[]>([])
 const allPermissions = ref<PermissionInfo[]>([])
 const permissionActiveTab = ref('0') // '0':全部 '1':功能 '2':菜单 '3':数据
 const permissionTableData = computed(() => {
+  const currentTab = parseInt(permissionActiveTab.value)
+  // 根据选中的标签页过滤权限
   let permissions = allPermissions.value.map(p => ({
     ...p,
-    module: getModuleFromCode(p.code)
+    module: getModuleFromCode(p.code),
+    selected: selectedPermissions.value.some(sp => sp.id === p.id) // 添加selected字段
   }))
 
-  // 根据选中的标签页过滤权限
-  const currentTab = parseInt(permissionActiveTab.value)
   if (currentTab !== 0) {
     permissions = permissions.filter(p => p.permissionType === currentTab)
   }
 
   return permissions
+})
+
+// 判断某一行是否可以被选中（基于当前tab）
+const isRowSelectable = (row: any) => {
+  const currentTab = parseInt(permissionActiveTab.value)
+  // tab=0显示全部，否则只显示对应类型的权限
+  return currentTab === 0 || row.permissionType === currentTab
+}
+
+// 复选框变化处理
+const handleCheckboxChange = (row: any) => {
+  if (row.selected) {
+    // 添加到选中列表
+    if (!selectedPermissions.value.some(p => p.id === row.id)) {
+      selectedPermissions.value.push(row)
+    }
+  } else {
+    // 从选中列表移除
+    selectedPermissions.value = selectedPermissions.value.filter(p => p.id !== row.id)
+  }
+}
+
+// 监听tab变化，更新选中状态
+watch(permissionActiveTab, () => {
+  // tab变化时，需要重新计算每行的selected字段
+  // computed会自动处理
 })
 
 // 用户对话框
@@ -419,25 +453,15 @@ const handleAssignPermissions = async (row: RoleInfo) => {
     )
 
     permissionDialogVisible.value = true
-
-    // 等待DOM更新后设置选中状态
-    setTimeout(() => {
-      if (permissionTableRef.value) {
-        permissionTableRef.value.clearSelection()
-        selectedPermissions.value.forEach(row => {
-          permissionTableRef.value!.toggleRowSelection(row, true)
-        })
-      }
-    }, 100)
   } catch (error) {
     console.error('加载权限失败:', error)
     ElMessage.error('加载权限失败')
   }
 }
 
-// 权限选择变化
+// 权限选择变化（不再使用，改用复选框）
 const handlePermissionSelectionChange = (selection: PermissionInfo[]) => {
-  selectedPermissions.value = selection
+  // 不再使用表格的selection机制
 }
 
 // 全选
@@ -452,20 +476,7 @@ const handleClearAll = () => {
 
 // 权限类型标签页切换
 const handlePermissionTabChange = (value: string) => {
-  const typeNum = parseInt(value)
-  // 切换标签页时清空当前选择，避免混淆
-  permissionTableRef.value?.clearSelection()
-  // 重新设置选中状态
-  setTimeout(() => {
-    if (permissionTableRef.value) {
-      selectedPermissions.value.forEach(row => {
-        // 只选中当前标签页中显示的权限
-        if (typeNum === 0 || row.permissionType === typeNum) {
-          permissionTableRef.value!.toggleRowSelection(row, true)
-        }
-      })
-    }
-  }, 100)
+  // 不需要手动处理，computed会自动重新计算selected字段
 }
 
 // 获取权限类型名称
@@ -541,11 +552,21 @@ const formatDate = (dateStr: string) => {
 }
 
 const getModuleFromCode = (code: string): string => {
-  if (code.startsWith('PROJECT_')) return '项目管理'
-  if (code.startsWith('TASK_')) return '任务管理'
-  if (code.startsWith('WORKHOUR_')) return '工时管理'
-  if (code.startsWith('USER_')) return '用户管理'
-  if (code.startsWith('ROLE_')) return '角色管理'
+  if (code.startsWith('MENU_PROJECT') || code.startsWith('PROJECT_')) return '项目管理'
+  if (code.startsWith('MENU_TASK') || code.startsWith('TASK_')) return '任务管理'
+  if (code.startsWith('MENU_WORKHOUR_CALENDAR') || code.startsWith('WORKHOUR_CALENDAR_')) return '工时日历管理'
+  if (code.startsWith('MENU_WORKHOUR') || code.startsWith('WORKHOUR_')) return '工时管理'
+  if (code.startsWith('MENU_STATISTICS') || code.startsWith('STATISTICS_')) return '统计分析'
+  if (
+    code.startsWith('MENU_SYSTEM') ||
+    code.startsWith('USER_') ||
+    code.startsWith('ROLE_') ||
+    code.startsWith('PERMISSION_') ||
+    code.startsWith('DEPARTMENT_') ||
+    code.startsWith('OPERATION_LOG_')
+  ) {
+    return '系统管理'
+  }
   return '其他'
 }
 </script>
