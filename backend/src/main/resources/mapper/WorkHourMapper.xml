@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.gsms.gsms.repository.WorkHourMapper">
-    <!-- 结果映射 -->
     <resultMap id="WorkHourResultMap" type="com.gsms.gsms.model.entity.WorkHour">
         <id column="id" property="id"/>
         <result column="user_id" property="userId"/>
@@ -12,6 +11,10 @@
         <result column="work_date" property="workDate"/>
         <result column="hours" property="hours"/>
         <result column="content" property="content"/>
+        <result column="record_type" property="recordType"
+                typeHandler="com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler"/>
+        <result column="leave_type_id" property="leaveTypeId"/>
+        <result column="leave_type_name" property="leaveTypeName"/>
         <result column="status" property="status"
                 typeHandler="com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler"/>
         <result column="create_user_id" property="createUserId"/>
@@ -20,64 +23,78 @@
         <result column="is_deleted" property="isDeleted"/>
     </resultMap>
 
-    <!-- 查询所有字段（包含关联的项目和任务名称） -->
     <sql id="selectAllFieldsWithJoins">
         wh.id, wh.user_id, wh.project_id, p.name as project_name, wh.task_id, t.title as task_name,
-        wh.work_date, wh.hours, wh.content, wh.status, wh.create_user_id, wh.update_user_id,
-        wh.create_time, wh.update_time, wh.is_deleted
+        wh.work_date, wh.hours, wh.content, wh.record_type, wh.leave_type_id, lt.name as leave_type_name,
+        wh.status, wh.create_user_id, wh.update_user_id, wh.create_time, wh.update_time, wh.is_deleted
     </sql>
 
-    <!-- 根据ID查询工时记录（INNER JOIN 项目：排除所属项目已软删的工时） -->
+    <!-- 请假记录无项目；正常工时需项目未删除 -->
+    <sql id="visibleWorkHourFilter">
+        AND wh.is_deleted = 0
+        AND (
+            wh.record_type = 2
+            OR (wh.project_id IS NOT NULL AND p.id IS NOT NULL)
+        )
+    </sql>
+
     <select id="selectById" parameterType="long" resultMap="WorkHourResultMap">
         SELECT <include refid="selectAllFieldsWithJoins"/>
         FROM gsms_work_hour wh
-        INNER JOIN gsms_project p ON wh.project_id = p.id AND p.is_deleted = 0
+        LEFT JOIN gsms_project p ON wh.project_id = p.id AND p.is_deleted = 0
         LEFT JOIN gsms_task t ON wh.task_id = t.id AND t.is_deleted = 0
-        WHERE wh.id = #{id} AND wh.is_deleted = 0
+        LEFT JOIN gsms_leave_type lt ON wh.leave_type_id = lt.id AND lt.is_deleted = 0
+        WHERE wh.id = #{id}
+        <include refid="visibleWorkHourFilter"/>
     </select>
 
-    <!-- 根据用户ID查询工时记录 -->
     <select id="selectByUserId" parameterType="long" resultMap="WorkHourResultMap">
         SELECT <include refid="selectAllFieldsWithJoins"/>
         FROM gsms_work_hour wh
-        INNER JOIN gsms_project p ON wh.project_id = p.id AND p.is_deleted = 0
+        LEFT JOIN gsms_project p ON wh.project_id = p.id AND p.is_deleted = 0
         LEFT JOIN gsms_task t ON wh.task_id = t.id AND t.is_deleted = 0
-        WHERE wh.user_id = #{userId} AND wh.is_deleted = 0
+        LEFT JOIN gsms_leave_type lt ON wh.leave_type_id = lt.id AND lt.is_deleted = 0
+        WHERE wh.user_id = #{userId}
+        <include refid="visibleWorkHourFilter"/>
         ORDER BY wh.work_date DESC, wh.create_time DESC
     </select>
 
-    <!-- 根据项目ID查询工时记录 -->
     <select id="selectByProjectId" parameterType="long" resultMap="WorkHourResultMap">
         SELECT <include refid="selectAllFieldsWithJoins"/>
         FROM gsms_work_hour wh
-        INNER JOIN gsms_project p ON wh.project_id = p.id AND p.is_deleted = 0
+        LEFT JOIN gsms_project p ON wh.project_id = p.id AND p.is_deleted = 0
         LEFT JOIN gsms_task t ON wh.task_id = t.id AND t.is_deleted = 0
-        WHERE wh.project_id = #{projectId} AND wh.is_deleted = 0
+        LEFT JOIN gsms_leave_type lt ON wh.leave_type_id = lt.id AND lt.is_deleted = 0
+        WHERE wh.project_id = #{projectId}
+          AND wh.record_type = 1
+        <include refid="visibleWorkHourFilter"/>
         ORDER BY wh.work_date DESC, wh.create_time DESC
     </select>
 
-    <!-- 根据任务ID查询工时记录 -->
     <select id="selectByTaskId" parameterType="long" resultMap="WorkHourResultMap">
         SELECT <include refid="selectAllFieldsWithJoins"/>
         FROM gsms_work_hour wh
-        INNER JOIN gsms_project p ON wh.project_id = p.id AND p.is_deleted = 0
+        LEFT JOIN gsms_project p ON wh.project_id = p.id AND p.is_deleted = 0
         LEFT JOIN gsms_task t ON wh.task_id = t.id AND t.is_deleted = 0
-        WHERE wh.task_id = #{taskId} AND wh.is_deleted = 0
+        LEFT JOIN gsms_leave_type lt ON wh.leave_type_id = lt.id AND lt.is_deleted = 0
+        WHERE wh.task_id = #{taskId}
+        <include refid="visibleWorkHourFilter"/>
         ORDER BY wh.work_date DESC, wh.create_time DESC
     </select>
 
-    <!-- 根据条件查询工时记录 -->
     <select id="selectByCondition" resultMap="WorkHourResultMap">
         SELECT <include refid="selectAllFieldsWithJoins"/>
         FROM gsms_work_hour wh
-        INNER JOIN gsms_project p ON wh.project_id = p.id AND p.is_deleted = 0
+        LEFT JOIN gsms_project p ON wh.project_id = p.id AND p.is_deleted = 0
         LEFT JOIN gsms_task t ON wh.task_id = t.id AND t.is_deleted = 0
+        LEFT JOIN gsms_leave_type lt ON wh.leave_type_id = lt.id AND lt.is_deleted = 0
         <where>
             <if test="userId != null">
                 AND wh.user_id = #{userId}
             </if>
             <if test="projectId != null">
                 AND wh.project_id = #{projectId}
+                AND wh.record_type = 1
             </if>
             <if test="taskId != null">
                 AND wh.task_id = #{taskId}
@@ -88,30 +105,33 @@
             <if test="endDate != null">
                 AND wh.work_date &lt;= #{endDate}
             </if>
-            AND wh.is_deleted = 0
+            <include refid="visibleWorkHourFilter"/>
         </where>
         ORDER BY wh.work_date DESC, wh.create_time DESC
     </select>
 
-    <!-- 插入工时记录 -->
     <insert id="insert" parameterType="com.gsms.gsms.model.entity.WorkHour"
             useGeneratedKeys="true" keyProperty="id">
-        INSERT INTO gsms_work_hour(user_id, project_id, task_id, work_date, hours, content, status, create_user_id, update_user_id)
-        VALUES(#{userId}, #{projectId}, #{taskId}, #{workDate}, #{hours}, #{content}, 
-               #{status, typeHandler=com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler}, 
+        INSERT INTO gsms_work_hour(user_id, project_id, task_id, work_date, hours, content,
+                                   record_type, leave_type_id, status, create_user_id, update_user_id)
+        VALUES(#{userId}, #{projectId}, #{taskId}, #{workDate}, #{hours}, #{content},
+               #{recordType, typeHandler=com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler},
+               #{leaveTypeId},
+               #{status, typeHandler=com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler},
                #{createUserId}, #{updateUserId})
     </insert>
 
-    <!-- 更新工时记录 -->
     <update id="update" parameterType="com.gsms.gsms.model.entity.WorkHour">
         UPDATE gsms_work_hour
         <set>
             <if test="userId != null">user_id = #{userId},</if>
-            <if test="projectId != null">project_id = #{projectId},</if>
-            <if test="taskId != null">task_id = #{taskId},</if>
+            project_id = #{projectId},
+            task_id = #{taskId},
             <if test="workDate != null">work_date = #{workDate},</if>
             <if test="hours != null">hours = #{hours},</if>
-            <if test="content != null and content != ''">content = #{content},</if>
+            <if test="content != null">content = #{content},</if>
+            <if test="recordType != null">record_type = #{recordType, typeHandler=com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler},</if>
+            leave_type_id = #{leaveTypeId},
             <if test="status != null">status = #{status, typeHandler=com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler},</if>
             <if test="updateUserId != null">update_user_id = #{updateUserId},</if>
             update_time = CURRENT_TIMESTAMP
@@ -119,28 +139,26 @@
         WHERE id = #{id}
     </update>
 
-    <!-- 根据ID逻辑删除工时记录 -->
     <update id="deleteById" parameterType="long">
         UPDATE gsms_work_hour SET is_deleted = 1, update_time = CURRENT_TIMESTAMP WHERE id = #{id}
     </update>
 
-    <!-- 按项目逻辑删除工时（项目软删时级联） -->
     <update id="deleteByProjectId" parameterType="long">
         UPDATE gsms_work_hour
         SET is_deleted = 1, update_time = CURRENT_TIMESTAMP
         WHERE project_id = #{projectId} AND is_deleted = 0
     </update>
 
-    <!-- 查询项目成员的总工时 -->
+    <!-- 项目成员总工时：仅正常工时 -->
     <select id="selectTotalHoursByProjectIdAndUserId" resultType="java.lang.Double">
         SELECT COALESCE(SUM(hours), 0.0)
         FROM gsms_work_hour
         WHERE project_id = #{projectId}
         AND user_id = #{userId}
         AND is_deleted = 0
+        AND record_type = 1
     </select>
 
-    <!-- 查询项目成员在指定日期范围内的工时 -->
     <select id="selectTotalHoursByDateRange" resultType="java.lang.Double">
         SELECT COALESCE(SUM(hours), 0.0)
         FROM gsms_work_hour
@@ -149,5 +167,6 @@
         AND work_date >= #{startDate}
         AND work_date &lt;= #{endDate}
         AND is_deleted = 0
+        AND record_type = 1
     </select>
 </mapper>

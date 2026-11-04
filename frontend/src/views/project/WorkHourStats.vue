@@ -323,25 +323,22 @@ const fetchWorkHours = async () => {
 const calculateStats = () => {
   const list = workHourList.value
 
-  // 总工时
-  summary.totalHours = list.reduce((sum, item) => sum + item.hours, 0)
+  // 总工时及相关聚合均不含请假
+  const workList = list.filter(item => item.recordType !== 'LEAVE' && item.recordType !== 2)
+  summary.totalHours = workList.reduce((sum, item) => sum + Number(item.hours || 0), 0)
 
-  // 活跃成员数
-  const uniqueUsers = new Set(list.map(item => item.userId))
+  const uniqueUsers = new Set(workList.map(item => item.userId))
   summary.activeMembers = uniqueUsers.size
 
-  // 工作日数
-  const uniqueDates = new Set(list.map(item => item.workDate))
+  const uniqueDates = new Set(workList.map(item => item.workDate))
   summary.workDays = uniqueDates.size
 
-  // 人均工时
   summary.avgHours = summary.activeMembers > 0
     ? Math.round(summary.totalHours / summary.activeMembers)
     : 0
 
-  // 成员排行
   const memberMap = new Map<number, any>()
-  list.forEach(item => {
+  workList.forEach(item => {
     if (!memberMap.has(item.userId)) {
       memberMap.set(item.userId, {
         userId: item.userId,
@@ -352,13 +349,13 @@ const calculateStats = () => {
       })
     }
     const member = memberMap.get(item.userId)!
-    member.totalHours += item.hours
+    member.totalHours += Number(item.hours || 0)
     member.workDays.add(item.workDate)
   })
 
-  // 统计每个成员的任务数（去重）
   const taskSet = new Map<number, Set<number>>()
-  list.forEach(item => {
+  workList.forEach(item => {
+    if (!item.taskId) return
     if (!taskSet.has(item.userId)) {
       taskSet.set(item.userId, new Set())
     }
@@ -373,21 +370,20 @@ const calculateStats = () => {
     }))
     .sort((a, b) => b.totalHours - a.totalHours)
 
-  // 每日趋势
   const dateMap = new Map<string, number>()
-  list.forEach(item => {
+  workList.forEach(item => {
     const hours = dateMap.get(item.workDate) || 0
-    dateMap.set(item.workDate, hours + item.hours)
+    dateMap.set(item.workDate, hours + Number(item.hours || 0))
   })
 
   dailyTrend.value = Array.from(dateMap.entries())
     .map(([date, hours]) => ({ date, hours }))
     .sort((a, b) => a.date.localeCompare(b.date))
-    .slice(-30) // 只显示最近30天
+    .slice(-30)
 
-  // 任务工时分布
   const taskMap = new Map<number, any>()
-  list.forEach(item => {
+  workList.forEach(item => {
+    if (!item.taskId) return
     if (!taskMap.has(item.taskId)) {
       taskMap.set(item.taskId, {
         taskId: item.taskId,
@@ -395,12 +391,12 @@ const calculateStats = () => {
         totalHours: 0
       })
     }
-    taskMap.get(item.taskId)!.totalHours += item.hours
+    taskMap.get(item.taskId)!.totalHours += Number(item.hours || 0)
   })
 
   taskDistribution.value = Array.from(taskMap.values())
     .sort((a, b) => b.totalHours - a.totalHours)
-    .slice(0, 10) // 只显示前10个任务
+    .slice(0, 10)
 }
 
 // 筛选变更

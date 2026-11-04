@@ -13,21 +13,39 @@ export interface WorkHourQuery {
   pageSize?: number
 }
 
+/** 工时记录类型 */
+export type WorkHourRecordType = 'NORMAL' | 'LEAVE'
+
+/** 是否为请假记录（不计入工时统计） */
+export const isLeaveRecord = (wh: { recordType?: WorkHourRecordType | string | number }): boolean => {
+  const t = wh?.recordType
+  return t === 'LEAVE' || t === 2
+}
+
+/** 累加正常工时（排除请假） */
+export const sumWorkHours = (list: Array<{ hours?: number; recordType?: WorkHourRecordType | string | number }>): number => {
+  return list
+    .filter(wh => !isLeaveRecord(wh))
+    .reduce((sum, wh) => sum + Number(wh.hours || 0), 0)
+}
+
 // 工时信息响应
 export interface WorkHourInfo {
   id: number
   userId: number
-  projectId: number
+  projectId?: number
   taskId?: number
   workDate: string
   hours: number
   content: string
+  recordType?: WorkHourRecordType
+  leaveTypeId?: number
+  leaveTypeName?: string
   status: string
   createUserId?: number
   updateUserId?: number
   createTime?: string
   updateTime?: string
-  // 关联信息（非数据库字段）
   userName?: string
   projectName?: string
   taskName?: string
@@ -35,22 +53,26 @@ export interface WorkHourInfo {
 
 // 创建工时请求
 export interface WorkHourCreateReq {
-  projectId: number
+  projectId?: number
   taskId?: number
   workDate: string
   hours: number
-  content: string
+  content?: string
+  recordType?: WorkHourRecordType
+  leaveTypeId?: number
   status?: string
 }
 
 // 更新工时请求
 export interface WorkHourUpdateReq {
   id: number
-  projectId: number
+  projectId?: number
   taskId?: number
   workDate: string
   hours: number
-  content: string
+  content?: string
+  recordType?: WorkHourRecordType
+  leaveTypeId?: number
   status?: string
 }
 

@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.gsms.gsms.repository.LeaveTypeMapper">
+
+    <resultMap id="LeaveTypeResultMap" type="com.gsms.gsms.model.entity.LeaveType">
+        <id column="id" property="id"/>
+        <result column="name" property="name"/>
+        <result column="code" property="code"/>
+        <result column="sort" property="sort"/>
+        <result column="status" property="status"/>
+        <result column="remark" property="remark"/>
+        <result column="create_user_id" property="createUserId"/>
+        <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+        <result column="is_deleted" property="isDeleted"/>
+    </resultMap>
+
+    <sql id="selectAllFields">
+        id, name, code, sort, status, remark, create_user_id, update_user_id, create_time, update_time, is_deleted
+    </sql>
+
+    <select id="selectById" resultMap="LeaveTypeResultMap">
+        SELECT <include refid="selectAllFields"/>
+        FROM gsms_leave_type
+        WHERE id = #{id} AND is_deleted = 0
+    </select>
+
+    <select id="selectByCode" resultMap="LeaveTypeResultMap">
+        SELECT <include refid="selectAllFields"/>
+        FROM gsms_leave_type
+        WHERE code = #{code} AND is_deleted = 0
+    </select>
+
+    <select id="selectByCondition" resultMap="LeaveTypeResultMap">
+        SELECT <include refid="selectAllFields"/>
+        FROM gsms_leave_type
+        <where>
+            is_deleted = 0
+            <if test="name != null and name != ''">
+                AND name LIKE CONCAT('%', #{name}, '%')
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+        </where>
+        ORDER BY sort ASC, id ASC
+    </select>
+
+    <select id="selectEnabled" resultMap="LeaveTypeResultMap">
+        SELECT <include refid="selectAllFields"/>
+        FROM gsms_leave_type
+        WHERE is_deleted = 0 AND status = 1
+        ORDER BY sort ASC, id ASC
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO gsms_leave_type(name, code, sort, status, remark, create_user_id, update_user_id)
+        VALUES(#{name}, #{code}, #{sort}, #{status}, #{remark}, #{createUserId}, #{updateUserId})
+    </insert>
+
+    <update id="update">
+        UPDATE gsms_leave_type
+        <set>
+            <if test="name != null and name != ''">name = #{name},</if>
+            <if test="code != null and code != ''">code = #{code},</if>
+            <if test="sort != null">sort = #{sort},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateUserId != null">update_user_id = #{updateUserId},</if>
+            update_time = CURRENT_TIMESTAMP
+        </set>
+        WHERE id = #{id} AND is_deleted = 0
+    </update>
+
+    <update id="deleteById">
+        UPDATE gsms_leave_type SET is_deleted = 1, update_time = CURRENT_TIMESTAMP WHERE id = #{id}
+    </update>
+
+    <select id="countUsageByLeaveTypeId" resultType="int">
+        SELECT COUNT(1)
+        FROM gsms_work_hour
+        WHERE leave_type_id = #{leaveTypeId} AND is_deleted = 0
+    </select>
+</mapper>

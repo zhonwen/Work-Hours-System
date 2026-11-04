@@ -13,7 +13,6 @@ import com.gsms.gsms.repository.WorkHourMapper;
 import com.gsms.gsms.service.StatisticsService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -41,17 +40,36 @@ public class StatisticsServiceImpl implements StatisticsService {
         this.projectMapper = projectMapper;
     }
 
+    /** 仅正常工时计入「工时」统计，请假不计入 */
+    private static boolean isWorkRecord(WorkHour wh) {
+        return wh != null && (wh.getRecordType() == null || !wh.getRecordType().isLeave());
+    }
+
+    private static List<WorkHour> onlyWorkRecords(List<WorkHour> workHours) {
+        if (workHours == null || workHours.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return workHours.stream().filter(StatisticsServiceImpl::isWorkRecord).collect(Collectors.toList());
+    }
+
+    private static BigDecimal sumHours(List<WorkHour> workHours) {
+        return workHours.stream()
+                .map(WorkHour::getHours)
+                .filter(Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
     @Override
     public Map<String, Object> getProjectWorkHourStatistics(Long projectId, LocalDate startDate, LocalDate endDate) {
         logger.debug("统计项目工时: projectId={}, startDate={}, endDate={}", projectId, startDate, endDate);
 
         Map<String, Object> result = new HashMap<>();
 
-        List<WorkHour> workHours = workHourMapper.selectByCondition(null, projectId, null, startDate, endDate);
+        // selectByCondition(projectId) 已限定 record_type=1，再过滤一次兜底
+        List<WorkHour> workHours = onlyWorkRecords(
+                workHourMapper.selectByCondition(null, projectId, null, startDate, endDate));
 
-        BigDecimal totalHours = workHours.stream()
-                .map(WorkHour::getHours)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalHours = sumHours(workHours);
 
         Map<Long, BigDecimal> userHoursMap = workHours.stream()
                 .collect(Collectors.groupingBy(
@@ -77,13 +95,13 @@ public class StatisticsServiceImpl implements StatisticsService {
 
         Map<String, Object> result = new HashMap<>();
 
-        List<WorkHour> workHours = workHourMapper.selectByCondition(userId, null, null, startDate, endDate);
+        List<WorkHour> workHours = onlyWorkRecords(
+                workHourMapper.selectByCondition(userId, null, null, startDate, endDate));
 
-        BigDecimal totalHours = workHours.stream()
-                .map(WorkHour::getHours)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalHours = sumHours(workHours);
 
         Map<Long, BigDecimal> projectHoursMap = workHours.stream()
+                .filter(wh -> wh.getProjectId() != null)
                 .collect(Collectors.groupingBy(
                         WorkHour::getProjectId,
                         Collectors.reducing(BigDecimal.ZERO, WorkHour::getHours, BigDecimal::add)
@@ -121,12 +139,11 @@ public class StatisticsServiceImpl implements StatisticsService {
 
         List<WorkHour> workHours = new ArrayList<>();
         for (Long userId : userIds) {
-            workHours.addAll(workHourMapper.selectByCondition(userId, null, null, startDate, endDate));
+            workHours.addAll(onlyWorkRecords(
+                    workHourMapper.selectByCondition(userId, null, null, startDate, endDate)));
         }
 
-        BigDecimal totalHours = workHours.stream()
-                .map(WorkHour::getHours)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalHours = sumHours(workHours);
 
         Map<Long, BigDecimal> userHoursMap = workHours.stream()
                 .collect(Collectors.groupingBy(
@@ -152,12 +169,10 @@ public class StatisticsServiceImpl implements StatisticsService {
 
         Map<String, Object> result = new HashMap<>();
 
-        List<WorkHour> workHours = workHourMapper.selectByTaskId(taskId);
+        List<WorkHour> workHours = onlyWorkRecords(workHourMapper.selectByTaskId(taskId));
         Task task = taskMapper.selectById(taskId);
 
-        BigDecimal totalHours = workHours.stream()
-                .map(WorkHour::getHours)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalHours = sumHours(workHours);
 
         BigDecimal estimateHours = task != null ? task.getEstimateHours() : BigDecimal.ZERO;
         BigDecimal variance = totalHours.subtract(estimateHours);
@@ -204,7 +219,8 @@ public class StatisticsServiceImpl implements StatisticsService {
 
         Map<String, Object> result = new HashMap<>();
 
-        List<WorkHour> workHours = workHourMapper.selectByCondition(userId, projectId, null, startDate, endDate);
+        List<WorkHour> workHours = onlyWorkRecords(
+                workHourMapper.selectByCondition(userId, projectId, null, startDate, endDate));
 
         Map<LocalDate, BigDecimal> dailyHoursMap = workHours.stream()
                 .collect(Collectors.groupingBy(
@@ -222,9 +238,7 @@ public class StatisticsServiceImpl implements StatisticsService {
                 })
                 .collect(Collectors.toList());
 
-        BigDecimal totalHours = workHours.stream()
-                .map(WorkHour::getHours)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalHours = sumHours(workHours);
 
         result.put("projectId", projectId);
         result.put("userId", userId);
@@ -295,40 +309,30 @@ public class StatisticsServiceImpl implements StatisticsService {
                 .collect(Collectors.toList());
         result.put("pendingTasks", taskList);
 
-        // 计算今日工时
-        List<WorkHour> todayWorkHours = workHourMapper.selectByCondition(userId, null, null, today, today);
-        BigDecimal todayHours = todayWorkHours.stream()
-                .map(WorkHour::getHours)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        result.put("todayHours", todayHours);
+        // 计算今日/本周/本月/总工时（不含请假）
+        List<WorkHour> todayWorkHours = onlyWorkRecords(
+                workHourMapper.selectByCondition(userId, null, null, today, today));
+        result.put("todayHours", sumHours(todayWorkHours));
 
-        // 计算本周工时
         LocalDate weekStart = today.with(DayOfWeek.MONDAY);
         LocalDate weekEnd = today.with(DayOfWeek.SUNDAY);
-        List<WorkHour> weekWorkHours = workHourMapper.selectByCondition(userId, null, null, weekStart, weekEnd);
-        BigDecimal weekHours = weekWorkHours.stream()
-                .map(WorkHour::getHours)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        result.put("weekHours", weekHours);
+        List<WorkHour> weekWorkHours = onlyWorkRecords(
+                workHourMapper.selectByCondition(userId, null, null, weekStart, weekEnd));
+        result.put("weekHours", sumHours(weekWorkHours));
 
-        // 计算本月工时
         LocalDate monthStart = LocalDate.of(today.getYear(), today.getMonth(), 1);
         LocalDate monthEnd = monthStart.plusMonths(1).minusDays(1);
-        List<WorkHour> monthWorkHours = workHourMapper.selectByCondition(userId, null, null, monthStart, monthEnd);
-        BigDecimal monthHours = monthWorkHours.stream()
-                .map(WorkHour::getHours)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-        result.put("monthHours", monthHours);
+        List<WorkHour> monthWorkHours = onlyWorkRecords(
+                workHourMapper.selectByCondition(userId, null, null, monthStart, monthEnd));
+        result.put("monthHours", sumHours(monthWorkHours));
 
-        // 总工时
-        List<WorkHour> allWorkHours = workHourMapper.selectByCondition(userId, null, null, null, null);
-        BigDecimal totalHours = allWorkHours.stream()
-                .map(WorkHour::getHours)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        List<WorkHour> allWorkHours = onlyWorkRecords(
+                workHourMapper.selectByCondition(userId, null, null, null, null));
+        BigDecimal totalHours = sumHours(allWorkHours);
         result.put("totalHours", totalHours);
 
         logger.info("首页看板数据获取完成: userId={}, projectCount={}, pendingTaskCount={}, todayHours={}",
-                userId, allProjects.size(), allTodoTasks.size(), todayHours);
+                userId, allProjects.size(), allTodoTasks.size(), result.get("todayHours"));
         return result;
     }
 }

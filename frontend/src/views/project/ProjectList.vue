@@ -4,7 +4,14 @@
     <div class="page-header">
       <div class="header-left">
         <h2 class="page-title">项目管理</h2>
-        <el-button type="primary" :icon="Plus" @click="handleCreate">新建项目</el-button>
+        <el-button
+          v-if="canManageProject"
+          type="primary"
+          :icon="Plus"
+          @click="handleCreate"
+        >
+          新建项目
+        </el-button>
       </div>
       <div class="header-right">
         <el-input
@@ -84,8 +91,28 @@
                       <el-dropdown-menu>
                         <el-dropdown-item command="view" :icon="View">查看</el-dropdown-item>
                         <el-dropdown-item command="gantt" :icon="View">甘特图</el-dropdown-item>
-                        <el-dropdown-item command="edit" :icon="Edit">编辑</el-dropdown-item>
-                        <el-dropdown-item command="delete" :icon="Delete" divided>删除</el-dropdown-item>
+                        <el-dropdown-item
+                          v-if="canManageProject && project.status === 'NOT_STARTED'"
+                          command="start"
+                          :icon="VideoPlay"
+                        >
+                          开始
+                        </el-dropdown-item>
+                        <el-dropdown-item
+                          v-if="canManageProject"
+                          command="edit"
+                          :icon="Edit"
+                        >
+                          编辑
+                        </el-dropdown-item>
+                        <el-dropdown-item
+                          v-if="canManageProject"
+                          command="delete"
+                          :icon="Delete"
+                          divided
+                        >
+                          删除
+                        </el-dropdown-item>
                       </el-dropdown-menu>
                     </template>
                   </el-dropdown>
@@ -172,6 +199,13 @@
               <template #dropdown>
                 <el-dropdown-menu>
                   <el-dropdown-item :icon="View" @click.native="handleView(row)">查看详情</el-dropdown-item>
+                  <el-dropdown-item
+                    v-if="canManageProject && row.status === 'NOT_STARTED'"
+                    :icon="VideoPlay"
+                    @click.native="handleStart(row)"
+                  >
+                    开始
+                  </el-dropdown-item>
                   <el-dropdown-item
                     v-if="canManageProject"
                     :icon="Edit"
@@ -368,7 +402,8 @@ import {
   Edit,
   Delete,
   View,
-  Calendar
+  Calendar,
+  VideoPlay
 } from '@element-plus/icons-vue'
 import { getProjectList, createProject, updateProject, deleteProject, getProjectMembers } from '@/api/project'
 import { getAllUsers, type UserInfo } from '@/api/user'
@@ -385,12 +420,9 @@ const viewMode = ref<'kanban' | 'table'>('table')
 const projectStatuses = getProjectStatusOptions()
 
 // 检查用户是否可以管理项目（系统管理员或项目经理）
-const canManageProject = computed(() => {
-  const userRoles = authStore.userRoles
-  if (!userRoles || userRoles.length === 0) return false
-  // 只有系统管理员和项目经理可以管理项目
-  return userRoles.some(role => role.code === 'ADMIN' || role.code === 'PROJECT_MANAGER')
-})
+const canManageProject = computed(() =>
+  authStore.hasAnyRole(['SYS_ADMIN', 'PROJECT_MANAGER'])
+)
 
 // 拖拽相关
 const draggedProject = ref<any>(null)
@@ -615,12 +647,30 @@ const handleDelete = (project: ProjectInfo) => {
     .catch(() => {})
 }
 
+// 开始项目：未开始 → 进行中
+const handleStart = async (project: ProjectInfo) => {
+  if (project.status !== 'NOT_STARTED') return
+  try {
+    await updateProject({
+      id: project.id,
+      status: 'IN_PROGRESS'
+    })
+    ElMessage.success('项目已开始')
+    fetchProjects()
+  } catch (error) {
+    console.error('开始项目失败:', error)
+    ElMessage.error('开始项目失败')
+  }
+}
+
 // 卡片操作命令
 const handleCommand = (command: string, project: ProjectInfo) => {
   if (command === 'view') {
     handleView(project)
   } else if (command === 'gantt') {
     handleGantt(project)
+  } else if (command === 'start') {
+    handleStart(project)
   } else if (command === 'edit') {
     handleEdit(project)
   } else if (command === 'delete') {

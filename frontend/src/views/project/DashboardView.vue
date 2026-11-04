@@ -1029,8 +1029,8 @@ const renderEstimateVsActual = () => {
     .slice(0, 20)
     .map(t => {
       const actualHours = workHours.value
-        .filter(wh => wh.taskId === t.id)
-        .reduce((sum, wh) => sum + wh.hours, 0)
+        .filter(wh => wh.taskId === t.id && wh.recordType !== 'LEAVE' && wh.recordType !== 2)
+        .reduce((sum, wh) => sum + Number(wh.hours || 0), 0)
 
       return {
         name: t.title.substring(0, 15),

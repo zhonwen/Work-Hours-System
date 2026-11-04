@@ -5,61 +5,67 @@
       <h2 class="page-title">工时日历</h2>
     </div>
 
-    <!-- 统计卡片 -->
-    <el-row :gutter="16" class="stats-row">
-      <el-col :span="6">
-        <el-card class="stats-card">
-          <div class="stats-content">
-            <div class="stats-icon today">
-              <el-icon><Clock /></el-icon>
-            </div>
-            <div class="stats-info">
-              <div class="stats-label">今日工时</div>
-              <div class="stats-value">{{ statistics.todayHours || 0 }} 小时</div>
-            </div>
+    <!-- 统计卡片：工时不含请假；本月请假单独展示 -->
+    <div class="stats-row stats-row-5">
+      <el-card class="stats-card">
+        <div class="stats-content">
+          <div class="stats-icon today">
+            <el-icon><Clock /></el-icon>
           </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="stats-card">
-          <div class="stats-content">
-            <div class="stats-icon week">
-              <el-icon><Calendar /></el-icon>
-            </div>
-            <div class="stats-info">
-              <div class="stats-label">本周工时</div>
-              <div class="stats-value">{{ statistics.weekHours || 0 }} 小时</div>
-            </div>
+          <div class="stats-info">
+            <div class="stats-label">今日工时</div>
+            <div class="stats-value">{{ statistics.todayHours || 0 }} 小时</div>
           </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="stats-card">
-          <div class="stats-content">
-            <div class="stats-icon month">
-              <el-icon><List /></el-icon>
-            </div>
-            <div class="stats-info">
-              <div class="stats-label">本月工时</div>
-              <div class="stats-value">{{ statistics.monthHours || 0 }} 小时</div>
-            </div>
+        </div>
+      </el-card>
+      <el-card class="stats-card">
+        <div class="stats-content">
+          <div class="stats-icon week">
+            <el-icon><Calendar /></el-icon>
           </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="stats-card">
-          <div class="stats-content">
-            <div class="stats-icon total">
-              <el-icon><Folder /></el-icon>
-            </div>
-            <div class="stats-info">
-              <div class="stats-label">总计工时</div>
-              <div class="stats-value">{{ statistics.totalHours || 0 }} 小时</div>
-            </div>
+          <div class="stats-info">
+            <div class="stats-label">本周工时</div>
+            <div class="stats-value">{{ statistics.weekHours || 0 }} 小时</div>
           </div>
-        </el-card>
-      </el-col>
-    </el-row>
+        </div>
+      </el-card>
+      <el-card class="stats-card">
+        <div class="stats-content">
+          <div class="stats-icon month">
+            <el-icon><List /></el-icon>
+          </div>
+          <div class="stats-info">
+            <div class="stats-label">本月工时</div>
+            <div class="stats-value">{{ statistics.monthHours || 0 }} 小时</div>
+          </div>
+        </div>
+      </el-card>
+      <el-card class="stats-card stats-card-leave">
+        <div class="stats-content">
+          <div class="stats-icon leave">
+            <el-icon><Calendar /></el-icon>
+          </div>
+          <div class="stats-info">
+            <div class="stats-label">
+              <span>本月请假</span>
+              <div class="leave-detail-btn"  @click="openLeaveDetail">明细</div>
+            </div>
+            <div class="stats-value">{{ statistics.monthLeaveHours || 0 }} 小时</div>
+          </div>
+        </div>
+      </el-card>
+      <el-card class="stats-card">
+        <div class="stats-content">
+          <div class="stats-icon total">
+            <el-icon><Folder /></el-icon>
+          </div>
+          <div class="stats-info">
+            <div class="stats-label">总计工时</div>
+            <div class="stats-value">{{ statistics.totalHours || 0 }} 小时</div>
+          </div>
+        </div>
+      </el-card>
+    </div>
 
     <!-- 工具栏（仅浏览，无填报） -->
     <div class="calendar-toolbar">
@@ -107,8 +113,16 @@
                 v-for="wh in cell.workHours.slice(0, 3)"
                 :key="wh.id"
                 class="work-hour-item"
+                :class="{ leave: wh.recordType === 'LEAVE' }"
               >
-                <div class="wh-hours">{{ wh.hours }}h {{ wh.taskName || wh.projectName || '' }}</div>
+                <div class="wh-hours">
+                  {{ wh.hours }}h
+                  {{
+                    wh.recordType === 'LEAVE'
+                      ? (wh.leaveTypeName || '请假')
+                      : (wh.taskName || wh.projectName || '')
+                  }}
+                </div>
               </div>
               <div v-if="cell.workHours.length > 3" class="more-hint">
                 +{{ cell.workHours.length - 3 }} 条
@@ -131,22 +145,36 @@
       </div>
       <template v-else>
         <div class="detail-summary">
-          共 <strong>{{ detailItems.length }}</strong> 条，合计
+          共 <strong>{{ detailItems.length }}</strong> 条，工时
           <strong>{{ detailTotalHours }}</strong> 小时
+          <template v-if="detailLeaveHours > 0">
+            ，请假 <strong>{{ detailLeaveHours }}</strong> 小时
+          </template>
         </div>
         <el-table :data="detailItems" border stripe size="small">
-          <el-table-column prop="projectName" label="项目" min-width="120" show-overflow-tooltip>
+          <el-table-column label="类型" width="80">
             <template #default="{ row }">
-              {{ row.projectName || '-' }}
+              <el-tag :type="row.recordType === 'LEAVE' ? 'warning' : 'success'" size="small">
+                {{ row.recordType === 'LEAVE' ? '请假' : '工时' }}
+              </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="taskName" label="任务" min-width="120" show-overflow-tooltip>
+          <el-table-column label="项目/请假" min-width="120" show-overflow-tooltip>
             <template #default="{ row }">
-              {{ row.taskName || '-' }}
+              {{
+                row.recordType === 'LEAVE'
+                  ? (row.leaveTypeName || '-')
+                  : (row.projectName || '-')
+              }}
             </template>
           </el-table-column>
-          <el-table-column prop="content" label="工作内容" min-width="160" show-overflow-tooltip />
-          <el-table-column prop="hours" label="工时" width="80" align="right">
+          <el-table-column label="任务" min-width="100" show-overflow-tooltip>
+            <template #default="{ row }">
+              {{ row.recordType === 'LEAVE' ? '-' : (row.taskName || '-') }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="content" label="说明" min-width="140" show-overflow-tooltip />
+          <el-table-column prop="hours" label="时长" width="80" align="right">
             <template #default="{ row }">
               {{ row.hours }}h
             </template>
@@ -157,6 +185,45 @@
         <el-button type="primary" @click="detailVisible = false">关闭</el-button>
       </template>
     </el-dialog>
+
+    <!-- 本月请假明细 -->
+    <el-dialog
+      v-model="leaveDetailVisible"
+      :title="`本月请假明细 — ${currentMonthText}`"
+      width="640px"
+      destroy-on-close
+    >
+      <div v-if="monthLeaveItems.length === 0" class="detail-empty">
+        <el-empty description="本月暂无请假记录" :image-size="80" />
+      </div>
+      <template v-else>
+        <div class="detail-summary">
+          共 <strong>{{ monthLeaveItems.length }}</strong> 条，合计
+          <strong>{{ statistics.monthLeaveHours }}</strong> 小时
+        </div>
+        <el-table :data="monthLeaveItems" border stripe size="small">
+          <el-table-column prop="workDate" label="日期" width="120" />
+          <el-table-column label="请假类型" min-width="120" show-overflow-tooltip>
+            <template #default="{ row }">
+              {{ row.leaveTypeName || '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="content" label="备注" min-width="160" show-overflow-tooltip>
+            <template #default="{ row }">
+              {{ row.content || '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="hours" label="时长" width="90" align="right">
+            <template #default="{ row }">
+              {{ row.hours }}h
+            </template>
+          </el-table-column>
+        </el-table>
+      </template>
+      <template #footer>
+        <el-button type="primary" @click="leaveDetailVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -164,7 +231,7 @@
 import { ref, reactive, onMounted, watch, computed } from 'vue'
 import { Clock, Calendar, List, Folder, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 import { getMonthRange, getCurrentYearMonth, getMonthText, formatDate, isToday, isWeekend } from '@/utils/dateUtils'
-import { getWorkHourList, getUserWorkHourStatistics, type WorkHourInfo } from '@/api/workhour'
+import { getWorkHourList, getUserWorkHourStatistics, isLeaveRecord, sumWorkHours, type WorkHourInfo } from '@/api/workhour'
 import { useAuthStore } from '@/stores/auth'
 import { message } from '@/utils/message'
 
@@ -173,9 +240,15 @@ const authStore = useAuthStore()
 const detailVisible = ref(false)
 const detailDate = ref('')
 const detailItems = ref<WorkHourInfo[]>([])
-const detailTotalHours = computed(() =>
-  detailItems.value.reduce((sum, item) => sum + (item.hours || 0), 0)
+const detailTotalHours = computed(() => sumWorkHours(detailItems.value))
+const detailLeaveHours = computed(() =>
+  detailItems.value
+    .filter(item => isLeaveRecord(item))
+    .reduce((sum, item) => sum + Number(item.hours || 0), 0)
 )
+
+const leaveDetailVisible = ref(false)
+const monthLeaveItems = ref<WorkHourInfo[]>([])
 
 const { year: initYear, month: initMonth } = getCurrentYearMonth()
 const currentYear = ref(initYear)
@@ -273,6 +346,7 @@ const statistics = reactive({
   todayHours: 0,
   weekHours: 0,
   monthHours: 0,
+  monthLeaveHours: 0,
   totalHours: 0
 })
 
@@ -299,7 +373,10 @@ const fetchMonthData = async () => {
         })
       }
       const day = map.get(wh.workDate)!
-      day.totalHours += wh.hours
+      // 格子右上角合计仅统计正常工时
+      if (!isLeaveRecord(wh)) {
+        day.totalHours += Number(wh.hours || 0)
+      }
       day.workHours.push(wh)
     })
 
@@ -317,35 +394,52 @@ const updateStatistics = async (allWorkHours: WorkHourInfo[]) => {
   try {
     const today = new Date()
     const todayStr = formatDate(today)
+    const workOnly = allWorkHours.filter(wh => !isLeaveRecord(wh))
+    const leaveOnly = allWorkHours.filter(wh => isLeaveRecord(wh))
 
-    statistics.todayHours = allWorkHours
-      .filter(wh => wh.workDate === todayStr)
-      .reduce((sum, wh) => sum + wh.hours, 0)
+    // 本月请假：当前日历月份内全部请假（不计入工时卡）
+    monthLeaveItems.value = [...leaveOnly].sort((a, b) =>
+      a.workDate === b.workDate
+        ? Number(b.hours || 0) - Number(a.hours || 0)
+        : a.workDate.localeCompare(b.workDate)
+    )
+    statistics.monthLeaveHours = leaveOnly.reduce(
+      (sum, wh) => sum + Number(wh.hours || 0),
+      0
+    )
+
+    statistics.todayHours = sumWorkHours(workOnly.filter(wh => wh.workDate === todayStr))
 
     const weekStart = new Date(today)
     const day = today.getDay()
     weekStart.setDate(today.getDate() - (day === 0 ? 6 : day - 1))
     const weekStartStr = formatDate(weekStart)
-    statistics.weekHours = allWorkHours
-      .filter(wh => wh.workDate >= weekStartStr && wh.workDate <= todayStr)
-      .reduce((sum, wh) => sum + wh.hours, 0)
+    statistics.weekHours = sumWorkHours(
+      workOnly.filter(wh => wh.workDate >= weekStartStr && wh.workDate <= todayStr)
+    )
 
-    const monthStartStr = formatDate(new Date(today.getFullYear(), today.getMonth(), 1))
-    statistics.monthHours = allWorkHours
-      .filter(wh => wh.workDate >= monthStartStr && wh.workDate <= todayStr)
-      .reduce((sum, wh) => sum + wh.hours, 0)
+    // 本月工时：仅正常工时（当前视图月内、截至今天；翻月时按该月数据）
+    const isCurrentMonth =
+      currentYear.value === today.getFullYear() && currentMonth.value === today.getMonth() + 1
+    statistics.monthHours = isCurrentMonth
+      ? sumWorkHours(workOnly.filter(wh => wh.workDate <= todayStr))
+      : sumWorkHours(workOnly)
 
     const currentUserId = authStore.getCurrentUserId()
     if (currentUserId) {
       const totalRes = await getUserWorkHourStatistics(currentUserId)
-      statistics.totalHours = (totalRes as { totalHours?: number })?.totalHours || 0
+      statistics.totalHours = Number((totalRes as { totalHours?: number })?.totalHours || 0)
     } else {
-      statistics.totalHours = allWorkHours.reduce((sum, wh) => sum + wh.hours, 0)
+      statistics.totalHours = sumWorkHours(workOnly)
     }
   } catch (error) {
     console.error('更新统计数据失败:', error)
-    statistics.totalHours = allWorkHours.reduce((sum, wh) => sum + wh.hours, 0)
+    statistics.totalHours = sumWorkHours(allWorkHours)
   }
+}
+
+const openLeaveDetail = () => {
+  leaveDetailVisible.value = true
 }
 
 const handleCellClick = (cell: CalendarCell) => {
@@ -389,6 +483,76 @@ onMounted(() => {
 </script>
 
 <style scoped>
+.stats-row-5 {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 1200px) {
+  .stats-row-5 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .stats-row-5 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.stats-icon.today {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+}
+
+.stats-icon.week {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: #fff;
+}
+
+.stats-icon.month {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+  color: #fff;
+}
+
+.stats-icon.total {
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+  color: #fff;
+}
+
+.stats-icon.leave {
+  background: linear-gradient(135deg, #ffb347 0%, #fa8c16 100%);
+  color: #fff;
+}
+
+/* 请假卡：结构同其他卡，文字用橙色区分 */
+.stats-card-leave .stats-label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  /* color: #d46b08; */
+}
+
+.stats-card-leave .stats-value {
+  color: red;
+  opacity: 0.6;
+}
+
+.leave-detail-btn {
+  padding: 0;
+  height: auto;
+  font-size: 12px;
+  color: #fa8c16;
+  margin-top: 2px;
+  cursor: pointer;
+}
+
+.leave-detail-btn:hover {
+  color: #d46b08;
+}
+
 .calendar-toolbar {
   display: flex;
   justify-content: space-between;
@@ -533,6 +697,15 @@ onMounted(() => {
   background: #f5f5f5;
   border-radius: 3px;
   font-size: 12px;
+}
+
+.work-hour-item.leave {
+  background: #fff7e6;
+  border-left: 2px solid #fa8c16;
+}
+
+.work-hour-item.leave .wh-hours {
+  color: #d46b08;
 }
 
 .wh-hours {

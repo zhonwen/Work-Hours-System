@@ -6,6 +6,7 @@
         <h2 class="page-title">我的工时</h2>
       </div>
       <div class="header-right">
+        <el-button :icon="Plus" @click="handleCreateLeave">请假</el-button>
         <el-button type="primary" :icon="Plus" @click="handleCreate">工时填报</el-button>
       </div>
     </div>
@@ -106,22 +107,29 @@
             {{ row.workDate }}
           </template>
         </el-table-column>
-        <el-table-column label="项目" width="200">
+        <el-table-column label="类型" width="90">
           <template #default="{ row }">
-            {{ row.projectName }}
+            <el-tag :type="row.recordType === 'LEAVE' ? 'warning' : 'success'" size="small">
+              {{ row.recordType === 'LEAVE' ? '请假' : '工时' }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="任务" width="200">
+        <el-table-column label="项目/请假类型" min-width="160">
           <template #default="{ row }">
-            {{ row.taskName || '-' }}
+            {{ row.recordType === 'LEAVE' ? (row.leaveTypeName || '-') : (row.projectName || '-') }}
           </template>
         </el-table-column>
-        <el-table-column prop="hours" label="工时数" width="100">
+        <el-table-column label="任务" width="160">
+          <template #default="{ row }">
+            {{ row.recordType === 'LEAVE' ? '-' : (row.taskName || '-') }}
+          </template>
+        </el-table-column>
+        <el-table-column prop="hours" label="时长" width="100">
           <template #default="{ row }">
             {{ row.hours }} 小时
           </template>
         </el-table-column>
-        <el-table-column prop="content" label="工作内容" min-width="300" show-overflow-tooltip />
+        <el-table-column prop="content" label="说明" min-width="200" show-overflow-tooltip />
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.status)">
@@ -160,7 +168,7 @@
       :close-on-click-modal="false"
     >
       <el-form ref="formRef" :model="formData" :rules="formRules" label-width="100px">
-        <el-form-item label="工作日期" prop="workDate">
+        <el-form-item label="日期" prop="workDate">
           <el-date-picker
             v-model="formData.workDate"
             name="workDate"
@@ -170,36 +178,50 @@
             value-format="YYYY-MM-DD"
           />
         </el-form-item>
-        <el-form-item label="项目" prop="projectId">
-          <el-select v-model="formData.projectId" placeholder="请选择项目" filterable style="width: 100%" @change="handleProjectChange">
-            <el-option
-              v-for="project in projectList"
-              :key="project.id"
-              :label="project.name"
-              :value="project.id"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="任务">
-          <el-select v-model="formData.taskId" placeholder="请选择任务（可选）" clearable filterable style="width: 100%">
-            <el-option
-              v-for="task in taskList"
-              :key="task.id"
-              :label="task.title"
-              :value="task.id"
-            />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="工时数" prop="hours">
+        <template v-if="formData.recordType === 'LEAVE'">
+          <el-form-item label="请假类型" prop="leaveTypeId">
+            <el-select v-model="formData.leaveTypeId" placeholder="请选择请假类型" style="width: 100%">
+              <el-option
+                v-for="lt in leaveTypeList"
+                :key="lt.id"
+                :label="lt.name"
+                :value="lt.id"
+              />
+            </el-select>
+          </el-form-item>
+        </template>
+        <template v-else>
+          <el-form-item label="项目" prop="projectId">
+            <el-select v-model="formData.projectId" placeholder="请选择项目" filterable style="width: 100%" @change="handleProjectChange">
+              <el-option
+                v-for="project in projectList"
+                :key="project.id"
+                :label="project.name"
+                :value="project.id"
+              />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="任务">
+            <el-select v-model="formData.taskId" placeholder="请选择任务（可选）" clearable filterable style="width: 100%">
+              <el-option
+                v-for="task in taskList"
+                :key="task.id"
+                :label="task.title"
+                :value="task.id"
+              />
+            </el-select>
+          </el-form-item>
+        </template>
+        <el-form-item :label="formData.recordType === 'LEAVE' ? '时长' : '工时数'" prop="hours">
           <el-input-number v-model="formData.hours" :min="0.5" :max="24" :step="0.5" :precision="1" style="width: 100%" />
         </el-form-item>
-        <el-form-item label="工作内容" prop="content">
+        <el-form-item :label="formData.recordType === 'LEAVE' ? '备注' : '工作内容'" :prop="formData.recordType === 'LEAVE' ? undefined : 'content'">
           <el-input
             v-model="formData.content"
             name="content"
             type="textarea"
-            :rows="4"
-            placeholder="请详细描述工作内容"
+            :rows="3"
+            :placeholder="formData.recordType === 'LEAVE' ? '选填' : '请详细描述工作内容'"
           />
         </el-form-item>
       </el-form>
@@ -212,14 +234,23 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { Plus, Edit, Delete, Clock, Calendar, DataLine, Histogram } from '@element-plus/icons-vue'
-import { getWorkHourList, createWorkHour, updateWorkHour, deleteWorkHour, getUserWorkHourStatistics, type WorkHourInfo } from '@/api/workhour'
+import {
+  getWorkHourList,
+  createWorkHour,
+  updateWorkHour,
+  deleteWorkHour,
+  getUserWorkHourStatistics,
+  type WorkHourInfo,
+  type WorkHourRecordType
+} from '@/api/workhour'
 import { getProjectList } from '@/api/project'
 import { getTaskList } from '@/api/task'
+import { getEnabledLeaveTypes, type LeaveTypeInfo } from '@/api/leaveType'
 import { useAuthStore } from '@/stores/auth'
-import { getTaskStatusInfo, getTaskPriorityInfo, getWorkHourStatusInfo } from '@/utils/statusMapping'
+import { getWorkHourStatusInfo } from '@/utils/statusMapping'
 
 // 获取 auth store
 const authStore = useAuthStore()
@@ -269,21 +300,31 @@ const dialogVisible = ref(false)
 const dialogTitle = ref('')
 const submitLoading = ref(false)
 const formRef = ref<FormInstance>()
+const leaveTypeList = ref<LeaveTypeInfo[]>([])
 const formData = reactive({
   id: undefined as number | undefined,
   workDate: '',
   projectId: undefined as number | undefined,
   taskId: undefined as number | undefined,
   hours: 8,
-  content: ''
+  content: '',
+  recordType: 'NORMAL' as WorkHourRecordType,
+  leaveTypeId: undefined as number | undefined
 })
 
-const formRules: FormRules = {
-  workDate: [{ required: true, message: '请选择工作日期', trigger: 'change' }],
-  projectId: [{ required: true, message: '请选择项目', trigger: 'change' }],
-  hours: [{ required: true, message: '请输入工时数', trigger: 'blur' }],
-  content: [{ required: true, message: '请输入工作内容', trigger: 'blur' }]
-}
+const formRules = computed<FormRules>(() => {
+  const rules: FormRules = {
+    workDate: [{ required: true, message: '请选择日期', trigger: 'change' }],
+    hours: [{ required: true, message: '请输入时长', trigger: 'blur' }]
+  }
+  if (formData.recordType === 'LEAVE') {
+    rules.leaveTypeId = [{ required: true, message: '请选择请假类型', trigger: 'change' }]
+  } else {
+    rules.projectId = [{ required: true, message: '请选择项目', trigger: 'change' }]
+    rules.content = [{ required: true, message: '请输入工作内容', trigger: 'blur' }]
+  }
+  return rules
+})
 
 // 获取工时状态信息
 const getStatusType = (status: string) => getWorkHourStatusInfo(status).type
@@ -417,8 +458,7 @@ const handleCurrentChange = (page: number) => {
 }
 
 // 创建
-const handleCreate = () => {
-  dialogTitle.value = '工时填报'
+const resetFormBase = () => {
   const today = new Date().toISOString().split('T')[0]
   formData.id = undefined
   formData.workDate = today
@@ -426,20 +466,55 @@ const handleCreate = () => {
   formData.taskId = undefined
   formData.hours = 8
   formData.content = ''
+  formData.leaveTypeId = undefined
   taskList.value = []
+}
+
+const fetchLeaveTypes = async () => {
+  try {
+    leaveTypeList.value = (await getEnabledLeaveTypes()) || []
+  } catch (error) {
+    console.error('获取请假类型失败:', error)
+  }
+}
+
+// 新建正常工时
+const handleCreate = () => {
+  dialogTitle.value = '工时填报'
+  resetFormBase()
+  formData.recordType = 'NORMAL'
+  dialogVisible.value = true
+}
+
+// 新建请假
+const handleCreateLeave = async () => {
+  dialogTitle.value = '请假登记'
+  resetFormBase()
+  formData.recordType = 'LEAVE'
+  formData.hours = 8
+  if (leaveTypeList.value.length === 0) {
+    await fetchLeaveTypes()
+  }
   dialogVisible.value = true
 }
 
 // 编辑
-const handleEdit = (row: WorkHourInfo) => {
-  dialogTitle.value = '编辑工时'
+const handleEdit = async (row: WorkHourInfo) => {
+  const isLeave = row.recordType === 'LEAVE'
+  dialogTitle.value = isLeave ? '编辑请假' : '编辑工时'
   formData.id = row.id
   formData.workDate = row.workDate
   formData.projectId = row.projectId
   formData.taskId = row.taskId
   formData.hours = row.hours
-  formData.content = row.content
-  fetchTasks()
+  formData.content = row.content || ''
+  formData.recordType = isLeave ? 'LEAVE' : 'NORMAL'
+  formData.leaveTypeId = row.leaveTypeId
+  if (isLeave) {
+    if (leaveTypeList.value.length === 0) await fetchLeaveTypes()
+  } else {
+    fetchTasks()
+  }
   dialogVisible.value = true
 }
 
@@ -458,22 +533,27 @@ const handleSubmit = async () => {
       submitLoading.value = true
       try {
         if (formData.id) {
-          await updateWorkHour({
+          const payload = {
             id: formData.id,
-            projectId: formData.projectId!,
-            taskId: formData.taskId,
             workDate: formData.workDate,
             hours: formData.hours,
-            content: formData.content
-          })
+            content: formData.content,
+            recordType: formData.recordType,
+            projectId: formData.recordType === 'LEAVE' ? undefined : formData.projectId,
+            taskId: formData.recordType === 'LEAVE' ? undefined : formData.taskId,
+            leaveTypeId: formData.recordType === 'LEAVE' ? formData.leaveTypeId : undefined
+          }
+          await updateWorkHour(payload)
           ElMessage.success('更新成功')
         } else {
           await createWorkHour({
-            projectId: formData.projectId!,
-            taskId: formData.taskId,
             workDate: formData.workDate,
             hours: formData.hours,
-            content: formData.content
+            content: formData.content,
+            recordType: formData.recordType,
+            projectId: formData.recordType === 'LEAVE' ? undefined : formData.projectId,
+            taskId: formData.recordType === 'LEAVE' ? undefined : formData.taskId,
+            leaveTypeId: formData.recordType === 'LEAVE' ? formData.leaveTypeId : undefined
           })
           ElMessage.success('创建成功')
         }
@@ -513,6 +593,7 @@ onMounted(() => {
   fetchProjects()
   fetchWorkHours()
   fetchStatistics()
+  fetchLeaveTypes()
 })
 </script>
 

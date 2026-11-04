@@ -25,6 +25,11 @@ export const setupPermissionGuard = (router: Router) => {
         return next({ name: 'Dashboard' })
       }
 
+      // 刷新后 localStorage 只有 token，角色/权限需补拉，否则按钮 v-if 会误藏
+      if (authStore.isAuthenticated && to.meta.requiresAuth) {
+        await authStore.ensureAuthLoaded()
+      }
+
       // 检查路由权限（安全地检查）
       if (to.meta.permissions) {
         try {

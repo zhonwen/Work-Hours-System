@@ -1,10 +1,14 @@
 package com.gsms.gsms.service.impl;
 
+import com.gsms.gsms.model.entity.LeaveType;
 import com.gsms.gsms.model.entity.WorkHour;
 import com.gsms.gsms.infra.exception.CommonErrorCode;
-import com.gsms.gsms.model.enums.errorcode.WorkHourErrorCode;
+import com.gsms.gsms.model.enums.WorkHourRecordType;
+import com.gsms.gsms.model.errorcode.LeaveTypeErrorCode;
+import com.gsms.gsms.model.errorcode.WorkHourErrorCode;
 import com.gsms.gsms.infra.exception.BusinessException;
 import com.gsms.gsms.infra.utils.UserContext;
+import com.gsms.gsms.repository.LeaveTypeMapper;
 import com.gsms.gsms.repository.WorkHourMapper;
 import com.gsms.gsms.service.AuthService;
 import com.gsms.gsms.service.WorkHourService;
@@ -12,7 +16,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
-import java.util.Date;
 import java.util.List;
 
 /**
@@ -22,11 +25,40 @@ import java.util.List;
 public class WorkHourServiceImpl implements WorkHourService {
 
     private final WorkHourMapper workHourMapper;
+    private final LeaveTypeMapper leaveTypeMapper;
     private final AuthService authService;
 
-    public WorkHourServiceImpl(WorkHourMapper workHourMapper, AuthService authService) {
+    public WorkHourServiceImpl(WorkHourMapper workHourMapper, LeaveTypeMapper leaveTypeMapper, AuthService authService) {
         this.workHourMapper = workHourMapper;
+        this.leaveTypeMapper = leaveTypeMapper;
         this.authService = authService;
+    }
+
+    private void validateAndNormalize(WorkHour workHour) {
+        WorkHourRecordType recordType = workHour.getRecordType() != null
+                ? workHour.getRecordType()
+                : WorkHourRecordType.NORMAL;
+        workHour.setRecordType(recordType);
+
+        if (recordType.isLeave()) {
+            if (workHour.getLeaveTypeId() == null) {
+                throw new BusinessException(WorkHourErrorCode.WORKHOUR_LEAVE_TYPE_REQUIRED);
+            }
+            LeaveType leaveType = leaveTypeMapper.selectById(workHour.getLeaveTypeId());
+            if (leaveType == null) {
+                throw new BusinessException(LeaveTypeErrorCode.LEAVE_TYPE_NOT_FOUND);
+            }
+            if (leaveType.getStatus() == null || leaveType.getStatus() != 1) {
+                throw new BusinessException(LeaveTypeErrorCode.LEAVE_TYPE_DISABLED);
+            }
+            workHour.setProjectId(null);
+            workHour.setTaskId(null);
+        } else {
+            if (workHour.getProjectId() == null) {
+                throw new BusinessException(WorkHourErrorCode.WORKHOUR_PROJECT_REQUIRED);
+            }
+            workHour.setLeaveTypeId(null);
+        }
     }
 
     @Override
@@ -92,10 +124,12 @@ public class WorkHourServiceImpl implements WorkHourService {
     @Transactional(rollbackFor = Exception.class)
     public WorkHour createWorkHour(WorkHour workHour) {
         Long currentUserId = UserContext.getCurrentUserId();
-        // 普通用户只能在自己参与的项目中登记工时
-        authService.checkProjectAccess(currentUserId, workHour.getProjectId());
+        validateAndNormalize(workHour);
+        if (!workHour.getRecordType().isLeave()) {
+            authService.checkProjectAccess(currentUserId, workHour.getProjectId());
+        }
 
-        workHour.setUserId(currentUserId); // 工时记录的 userId 就是当前登录用户
+        workHour.setUserId(currentUserId);
         workHour.setCreateUserId(currentUserId);
         workHour.setUpdateUserId(currentUserId);
 
@@ -104,7 +138,7 @@ public class WorkHourServiceImpl implements WorkHourService {
             throw new BusinessException(WorkHourErrorCode.WORKHOUR_CREATE_FAILED);
         }
 
-        return workHour;
+        return workHourMapper.selectById(workHour.getId());
     }
 
     @Override
@@ -112,24 +146,23 @@ public class WorkHourServiceImpl implements WorkHourService {
     public List<WorkHour> createWorkHoursBatch(List<WorkHour> workHours) {
         Long currentUserId = UserContext.getCurrentUserId();
 
-        // 检查所有项目的访问权限
         for (WorkHour workHour : workHours) {
-            authService.checkProjectAccess(currentUserId, workHour.getProjectId());
+            validateAndNormalize(workHour);
+            if (!workHour.getRecordType().isLeave()) {
+                authService.checkProjectAccess(currentUserId, workHour.getProjectId());
+            }
             workHour.setUserId(currentUserId);
             workHour.setCreateUserId(currentUserId);
             workHour.setUpdateUserId(currentUserId);
         }
 
-        // 批量插入
         workHours.forEach(workHour -> workHourMapper.insert(workHour));
-
         return workHours;
     }
 
     @Override
     @Transactional(rollbackFor = Exception.class)
     public WorkHour updateWorkHour(WorkHour workHour) {
-        // 检查工时记录是否存在
         WorkHour existWorkHour = workHourMapper.selectById(workHour.getId());
         if (existWorkHour == null) {
             throw new BusinessException(WorkHourErrorCode.WORKHOUR_NOT_FOUND);
@@ -139,9 +172,12 @@ public class WorkHourServiceImpl implements WorkHourService {
         if (currentUserId == null) {
             throw new BusinessException(CommonErrorCode.UNAUTHORIZED);
         }
-        // 鉴权 - 检查工时访问权限
         authService.checkWorkHourAccess(currentUserId, existWorkHour.getUserId());
 
+        validateAndNormalize(workHour);
+        if (!workHour.getRecordType().isLeave()) {
+            authService.checkProjectAccess(currentUserId, workHour.getProjectId());
+        }
         workHour.setUpdateUserId(currentUserId);
 
         int result = workHourMapper.update(workHour);

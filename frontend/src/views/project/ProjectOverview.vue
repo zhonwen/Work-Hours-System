@@ -86,7 +86,7 @@
           </div>
           <div class="metric-content">
             <div class="metric-value">{{ metrics.totalHours }}</div>
-            <div class="metric-label">总工时(h)</div>
+            <div class="metric-label">项目工时(h)</div>
           </div>
         </div>
 
@@ -128,38 +128,81 @@
         </div>
       </div>
 
-      <!-- 团队概览 -->
+      <!-- 团队概览：负责人固定左侧，其余成员横向滚动 -->
       <div class="team-section">
         <div class="section-header">
           <h3 class="section-title">团队成员 ({{ memberCount }})</h3>
-          <el-button type="primary" size="small" :icon="Plus" @click="handleAddMember">
-            添加成员
-          </el-button>
-        </div>
-        <div class="member-grid">
-          <div
-            v-for="member in members.slice(0, 8)"
-            :key="member.userId"
-            class="member-card"
-          >
-            <el-avatar :size="40">{{ member.nickname?.charAt(0) }}</el-avatar>
-            <div class="member-info">
-              <div class="member-name">{{ member.nickname }}</div>
-              <div class="member-role">{{ getRoleText(member.roleType) }}</div>
-            </div>
-            <el-button
-              link
-              type="danger"
-              size="small"
-              @click="handleRemoveMember(member)"
-            >
-              移除
+          <div class="section-actions">
+            <el-button type="primary" size="small" :icon="Plus" @click="handleAddMember">
+              添加成员
             </el-button>
+            <el-button size="small" @click="handleViewMoreMembers">更多</el-button>
           </div>
-          <div v-if="members.length > 8" class="member-card more-members">
-            <el-avatar :size="40">+{{ members.length - 8 }}</el-avatar>
-            <div class="member-info">
-              <div class="member-name">更多成员</div>
+        </div>
+        <div class="member-row">
+          <!-- 负责人（managerId）固定左侧 -->
+          <div class="owner-slot">
+            <div v-if="ownerMember" class="member-card owner-card">
+              <el-avatar :size="40">{{ ownerMember.nickname?.charAt(0) || '?' }}</el-avatar>
+              <div class="member-info">
+                <div class="member-name">{{ ownerMember.nickname || '未命名' }}</div>
+                <div class="member-role-row">
+                  <el-tag type="warning" size="small" effect="plain">负责人</el-tag>
+                  <el-tag
+                    v-if="ownerMember.roleType === 1"
+                    type="primary"
+                    size="small"
+                    effect="plain"
+                  >
+                    项目经理
+                  </el-tag>
+                </div>
+              </div>
+            </div>
+            <div v-else class="member-card owner-card owner-empty">
+              <el-avatar :size="40">?</el-avatar>
+              <div class="member-info">
+                <div class="member-name">未指定负责人</div>
+                <div class="member-role">请在项目设置中指定</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="member-divider" />
+
+          <!-- 其他成员可滚动 -->
+          <div class="member-scroll">
+            <div
+              v-for="member in scrollableMembers"
+              :key="member.userId"
+              class="member-card"
+            >
+              <el-avatar :size="36">{{ member.nickname?.charAt(0) }}</el-avatar>
+              <div class="member-info">
+                <div class="member-name">{{ member.nickname }}</div>
+                <div class="member-role-row">
+                  <el-tag
+                    v-if="member.roleType === 1"
+                    type="primary"
+                    size="small"
+                    effect="plain"
+                  >
+                    项目经理
+                  </el-tag>
+                  <span v-else class="member-role">{{ getRoleText(member.roleType) }}</span>
+                </div>
+              </div>
+              <el-button
+                link
+                type="danger"
+                size="small"
+                @click="handleRemoveMember(member)"
+              >
+                移除
+              </el-button>
+            </div>
+            <div v-if="scrollableMembers.length === 0" class="member-scroll-empty">
+              暂无其他成员
             </div>
           </div>
         </div>
@@ -276,20 +319,32 @@ import {
   Warning,
   Plus
 } from '@element-plus/icons-vue'
-import { getProjectDetail, getProjectMembers, addProjectMember, removeProjectMember, type ProjectMember } from '@/api/project'
+import { getProjectDetail, getProjectMembers, addProjectMember, removeProjectMember } from '@/api/project'
 import { getAllUsers, type UserInfo } from '@/api/user'
 import { getTasksByProjectId, type TaskInfo } from '@/api/task'
 import { getIterationList, type IterationInfo } from '@/api/iteration'
+import { getWorkHoursByProjectId, type WorkHourInfo } from '@/api/workhour'
 
 // Props
 const props = defineProps<{
   projectId: number
 }>()
 
+const emit = defineEmits<{
+  (e: 'navigate-members'): void
+}>()
+
+interface OverviewMember {
+  userId: number
+  nickname?: string
+  roleType?: number
+}
+
 // 数据定义
 const project = ref<any>(null)
-const members = ref<ProjectMember[]>([])
+const members = ref<OverviewMember[]>([])
 const tasks = ref<TaskInfo[]>([])
+const projectWorkHours = ref<WorkHourInfo[]>([])
 const iterations = ref<IterationInfo[]>([])
 const availableUsers = ref<UserInfo[]>([])
 const loading = ref(false)
@@ -330,10 +385,31 @@ const progressColors = [
 // 计算属性
 const memberCount = computed(() => members.value.length)
 
-const managerName = computed(() => {
-  const manager = members.value.find(m => m.roleType === 1) // 1 = 项目管理员
-  return manager ? manager.nickname : '未指定'
+/** 负责人：以项目 managerId 为准（唯一） */
+const ownerMember = computed<OverviewMember | null>(() => {
+  const managerId = project.value?.managerId
+  if (!managerId) return null
+  const fromMembers = members.value.find(m => Number(m.userId) === Number(managerId))
+  if (fromMembers) return fromMembers
+  const fromUsers = availableUsers.value.find(u => Number(u.id) === Number(managerId))
+  if (fromUsers) {
+    return {
+      userId: Number(fromUsers.id),
+      nickname: fromUsers.nickname,
+      roleType: 1
+    }
+  }
+  return { userId: Number(managerId), nickname: `用户${managerId}`, roleType: 1 }
 })
+
+/** 可滚动成员：排除负责人；多名「项目经理」角色在此以徽章展示 */
+const scrollableMembers = computed(() => {
+  const managerId = project.value?.managerId
+  if (!managerId) return members.value
+  return members.value.filter(m => Number(m.userId) !== Number(managerId))
+})
+
+const managerName = computed(() => ownerMember.value?.nickname || '未指定')
 
 // 获取项目详情
 const fetchProject = async () => {
@@ -377,6 +453,18 @@ const fetchTasks = async () => {
   }
 }
 
+// 获取项目实际填报工时（业务项目只统计本项目真实投入）
+const fetchProjectWorkHours = async () => {
+  try {
+    const res = await getWorkHoursByProjectId(props.projectId)
+    projectWorkHours.value = (Array.isArray(res) ? res : []) as WorkHourInfo[]
+    calculateMetrics()
+  } catch (error) {
+    console.error('获取项目工时失败:', error)
+    projectWorkHours.value = []
+  }
+}
+
 // 获取迭代列表
 const fetchIterations = async () => {
   try {
@@ -404,8 +492,12 @@ const calculateMetrics = () => {
     return endDate < now
   }).length
 
-  // 计算总工时
-  metrics.totalHours = taskList.reduce((sum, t) => sum + (t.estimateHours || 0), 0)
+  // 项目工时：仅正常投入（不含请假）
+  metrics.totalHours = Math.round(
+    projectWorkHours.value
+      .filter(wh => wh.recordType !== 'LEAVE' && wh.recordType !== 2)
+      .reduce((sum, wh) => sum + Number(wh.hours || 0), 0) * 10
+  ) / 10
 
   // 计算完成率
   metrics.completionRate = metrics.totalTasks > 0
@@ -509,6 +601,7 @@ onMounted(async () => {
       fetchMembers(),
       fetchAvailableUsers(),
       fetchTasks(),
+      fetchProjectWorkHours(),
       fetchIterations()
     ])
   } finally {
@@ -523,6 +616,11 @@ const handleAddMember = () => {
     roleType: 2
   }
   addMemberDialogVisible.value = true
+}
+
+// 更多 → 跳转团队协作页签
+const handleViewMoreMembers = () => {
+  emit('navigate-members')
 }
 
 // 提交添加成员
@@ -546,8 +644,12 @@ const handleAddMemberSubmit = async () => {
   }
 }
 
-// 移除成员
-const handleRemoveMember = async (member: ProjectMember) => {
+// 移除成员（负责人不可在概览移除）
+const handleRemoveMember = async (member: OverviewMember) => {
+  if (project.value?.managerId && Number(member.userId) === Number(project.value.managerId)) {
+    ElMessage.warning('项目负责人不可在此移除，请先更换负责人')
+    return
+  }
   try {
     await ElMessageBox.confirm(
       `确定要移除成员 "${member.nickname}" 吗？移除后将无法访问此项目。`,
@@ -757,34 +859,89 @@ const handleRemoveMember = async (member: ProjectMember) => {
   margin-bottom: 20px;
 }
 
-.member-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+.section-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.member-row {
+  display: flex;
+  align-items: stretch;
   gap: 12px;
+  min-height: 72px;
+}
+
+.owner-slot {
+  flex: 0 0 auto;
+  width: 220px;
+}
+
+.member-divider {
+  width: 1px;
+  background: #e8e8e8;
+  flex-shrink: 0;
+  align-self: stretch;
+}
+
+.member-scroll {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+}
+
+.member-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.member-scroll::-webkit-scrollbar-thumb {
+  background: #d9d9d9;
+  border-radius: 3px;
+}
+
+.member-scroll-empty {
+  color: #999;
+  font-size: 13px;
+  padding: 0 8px;
+  white-space: nowrap;
 }
 
 .member-card {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px;
+  gap: 10px;
+  padding: 10px 12px;
   background: #f5f5f5;
   border-radius: 6px;
-  transition: all 0.3s;
-  position: relative;
+  transition: background 0.2s;
+  flex: 0 0 auto;
+  min-width: 180px;
+  max-width: 240px;
 }
 
 .member-card:hover {
   background: #f0f0f0;
 }
 
-.member-card.more-members {
-  background: #e6f7ff;
-  cursor: pointer;
+.owner-card {
+  width: 100%;
+  max-width: none;
+  min-width: 0;
+  background: #fff7e6;
+  border: 1px solid #ffd591;
 }
 
-.member-card.more-members:hover {
-  background: #d6f4ff;
+.owner-card:hover {
+  background: #fff1b8;
+}
+
+.owner-empty {
+  opacity: 0.85;
 }
 
 .member-info {
@@ -805,6 +962,14 @@ const handleRemoveMember = async (member: ProjectMember) => {
   font-size: 12px;
   color: #999;
   margin-top: 2px;
+}
+
+.member-role-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  flex-wrap: wrap;
 }
 
 /* 迭代概览 */

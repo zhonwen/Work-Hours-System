@@ -32,6 +32,9 @@ export const useAuthStore = defineStore('auth', () => {
   const username = ref<string>('')
   const permissions = ref<Set<string>>(new Set())
   const userRoles = ref<RoleInfo[]>([])
+  /** 权限/角色是否已尝试从后端加载（成功或失败都算完成，避免守卫反复请求） */
+  const authLoaded = ref(false)
+  let refreshPromise: Promise<void> | null = null
 
   // 计算属性
   const isAuthenticated = computed(() => !!token.value)
@@ -69,6 +72,11 @@ export const useAuthStore = defineStore('auth', () => {
    */
   const setAuth = (tokenValue: string, usernameValue?: string) => {
     token.value = tokenValue
+    // 换账号/重新登录后需重新拉取角色权限
+    authLoaded.value = false
+    permissions.value.clear()
+    userRoles.value = []
+    refreshPromise = null
 
     // 解析 token 获取 userId
     const payload = parseToken(tokenValue)
@@ -101,6 +109,8 @@ export const useAuthStore = defineStore('auth', () => {
     username.value = ''
     permissions.value.clear()
     userRoles.value = []
+    authLoaded.value = false
+    refreshPromise = null
 
     // 清除 localStorage
     localStorage.removeItem('token')
@@ -180,16 +190,16 @@ export const useAuthStore = defineStore('auth', () => {
 
     try {
       const roleCodes = await getUserRoles()
-      userRoles.value = roleCodes.map(code => ({
+      const codes = Array.isArray(roleCodes) ? roleCodes : []
+      userRoles.value = codes.map((code: string) => ({
         id: 0,
         name: code,
-        code: code
+        code
       }))
-      console.log('用户角色加载成功:', roleCodes)
+      console.log('用户角色加载成功:', codes)
     } catch (error) {
       console.error('获取用户角色失败:', error)
       // 不清空现有角色，保持已有角色
-      // userRoles.value = []
     }
   }
 
@@ -208,29 +218,55 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
-   * 刷新权限和角色信息
+   * 检查是否有指定角色
+   */
+  const hasRole = (roleCode: string): boolean => {
+    return userRoles.value.some(role => role.code === roleCode)
+  }
+
+  /**
+   * 检查是否有任一角色
+   */
+  const hasAnyRole = (roleCodes: string[]): boolean => {
+    return roleCodes.some(code => hasRole(code))
+  }
+
+  /**
+   * 刷新权限和角色信息（并发去重，刷新后页面/守卫可复用同一次请求）
    */
   const refreshAuth = async () => {
-    try {
-      // 使用 Promise.allSettled 而不是 Promise.all，确保一个失败不影响另一个
-      const results = await Promise.allSettled([
-        fetchUserPermissions(),
-        fetchUserRoles()
-      ])
-
-      // 检查是否有失败的情况
-      const failedPermissions = results[0].status === 'rejected'
-      const failedRoles = results[1].status === 'rejected'
-
-      if (failedPermissions || failedRoles) {
-        console.warn('权限信息加载部分失败，但继续流程')
-      }
-
-      // 即使有失败也不抛出错误，允许用户继续使用
-    } catch (error) {
-      console.error('刷新认证信息失败:', error)
-      // 不抛出错误，允许用户继续使用系统
+    if (refreshPromise) {
+      return refreshPromise
     }
+
+    refreshPromise = (async () => {
+      try {
+        const results = await Promise.allSettled([
+          fetchUserPermissions(),
+          fetchUserRoles()
+        ])
+
+        if (results[0].status === 'rejected' || results[1].status === 'rejected') {
+          console.warn('权限信息加载部分失败，但继续流程')
+        }
+      } catch (error) {
+        console.error('刷新认证信息失败:', error)
+      } finally {
+        authLoaded.value = true
+        refreshPromise = null
+      }
+    })()
+
+    return refreshPromise
+  }
+
+  /**
+   * 确保角色/权限已加载（刷新页面后 restoreAuth 不会拉角色，需由此补齐）
+   */
+  const ensureAuthLoaded = async () => {
+    if (!isAuthenticated.value) return
+    if (authLoaded.value) return
+    await refreshAuth()
   }
 
   return {
@@ -240,6 +276,7 @@ export const useAuthStore = defineStore('auth', () => {
     username,
     permissions,
     userRoles,
+    authLoaded,
     // 计算属性
     isAuthenticated,
     currentUser,
@@ -254,6 +291,9 @@ export const useAuthStore = defineStore('auth', () => {
     fetchUserRoles,
     hasPermission,
     hasAnyPermission,
-    refreshAuth
+    hasRole,
+    hasAnyRole,
+    refreshAuth,
+    ensureAuthLoaded
   }
 })

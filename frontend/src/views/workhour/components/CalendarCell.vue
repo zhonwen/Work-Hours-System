@@ -45,7 +45,7 @@ import { computed } from 'vue'
 import { Clock, Plus } from '@element-plus/icons-vue'
 import { isToday as checkIsToday, isWeekend as checkIsWeekend } from '@/utils/dateUtils'
 import { getWorkHourStatusInfo } from '@/utils/statusMapping'
-import type { WorkHourInfo } from '@/api/workhour'
+import { sumWorkHours, type WorkHourInfo } from '@/api/workhour'
 
 const props = defineProps<{
   date: string // YYYY-MM-DD
@@ -67,9 +67,7 @@ const isToday = computed(() => checkIsToday(props.date))
 
 const isWeekend = computed(() => checkIsWeekend(props.date))
 
-const totalHours = computed(() => {
-  return props.workHours.reduce((sum, wh) => sum + wh.hours, 0)
-})
+const totalHours = computed(() => sumWorkHours(props.workHours))
 
 const hasData = computed(() => props.workHours.length > 0)
 

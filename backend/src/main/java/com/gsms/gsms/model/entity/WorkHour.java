@@ -1,6 +1,7 @@
 package com.gsms.gsms.model.entity;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
+import com.gsms.gsms.model.enums.WorkHourRecordType;
 import com.gsms.gsms.model.enums.WorkHourStatus;
 import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.format.annotation.DateTimeFormat;
@@ -57,6 +58,24 @@ public class WorkHour {
      */
     @Schema(description = "工作内容描述")
     private String content;
+
+    /**
+     * 记录类型：正常工时 / 请假
+     */
+    @Schema(description = "记录类型 NORMAL/LEAVE")
+    private WorkHourRecordType recordType;
+
+    /**
+     * 请假类型ID（仅请假）
+     */
+    @Schema(description = "请假类型ID")
+    private Long leaveTypeId;
+
+    /**
+     * 请假类型名称（关联查询）
+     */
+    @Schema(description = "请假类型名称")
+    private String leaveTypeName;
 
     /**
      * 状态
@@ -165,6 +184,30 @@ public class WorkHour {
 
     public void setContent(String content) {
         this.content = content;
+    }
+
+    public WorkHourRecordType getRecordType() {
+        return recordType;
+    }
+
+    public void setRecordType(WorkHourRecordType recordType) {
+        this.recordType = recordType;
+    }
+
+    public Long getLeaveTypeId() {
+        return leaveTypeId;
+    }
+
+    public void setLeaveTypeId(Long leaveTypeId) {
+        this.leaveTypeId = leaveTypeId;
+    }
+
+    public String getLeaveTypeName() {
+        return leaveTypeName;
+    }
+
+    public void setLeaveTypeName(String leaveTypeName) {
+        this.leaveTypeName = leaveTypeName;
     }
 
     public WorkHourStatus getStatus() {

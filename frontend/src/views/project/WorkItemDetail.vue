@@ -638,9 +638,11 @@ const workHourFormRules: FormRules = {
   content: [{ required: true, message: '请输入工时说明', trigger: 'blur' }]
 }
 
-// 计算总工时
+// 计算总工时（不含请假）
 const totalWorkHours = computed(() => {
-  return workHours.value.reduce((sum, item) => sum + item.hours, 0)
+  return workHours.value
+    .filter(item => item.recordType !== 'LEAVE' && item.recordType !== 2)
+    .reduce((sum, item) => sum + Number(item.hours || 0), 0)
 })
 
 // 获取工作项详情

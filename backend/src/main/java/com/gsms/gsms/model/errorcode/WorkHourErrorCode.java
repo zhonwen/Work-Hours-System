@@ -1,4 +1,4 @@
-package com.gsms.gsms.model.enums.errorcode;
+package com.gsms.gsms.model.errorcode;
 
 import com.gsms.gsms.infra.exception.ErrorCode;
 
@@ -17,6 +17,8 @@ public enum WorkHourErrorCode implements ErrorCode {
     WORKHOUR_DUPLICATE(5004, "重复的工时记录"),
     WORKHOUR_STATUS_INVALID(5005, "工时状态无效"),
     WORKHOUR_PROJECT_INVALID(5006, "工时所属项目无效"),
+    WORKHOUR_LEAVE_TYPE_REQUIRED(5007, "请假必须选择请假类型"),
+    WORKHOUR_PROJECT_REQUIRED(5008, "正常工时必须选择项目"),
     
     // ========== 操作失败（建议HTTP 500） ==========
     WORKHOUR_CREATE_FAILED(5901, "工时记录创建失败"),

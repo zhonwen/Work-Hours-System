@@ -36,7 +36,10 @@
       <transition name="module-fade" mode="out-in">
         <!-- 项目概览（新增） -->
         <div v-if="activeModule === 'overview'" key="overview" class="module-content">
-          <ProjectOverview :project-id="projectId" />
+          <ProjectOverview
+            :project-id="projectId"
+            @navigate-members="activeModule = 'member'"
+          />
         </div>
 
         <!-- 需求管理 -->
