@@ -27,11 +27,11 @@
         wh.create_time, wh.update_time, wh.is_deleted
     </sql>
 
-    <!-- 根据ID查询工时记录 -->
+    <!-- 根据ID查询工时记录（INNER JOIN 项目：排除所属项目已软删的工时） -->
     <select id="selectById" parameterType="long" resultMap="WorkHourResultMap">
         SELECT <include refid="selectAllFieldsWithJoins"/>
         FROM gsms_work_hour wh
-        LEFT JOIN gsms_project p ON wh.project_id = p.id AND p.is_deleted = 0
+        INNER JOIN gsms_project p ON wh.project_id = p.id AND p.is_deleted = 0
         LEFT JOIN gsms_task t ON wh.task_id = t.id AND t.is_deleted = 0
         WHERE wh.id = #{id} AND wh.is_deleted = 0
     </select>
@@ -40,7 +40,7 @@
     <select id="selectByUserId" parameterType="long" resultMap="WorkHourResultMap">
         SELECT <include refid="selectAllFieldsWithJoins"/>
         FROM gsms_work_hour wh
-        LEFT JOIN gsms_project p ON wh.project_id = p.id AND p.is_deleted = 0
+        INNER JOIN gsms_project p ON wh.project_id = p.id AND p.is_deleted = 0
         LEFT JOIN gsms_task t ON wh.task_id = t.id AND t.is_deleted = 0
         WHERE wh.user_id = #{userId} AND wh.is_deleted = 0
         ORDER BY wh.work_date DESC, wh.create_time DESC
@@ -50,7 +50,7 @@
     <select id="selectByProjectId" parameterType="long" resultMap="WorkHourResultMap">
         SELECT <include refid="selectAllFieldsWithJoins"/>
         FROM gsms_work_hour wh
-        LEFT JOIN gsms_project p ON wh.project_id = p.id AND p.is_deleted = 0
+        INNER JOIN gsms_project p ON wh.project_id = p.id AND p.is_deleted = 0
         LEFT JOIN gsms_task t ON wh.task_id = t.id AND t.is_deleted = 0
         WHERE wh.project_id = #{projectId} AND wh.is_deleted = 0
         ORDER BY wh.work_date DESC, wh.create_time DESC
@@ -60,7 +60,7 @@
     <select id="selectByTaskId" parameterType="long" resultMap="WorkHourResultMap">
         SELECT <include refid="selectAllFieldsWithJoins"/>
         FROM gsms_work_hour wh
-        LEFT JOIN gsms_project p ON wh.project_id = p.id AND p.is_deleted = 0
+        INNER JOIN gsms_project p ON wh.project_id = p.id AND p.is_deleted = 0
         LEFT JOIN gsms_task t ON wh.task_id = t.id AND t.is_deleted = 0
         WHERE wh.task_id = #{taskId} AND wh.is_deleted = 0
         ORDER BY wh.work_date DESC, wh.create_time DESC
@@ -70,7 +70,7 @@
     <select id="selectByCondition" resultMap="WorkHourResultMap">
         SELECT <include refid="selectAllFieldsWithJoins"/>
         FROM gsms_work_hour wh
-        LEFT JOIN gsms_project p ON wh.project_id = p.id AND p.is_deleted = 0
+        INNER JOIN gsms_project p ON wh.project_id = p.id AND p.is_deleted = 0
         LEFT JOIN gsms_task t ON wh.task_id = t.id AND t.is_deleted = 0
         <where>
             <if test="userId != null">
@@ -122,6 +122,13 @@
     <!-- 根据ID逻辑删除工时记录 -->
     <update id="deleteById" parameterType="long">
         UPDATE gsms_work_hour SET is_deleted = 1, update_time = CURRENT_TIMESTAMP WHERE id = #{id}
+    </update>
+
+    <!-- 按项目逻辑删除工时（项目软删时级联） -->
+    <update id="deleteByProjectId" parameterType="long">
+        UPDATE gsms_work_hour
+        SET is_deleted = 1, update_time = CURRENT_TIMESTAMP
+        WHERE project_id = #{projectId} AND is_deleted = 0
     </update>
 
     <!-- 查询项目成员的总工时 -->

@@ -78,6 +78,13 @@ public interface WorkHourMapper extends BaseMapper<WorkHour> {
     int deleteById(@Param("id") Long id);
 
     /**
+     * 按项目软删除工时记录
+     * @param projectId 项目ID
+     * @return 影响行数
+     */
+    int deleteByProjectId(@Param("projectId") Long projectId);
+
+    /**
      * 查询项目成员的总工时
      * @param projectId 项目ID
      * @param userId 用户ID

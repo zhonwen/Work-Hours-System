@@ -18,6 +18,7 @@ import com.gsms.gsms.infra.utils.UserContext;
 import com.gsms.gsms.repository.ProjectMapper;
 import com.gsms.gsms.repository.ProjectMemberMapper;
 import com.gsms.gsms.repository.UserMapper;
+import com.gsms.gsms.repository.WorkHourMapper;
 import com.gsms.gsms.service.AuthService;
 import com.gsms.gsms.service.ProjectService;
 import com.gsms.gsms.service.CacheService;
@@ -41,13 +42,16 @@ public class ProjectServiceImpl implements ProjectService {
     private final ProjectMapper projectMapper;
     private final ProjectMemberMapper projectMemberMapper;
     private final UserMapper userMapper;
+    private final WorkHourMapper workHourMapper;
     private final AuthService authService;
     private final CacheService cacheService;
 
     public ProjectServiceImpl(ProjectMapper projectMapper, ProjectMemberMapper projectMemberMapper,
-                             UserMapper userMapper, AuthService authService, CacheService cacheService) {
+                             UserMapper userMapper, WorkHourMapper workHourMapper,
+                             AuthService authService, CacheService cacheService) {
         this.projectMapper = projectMapper;
         this.projectMemberMapper = projectMemberMapper;
+        this.workHourMapper = workHourMapper;
         this.userMapper = userMapper;
         this.authService = authService;
         this.cacheService = cacheService;
@@ -303,6 +307,10 @@ public class ProjectServiceImpl implements ProjectService {
         if (result <= 0) {
             throw new BusinessException(ProjectErrorCode.PROJECT_DELETE_FAILED);
         }
+
+        // 级联软删除该项目下的工时，避免列表/统计残留无项目名的孤儿记录
+        int workHourDeleted = workHourMapper.deleteByProjectId(id);
+        log.info("项目删除完成并级联软删工时: projectId={}, workHourDeleted={}", id, workHourDeleted);
     }
 
     // ========== 内部方法：数据填充 ==========
