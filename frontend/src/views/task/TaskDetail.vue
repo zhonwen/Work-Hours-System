@@ -22,14 +22,23 @@
         >
           开始任务
         </el-button>
-        <el-button
+        <el-tooltip
           v-if="task?.status === 'IN_PROGRESS'"
-          type="success"
-          :icon="Select"
-          @click="handleCompleteTask"
+          :disabled="!hasIncompleteSubtasks"
+          content="存在未完成的子任务，无法完成父任务"
+          placement="bottom"
         >
-          完成任务
-        </el-button>
+          <span>
+            <el-button
+              type="success"
+              :icon="Select"
+              :disabled="hasIncompleteSubtasks"
+              @click="handleCompleteTask"
+            >
+              完成任务
+            </el-button>
+          </span>
+        </el-tooltip>
         <el-button
           v-if="task?.status === 'DONE'"
           :icon="RefreshLeft"
@@ -47,6 +56,17 @@
       <!-- 基本信息 -->
       <el-tab-pane label="基本信息" name="info">
         <el-collapse v-model="activeCollapse" class="info-collapse">
+           <el-collapse-item name="creator" title="创建信息">
+            <el-descriptions :column="2" border>
+              <el-descriptions-item label="创建人">
+                {{ task?.createUserName || '-' }}
+              </el-descriptions-item>
+              <el-descriptions-item label="更新人">
+                {{ task?.updateUserName || '-' }}
+              </el-descriptions-item>
+            </el-descriptions>
+          </el-collapse-item>
+          
           <el-collapse-item name="basic" title="任务基本信息">
             <el-descriptions :column="2" border>
               <el-descriptions-item label="任务ID">{{ task?.id }}</el-descriptions-item>
@@ -116,17 +136,97 @@
             </el-descriptions>
           </el-collapse-item>
 
-          <el-collapse-item name="creator" title="创建信息">
-            <el-descriptions :column="2" border>
-              <el-descriptions-item label="创建人">
-                {{ task?.createUserName || '-' }}
-              </el-descriptions-item>
-              <el-descriptions-item label="更新人">
-                {{ task?.updateUserName || '-' }}
-              </el-descriptions-item>
-            </el-descriptions>
-          </el-collapse-item>
+         
         </el-collapse>
+      </el-tab-pane>
+
+      <!-- 子任务 -->
+      <el-tab-pane name="subtasks">
+        <template #label>
+          <span>
+            <el-icon><Files /></el-icon>
+            子任务
+          </span>
+        </template>
+        <div class="subtasks-content">
+          <el-table
+            :data="subtasks"
+            v-loading="subtasksLoading"
+            row-key="id"
+            :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
+            empty-text="暂无子任务"
+            border
+            stripe
+            style="width: 100%"
+          >
+            <el-table-column prop="title" label="任务标题" min-width="160" show-overflow-tooltip />
+            <el-table-column prop="description" label="任务描述" min-width="180">
+              <template #default="{ row }">
+                <el-tooltip
+                  :content="row.description || '暂无描述'"
+                  placement="top"
+                  :disabled="!row.description || row.description.length <= 40"
+                >
+                  <span class="desc-ellipsis">{{ row.description || '-' }}</span>
+                </el-tooltip>
+              </template>
+            </el-table-column>
+            <el-table-column prop="status" label="状态" width="90" align="center">
+              <template #default="{ row }">
+                <el-tag :type="getStatusType(row.status)" size="small">
+                  {{ getStatusText(row.status) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="priority" label="优先级" width="80" align="center">
+              <template #default="{ row }">
+                <el-tag :type="getPriorityType(row.priority)" size="small">
+                  {{ getPriorityText(row.priority) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="assigneeName" label="负责人" width="100" align="center">
+              <template #default="{ row }">
+                {{ row.assigneeName || '-' }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="planEndDate" label="截止日期" width="110" align="center">
+              <template #default="{ row }">
+                {{ row.planEndDate || '-' }}
+              </template>
+            </el-table-column>
+            <el-table-column label="操作" width="220" align="center" fixed="right">
+              <template #default="{ row }">
+                <el-button
+                  v-if="row.status === 'TODO' || !row.status"
+                  link
+                  type="primary"
+                  @click="handleSubtaskStart(row)"
+                >
+                  开始
+                </el-button>
+                <el-button
+                  v-if="row.status === 'IN_PROGRESS'"
+                  link
+                  type="success"
+                  @click="handleSubtaskComplete(row)"
+                >
+                  完成
+                </el-button>
+                <el-button
+                  v-if="row.status === 'DONE'"
+                  link
+                  type="warning"
+                  @click="handleSubtaskReopen(row)"
+                >
+                  重开
+                </el-button>
+                <el-button link type="primary" @click="handleViewSubtask(row)">查看</el-button>
+                <el-button link type="primary" @click="handleEditSubtask(row)">编辑</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </div>
       </el-tab-pane>
 
       <!-- 工时记录 -->
@@ -169,86 +269,10 @@
         </div>
       </el-tab-pane>
 
-      <!-- 子任务 -->
-      <el-tab-pane name="subtasks">
-        <template #label>
-          <span>
-            <el-icon><Files /></el-icon>
-            子任务
-          </span>
-        </template>
-        <div class="subtasks-content">
-          <el-table
-            :data="subtasks"
-            v-loading="subtasksLoading"
-            row-key="id"
-            :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
-            empty-text="暂无子任务"
-            border
-            stripe
-            style="width: 100%"
-          >
-            <el-table-column prop="title" label="任务标题" min-width="200" />
-            <el-table-column prop="status" label="状态" width="100" align="center">
-              <template #default="{ row }">
-                <el-tag :type="getStatusType(row.status)" size="small">
-                  {{ getStatusText(row.status) }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="priority" label="优先级" width="100" align="center">
-              <template #default="{ row }">
-                <el-tag :type="getPriorityType(row.priority)" size="small">
-                  {{ getPriorityText(row.priority) }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="assigneeName" label="负责人" width="120" align="center">
-              <template #default="{ row }">
-                {{ row.assigneeName || '-' }}
-              </template>
-            </el-table-column>
-            <el-table-column prop="planEndDate" label="截止日期" width="120" align="center">
-              <template #default="{ row }">
-                {{ row.planEndDate || '-' }}
-              </template>
-            </el-table-column>
-            <el-table-column label="操作" width="260" align="center" fixed="right">
-              <template #default="{ row }">
-                <el-button
-                  v-if="row.status === 'TODO' || !row.status"
-                  link
-                  type="primary"
-                  @click="handleSubtaskStart(row)"
-                >
-                  开始
-                </el-button>
-                <el-button
-                  v-if="row.status === 'IN_PROGRESS'"
-                  link
-                  type="success"
-                  @click="handleSubtaskComplete(row)"
-                >
-                  完成
-                </el-button>
-                <el-button
-                  v-if="row.status === 'DONE'"
-                  link
-                  type="warning"
-                  @click="handleSubtaskReopen(row)"
-                >
-                  重开
-                </el-button>
-                <el-button link type="primary" @click="goToTaskDetail(row.id)">查看</el-button>
-                <el-button link type="primary" @click="handleEditSubtask(row)">编辑</el-button>
-              </template>
-            </el-table-column>
-          </el-table>
-        </div>
-      </el-tab-pane>
+      
 
       <!-- 操作历史 -->
-      <el-tab-pane name="history">
+      <!-- <el-tab-pane name="history">
         <template #label>
           <span>
             <el-icon><Clock /></el-icon>
@@ -275,7 +299,7 @@
           </el-timeline>
           <el-empty v-else description="暂无操作历史" :image-size="100" />
         </div>
-      </el-tab-pane>
+      </el-tab-pane> -->
     </el-tabs>
 
     <!-- 编辑任务对话框 -->
@@ -335,8 +359,18 @@
               <el-select v-model="editFormData.status" placeholder="请选择" style="width: 100%">
                 <el-option label="待办" value="TODO" />
                 <el-option label="进行中" value="IN_PROGRESS" />
-                <el-option label="已完成" value="DONE" />
+                <el-option
+                  label="已完成"
+                  value="DONE"
+                  :disabled="isEditingParentWithIncompleteSubtasks"
+                />
               </el-select>
+              <div
+                v-if="isEditingParentWithIncompleteSubtasks"
+                class="form-tip"
+              >
+                存在未完成子任务，无法将父任务设为已完成
+              </div>
             </el-form-item>
           </el-col>
         </el-row>
@@ -368,6 +402,69 @@
       <template #footer>
         <el-button @click="editDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="handleEditSubmit" :loading="editSubmitLoading">确定</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 子任务查看弹窗 -->
+    <el-dialog
+      v-model="subtaskViewVisible"
+      title="子任务详情"
+      width="640px"
+      :close-on-click-modal="false"
+      destroy-on-close
+    >
+      <el-descriptions v-if="viewingSubtask" :column="2" border>
+        <el-descriptions-item label="任务标题" :span="2">
+          {{ viewingSubtask.title }}
+        </el-descriptions-item>
+        <el-descriptions-item label="任务描述" :span="2">
+          <div class="subtask-view-desc">{{ viewingSubtask.description || '暂无描述' }}</div>
+        </el-descriptions-item>
+        <el-descriptions-item label="状态">
+          <el-tag :type="getStatusType(viewingSubtask.status)" size="small">
+            {{ getStatusText(viewingSubtask.status) }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="优先级">
+          <el-tag :type="getPriorityType(viewingSubtask.priority)" size="small">
+            {{ getPriorityText(viewingSubtask.priority) }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="负责人">
+          {{ viewingSubtask.assigneeName || '未分配' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="类型">
+          {{ getTypeText(viewingSubtask.type) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="计划开始">
+          {{ viewingSubtask.planStartDate || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="计划结束">
+          {{ viewingSubtask.planEndDate || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="实际开始">
+          {{ viewingSubtask.actualStartDate || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="实际结束">
+          {{ viewingSubtask.actualEndDate || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="创建人">
+          {{ viewingSubtask.createUserName || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="更新人">
+          {{ viewingSubtask.updateUserName || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="创建时间">
+          {{ formatDateTime(viewingSubtask.createTime) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="更新时间">
+          {{ formatDateTime(viewingSubtask.updateTime) }}
+        </el-descriptions-item>
+      </el-descriptions>
+      <template #footer>
+        <el-button @click="subtaskViewVisible = false">关闭</el-button>
+        <el-button type="primary" @click="handleEditFromSubtaskView">编辑</el-button>
+        
       </template>
     </el-dialog>
 
@@ -459,6 +556,29 @@ const projectMembers = ref<any[]>([])
 // 子任务列表
 const subtasks = ref<any[]>([])
 const subtasksLoading = ref(false)
+
+// 子任务查看弹窗
+const subtaskViewVisible = ref(false)
+const viewingSubtask = ref<any>(null)
+
+const isCompletedStatus = (status?: string) => status === 'DONE' || status === 'CLOSED'
+
+/** 是否存在未完成子任务（含嵌套） */
+const hasIncompleteSubtasks = computed(() => {
+  const walk = (list: any[]): boolean => {
+    if (!list?.length) return false
+    return list.some((t) => {
+      if (!isCompletedStatus(t.status)) return true
+      return walk(t.subtasks || t.children || [])
+    })
+  }
+  return walk(subtasks.value)
+})
+
+/** 编辑弹窗中：正在编辑当前父任务且子任务未完成 */
+const isEditingParentWithIncompleteSubtasks = computed(() => {
+  return editingTaskId.value === taskId.value && hasIncompleteSubtasks.value
+})
 
 // 操作历史
 const operationHistory = ref<OperationLogInfo[]>([])
@@ -592,8 +712,22 @@ const goToIteration = () => {
 }
 
 // 跳转到任务详情
-const goToTaskDetail = (subtaskId: number) => {
+const goToTaskDetail = (subtaskId?: number) => {
+  if (!subtaskId) return
+  subtaskViewVisible.value = false
   router.push(`/tasks/${subtaskId}`)
+}
+
+// 弹窗查看子任务（不跳转，避免同组件路由复用丢数据）
+const handleViewSubtask = (row: any) => {
+  viewingSubtask.value = { ...row }
+  subtaskViewVisible.value = true
+}
+
+const handleEditFromSubtaskView = () => {
+  if (!viewingSubtask.value) return
+  subtaskViewVisible.value = false
+  handleEditSubtask(viewingSubtask.value)
 }
 
 // 监听标签页切换
@@ -659,6 +793,13 @@ const handleStartTask = async () => {
 
 // 完成任务
 const handleCompleteTask = async () => {
+  if (!subtasks.value.length) {
+    await fetchSubtasks()
+  }
+  if (hasIncompleteSubtasks.value) {
+    ElMessage.warning('存在未完成的子任务，无法完成父任务')
+    return
+  }
   try {
     await updateTaskStatus({
       id: taskId.value,
@@ -763,6 +904,19 @@ const handleEditSubmit = async () => {
       editSubmitLoading.value = true
       try {
         const targetId = editingTaskId.value || taskId.value
+        if (
+          targetId === taskId.value &&
+          editFormData.status === 'DONE' &&
+          task.value?.status !== 'DONE'
+        ) {
+          if (!subtasks.value.length) {
+            await fetchSubtasks()
+          }
+          if (hasIncompleteSubtasks.value) {
+            ElMessage.warning('存在未完成的子任务，无法完成父任务')
+            return
+          }
+        }
         await updateTask({
           id: targetId,
           projectId: task.value?.projectId,
@@ -927,8 +1081,29 @@ const formatDateTime = (date: string) => {
   return date
 }
 
+const loadPage = async () => {
+  if (!taskId.value || Number.isNaN(taskId.value)) return
+  // 切换任务时重置页内状态，避免沿用上一个任务的数据
+  task.value = null
+  subtasks.value = []
+  workHours.value = []
+  operationHistory.value = []
+  projectMembers.value = []
+  activeTab.value = 'info'
+  editDialogVisible.value = false
+  await fetchTask()
+  await fetchSubtasks()
+}
+
 onMounted(() => {
-  fetchTask()
+  loadPage()
+})
+
+// 父任务 → 子任务「查看」复用同一组件，需监听路由 id 变化重新加载
+watch(taskId, (id, prev) => {
+  if (id && id !== prev) {
+    loadPage()
+  }
 })
 </script>
 
@@ -1019,6 +1194,32 @@ onMounted(() => {
   gap: 8px;
   font-size: 12px;
   color: #909399;
+}
+
+.form-tip {
+  margin-top: 6px;
+  font-size: 12px;
+  color: #e6a23c;
+  line-height: 1.4;
+}
+
+.desc-ellipsis {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+  color: #606266;
+}
+
+.subtask-view-desc {
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.6;
+  color: #606266;
+  max-height: 240px;
+  overflow: auto;
 }
 
 .tab-content-workhours {

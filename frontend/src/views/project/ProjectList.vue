@@ -90,7 +90,7 @@
                     <template #dropdown>
                       <el-dropdown-menu>
                         <el-dropdown-item command="view" :icon="View">查看</el-dropdown-item>
-                        <el-dropdown-item command="gantt" :icon="View">甘特图</el-dropdown-item>
+                        <!-- <el-dropdown-item command="gantt" :icon="View">甘特图</el-dropdown-item> -->
                         <el-dropdown-item
                           v-if="canManageProject && project.status === 'NOT_STARTED'"
                           command="start"
@@ -193,7 +193,7 @@
         </el-table-column>
         <el-table-column label="操作" width="120" fixed="right">
           <template #default="{ row }">
-            <el-button link type="success" :icon="Grid" @click="handleGantt(row)">甘特图</el-button>
+            <!-- <el-button link type="success" :icon="Grid" @click="handleGantt(row)">甘特图</el-button> -->
             <el-dropdown trigger="click">
               <el-button link :icon="MoreFilled" />
               <template #dropdown>

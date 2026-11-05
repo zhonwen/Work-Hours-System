@@ -124,15 +124,18 @@ public class TaskServiceImpl implements TaskService {
         Integer pageNum = taskQueryReq.getPageNum() != null ? taskQueryReq.getPageNum() : 1;
         Integer pageSize = taskQueryReq.getPageSize() != null ? taskQueryReq.getPageSize() : 10;
 
-        // 权限判断
-        if (projectId == null && !authService.canViewAllTasks(currentUserId)) {
-            logger.warn("用户无全局权限且未指定项目ID，拒绝查询");
-            throw new BusinessException(CommonErrorCode.FORBIDDEN);
+        boolean canViewAll = authService.canViewAllTasks(currentUserId);
+
+        // 无全局任务权限时：仅可查自己参与项目的任务；指定项目时再校验成员身份
+        if (!canViewAll && projectId != null) {
+            authService.checkProjectAccess(currentUserId, projectId);
         }
 
-        // 1. 查询所有符合筛选条件的任务（可能是子任务）
-        logger.info("步骤1: 查询所有符合筛选条件的任务");
-        List<Task> matchedTasks = taskMapper.selectByCondition(projectId, assigneeId, statusCode);
+        // 1. 查询符合筛选条件的任务（按数据范围过滤，防止越权）
+        logger.info("步骤1: 查询任务列表 canViewAll={}, projectId={}", canViewAll, projectId);
+        List<Task> matchedTasks = canViewAll
+                ? taskMapper.selectByCondition(projectId, assigneeId, statusCode)
+                : taskMapper.selectAccessibleTasksByCondition(currentUserId, projectId, assigneeId, statusCode);
         logger.info("符合筛选条件的任务数量: {}", matchedTasks.size());
 
         // 2. 如果没有任务，直接返回空结果
@@ -335,6 +338,11 @@ public class TaskServiceImpl implements TaskService {
             }
         }
 
+        // 父任务标记完成前，子任务须全部完成
+        if (task.getStatus() == TaskStatus.DONE && existTask.getStatus() != TaskStatus.DONE) {
+            assertAllSubtasksCompleted(existTask.getId());
+        }
+
         // 如果任务状态更新为已完成且实际结束日期未设置，则自动设置实际结束日期
         if (task.getStatus() != null &&
             task.getStatus() == TaskStatus.DONE &&
@@ -390,6 +398,11 @@ public class TaskServiceImpl implements TaskService {
 
         TaskStatus newStatus = updateReq.getStatus();
         TaskStatus oldStatus = existTask.getStatus();
+
+        // 父任务标记完成前，子任务须全部完成
+        if (newStatus == TaskStatus.DONE && oldStatus != TaskStatus.DONE) {
+            assertAllSubtasksCompleted(existTask.getId());
+        }
 
         // 创建更新实体
         Task task = new Task();
@@ -579,6 +592,28 @@ public class TaskServiceImpl implements TaskService {
 
         logger.info("任务迭代ID更新成功: taskId={}, iterationId={}", taskId, iterationId);
         return taskMapper.selectById(taskId);
+    }
+
+    // ========== 内部方法：业务校验 ==========
+
+    /**
+     * 父任务完成前校验：所有子孙任务须为已完成/已关闭
+     */
+    private void assertAllSubtasksCompleted(Long parentId) {
+        List<Task> children = taskMapper.selectSubtasksByParentIds(java.util.Collections.singletonList(parentId));
+        if (children == null || children.isEmpty()) {
+            return;
+        }
+        for (Task child : children) {
+            if (!isCompletedStatus(child.getStatus())) {
+                throw new BusinessException(TaskErrorCode.TASK_SUBTASKS_INCOMPLETE);
+            }
+            assertAllSubtasksCompleted(child.getId());
+        }
+    }
+
+    private boolean isCompletedStatus(TaskStatus status) {
+        return status == TaskStatus.DONE || status == TaskStatus.CLOSED;
     }
 
     // ========== 内部方法：数据填充 ==========

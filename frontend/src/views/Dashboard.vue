@@ -7,6 +7,9 @@
         <div class="welcome-text">欢迎回来，{{ authStore.username }}</div>
       </div>
       <div class="header-right">
+        <el-button :icon="Refresh" :loading="loading" @click="handleRefresh">
+          刷新
+        </el-button>
         <el-button type="primary" :icon="Plus" @click="handleBatchCreateWorkHour">
           工时填报
         </el-button>
@@ -201,7 +204,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Folder, List, Clock, Calendar, DataLine, Plus } from '@element-plus/icons-vue'
+import { Folder, List, Clock, Calendar, DataLine, Plus, Refresh } from '@element-plus/icons-vue'
 import { getTaskStatusInfo, getTaskPriorityInfo, getProjectStatusInfo } from '@/utils/statusMapping'
 import { useAuthStore } from '@/stores/auth'
 import { getDashboardData } from '@/api/statistics'
@@ -281,17 +284,24 @@ const getProjectStatusType = (status: string) => getProjectStatusInfo(status).ty
 const getProjectStatusText = (status: string) => getProjectStatusInfo(status).text
 
 // 获取看板数据
-const fetchDashboardData = async () => {
+const fetchDashboardData = async (showSuccess = false) => {
   loading.value = true
   try {
     const data = await getDashboardData()
     Object.assign(dashboardData, data)
+    if (showSuccess) {
+      ElMessage.success('看板已刷新')
+    }
   } catch (error) {
     console.error('获取看板数据失败:', error)
     ElMessage.error('获取看板数据失败')
   } finally {
     loading.value = false
   }
+}
+
+const handleRefresh = () => {
+  fetchDashboardData(true)
 }
 
 // 跳转到任务详情
