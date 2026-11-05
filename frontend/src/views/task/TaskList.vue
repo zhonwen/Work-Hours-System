@@ -282,8 +282,14 @@
         </el-table-column>
 
         <!-- 核心列（默认显示） -->
-        <el-table-column prop="id" label="ID" width="70" />
-        <el-table-column prop="title" label="任务标题" min-width="200">
+        <el-table-column
+          type="index"
+          label="序号"
+          width="64"
+          fixed="left"
+          :index="(index: number) => (searchForm.pageNum - 1) * searchForm.pageSize + index + 1"
+        />
+        <el-table-column prop="title" label="任务标题" min-width="200" fixed="left">
           <template #default="{ row }">
             <div class="table-task-title">
               <el-tag :type="getPriorityType(row.priority)" size="small" style="margin-right: 8px">
@@ -375,6 +381,7 @@
             </el-form-item>
           </el-col>
         </el-row>
+        <!-- TODO[迭代]: 中大型项目「先建迭代再挂任务」完整流程后续开放
         <el-row :gutter="20" v-if="!formData.parentId">
           <el-col :span="12">
             <el-form-item label="所属迭代" v-if="projectType === 'LARGE_SCALE'">
@@ -397,10 +404,8 @@
               </div>
             </el-form-item>
           </el-col>
-          <el-col :span="12">
-            <!-- 占位 -->
-          </el-col>
         </el-row>
+        -->
         <el-form-item label="任务描述" prop="description">
           <el-input
             v-model="formData.description"
@@ -474,7 +479,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import {
   Plus,
@@ -488,11 +493,12 @@ import {
 } from '@element-plus/icons-vue'
 import { getTaskList, createTask, updateTask, updateTaskStatus, deleteTask } from '@/api/task'
 import { getProjectList, getProjectMembers } from '@/api/project'
-import { getIterationList } from '@/api/iteration'
+// TODO[迭代]: import { getIterationList } from '@/api/iteration'
 import { getAllUsers, type UserInfo } from '@/api/user'
 import { getTaskStatusInfo, getTaskPriorityInfo, getTaskStatusOptions } from '@/utils/statusMapping'
 
 const router = useRouter()
+const route = useRoute()
 
 // 视图模式（默认列表）
 const viewMode = ref<'kanban' | 'table'>('table')
@@ -547,10 +553,10 @@ const formRules = computed(() => {
   if (!formData.parentId) {
     rules.projectId = [{ required: true, message: '请选择所属项目', trigger: 'change' }]
 
-    // 中大型项目必须选择迭代
-    if (projectType.value === 'LARGE_SCALE') {
-      rules.iterationId = [{ required: true, message: '中大型项目的任务必须关联到某个迭代', trigger: 'change' }]
-    }
+    // TODO[迭代]: 中大型项目强制关联迭代 — 后续开放
+    // if (projectType.value === 'LARGE_SCALE') {
+    //   rules.iterationId = [{ required: true, message: '中大型项目的任务必须关联到某个迭代', trigger: 'change' }]
+    // }
   }
 
   return rules
@@ -577,22 +583,20 @@ const userList = ref<UserInfo[]>([])
 // 项目成员列表（根据选择的项目动态加载；userId 为用户ID，勿用成员表 id）
 const projectMembers = ref<{ userId: number; nickname?: string }[]>([])
 
-// 项目迭代列表（根据选择的项目动态加载）
-const projectIterations = ref<any[]>([])
+// TODO[迭代]: 项目迭代列表（根据选择的项目动态加载）
+// const projectIterations = ref<any[]>([])
 
 // 父任务信息（用于子任务创建）
 const parentTaskInfo = ref<TaskInfo | null>(null)
 
-// 计算当前选择的项目
-const currentProject = computed(() => {
-  if (!formData.projectId) return null
-  return projectList.value.find(p => p.id === formData.projectId)
-})
-
-// 计算项目类型（1: 常规型, 2: 中大型）
-const projectType = computed(() => {
-  return currentProject.value?.projectType || 'SCHEDULE'
-})
+// TODO[迭代]: 计算当前选择的项目 / 项目类型（中大型强制选迭代）
+// const currentProject = computed(() => {
+//   if (!formData.projectId) return null
+//   return projectList.value.find(p => p.id === formData.projectId)
+// })
+// const projectType = computed(() => {
+//   return currentProject.value?.projectType || 'SCHEDULE'
+// })
 
 // 拖拽相关
 const draggedTask = ref<TaskInfo | null>(null)
@@ -735,27 +739,27 @@ const fetchProjectMembers = async (projectId: number) => {
   }
 }
 
-// 获取项目迭代列表
-const fetchProjectIterations = async (projectId: number) => {
-  if (!projectId) {
-    projectIterations.value = []
-    return
-  }
-  try {
-    const res = await getIterationList({ projectId, pageNum: 1, pageSize: 100 })
-    projectIterations.value = res.list || []
-  } catch (error) {
-    console.error('获取迭代列表失败:', error)
-    projectIterations.value = []
-  }
-}
+// TODO[迭代]: 加载项目迭代列表 — 后续开放
+// const fetchProjectIterations = async (projectId: number) => {
+//   if (!projectId) {
+//     projectIterations.value = []
+//     return
+//   }
+//   try {
+//     const res = await getIterationList({ projectId, pageNum: 1, pageSize: 100 })
+//     projectIterations.value = res.list || []
+//   } catch (error) {
+//     console.error('获取迭代列表失败:', error)
+//     projectIterations.value = []
+//   }
+// }
 
 // 监听项目选择变化
 const handleProjectChange = (projectId: number) => {
   formData.assigneeId = undefined
-  formData.iterationId = undefined  // 清空迭代选择
+  formData.iterationId = undefined
   fetchProjectMembers(projectId)
-  fetchProjectIterations(projectId)  // 加载迭代列表
+  // TODO[迭代]: fetchProjectIterations(projectId)
 }
 
 // 新建任务
@@ -800,7 +804,7 @@ const handleEdit = (task: TaskInfo, parent?: TaskInfo | null) => {
 
   if (task.projectId) {
     fetchProjectMembers(task.projectId)
-    fetchProjectIterations(task.projectId)
+    // TODO[迭代]: fetchProjectIterations(task.projectId)
   }
 }
 
@@ -858,11 +862,11 @@ const handleAddSubtask = (parentTask: TaskInfo) => {
 const handleSubmit = async () => {
   if (!formRef.value) return
 
-  // 自定义校验：中大型项目的任务必须选择迭代
-  if (projectType.value === 'LARGE_SCALE' && !formData.iterationId) {
-    ElMessage.warning('中大型项目的任务必须关联到某个迭代')
-    return
-  }
+  // TODO[迭代]: 中大型项目必须选择迭代 — 后续开放
+  // if (projectType.value === 'LARGE_SCALE' && !formData.iterationId) {
+  //   ElMessage.warning('中大型项目的任务必须关联到某个迭代')
+  //   return
+  // }
 
   await formRef.value.validate(async (valid) => {
     if (valid) {
@@ -960,6 +964,10 @@ const formatDateTime = (date: string) => {
 }
 
 onMounted(() => {
+  const statusFromQuery = route.query.status as string | undefined
+  if (statusFromQuery) {
+    searchForm.status = statusFromQuery
+  }
   fetchUsers()
   fetchProjects()
   fetchTasks()

@@ -588,7 +588,9 @@
   --touch-target-min: 44px;
 }
 
-/* 确保所有交互元素有足够的触摸区域 */
+/* 确保所有交互元素有足够的触摸区域
+ * 注：搜索区「查询/重置」由 page-common 强制 40px，覆盖此处 min-height: 44px
+ */
 button,
 a,
 .el-button,

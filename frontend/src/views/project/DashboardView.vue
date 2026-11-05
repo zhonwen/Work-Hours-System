@@ -89,10 +89,12 @@
                 <el-icon><User /></el-icon>
                 {{ members.length }} 成员
               </span>
+              <!-- TODO[迭代]: 迭代数量 — 后续开放
               <span class="meta-item">
                 <el-icon><FolderOpened /></el-icon>
                 {{ iterations.length }} 迭代
               </span>
+              -->
             </div>
           </div>
         </div>
@@ -151,7 +153,7 @@
           </el-row>
         </div>
 
-        <!-- 迭代进度时间轴 -->
+        <!-- TODO[迭代]: 迭代进度时间轴 — 后续开放
         <div class="iterations-section">
           <div class="section-header">
             <h3 class="section-title">
@@ -163,12 +165,10 @@
               <el-icon><ArrowRight /></el-icon>
             </el-button>
           </div>
-
           <div class="iterations-timeline" v-loading="iterationsLoading">
             <div v-if="iterations.length === 0" class="empty-state">
               <el-empty description="暂无迭代数据" />
             </div>
-
             <div v-else class="timeline-scroll">
               <div
                 v-for="iteration in iterations"
@@ -177,17 +177,10 @@
                 @click="navigateToIteration(iteration.id)"
               >
                 <div class="iteration-status-icon">
-                  <el-icon v-if="iteration.status === 'COMPLETED'" class="completed">
-                    <CircleCheck />
-                  </el-icon>
-                  <el-icon v-else-if="iteration.status === 'IN_PROGRESS'" class="in-progress">
-                    <VideoPlay />
-                  </el-icon>
-                  <el-icon v-else class="not-started">
-                    <Clock />
-                  </el-icon>
+                  <el-icon v-if="iteration.status === 'COMPLETED'" class="completed"><CircleCheck /></el-icon>
+                  <el-icon v-else-if="iteration.status === 'IN_PROGRESS'" class="in-progress"><VideoPlay /></el-icon>
+                  <el-icon v-else class="not-started"><Clock /></el-icon>
                 </div>
-
                 <div class="iteration-content">
                   <div class="iteration-header">
                     <span class="iteration-name">{{ iteration.name }}</span>
@@ -195,13 +188,11 @@
                       {{ getIterationStatusText(iteration.status) }}
                     </el-tag>
                   </div>
-
                   <div class="iteration-dates">
                     <span v-if="iteration.planStartDate">{{ formatDate(iteration.planStartDate) }}</span>
                     <span v-if="iteration.planStartDate && iteration.planEndDate"> → </span>
                     <span v-if="iteration.planEndDate">{{ formatDate(iteration.planEndDate) }}</span>
                   </div>
-
                   <div class="iteration-progress">
                     <el-progress
                       :percentage="calculateIterationProgress(iteration)"
@@ -210,7 +201,6 @@
                       :stroke-width="6"
                     />
                   </div>
-
                   <div class="iteration-stats">
                     <span class="stat">
                       <el-icon><List /></el-icon>
@@ -222,6 +212,7 @@
             </div>
           </div>
         </div>
+        -->
 
         <!-- 最近活动流 -->
         <div class="activities-section">
@@ -233,7 +224,7 @@
             <el-select v-model="activityFilter" placeholder="筛选活动" size="small" style="width: 120px">
               <el-option label="全部" value="all" />
               <el-option label="任务" value="task" />
-              <el-option label="迭代" value="iteration" />
+              <!-- TODO[迭代]: <el-option label="迭代" value="iteration" /> -->
               <el-option label="成员" value="member" />
             </el-select>
           </div>
@@ -276,7 +267,7 @@
       <!-- 进度报表 -->
       <div v-else-if="activeView === 'progress'" class="report-content">
         <el-row :gutter="16">
-          <!-- 迭代完成率趋势 -->
+          <!-- TODO[迭代]: 迭代完成率趋势 — 后续开放
           <el-col :xs="24" :lg="12">
             <div class="chart-card">
               <div class="card-header">
@@ -285,6 +276,7 @@
               <div ref="iterationTrendRef" class="chart-container"></div>
             </div>
           </el-col>
+          -->
 
           <!-- 任务状态分布 -->
           <el-col :xs="24" :lg="12">
@@ -351,7 +343,7 @@
             </div>
           </el-col>
 
-          <!-- 工时分布 -->
+          <!-- TODO[迭代]: 工时分布（按迭代）— 后续开放
           <el-col :xs="24" :lg="12">
             <div class="chart-card">
               <div class="card-header">
@@ -360,6 +352,7 @@
               <div ref="hoursByIterationRef" class="chart-container"></div>
             </div>
           </el-col>
+          -->
         </el-row>
       </div>
 

@@ -61,8 +61,8 @@
           </div>
         </template>
         <el-table :data="list" stripe v-loading="loading" border row-key="id">
-          <el-table-column prop="id" label="ID" width="80" />
-          <el-table-column prop="name" label="部门名称" min-width="150" />
+          <el-table-column type="index" label="序号" width="64" fixed="left" />
+          <el-table-column prop="name" label="部门名称" min-width="150" fixed="left" />
           <el-table-column label="父部门" min-width="120">
             <template #default="{ row }">
               {{ getParentDepartmentName(row.parentId) }}

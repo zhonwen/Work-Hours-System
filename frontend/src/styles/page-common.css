@@ -160,6 +160,75 @@
 
 .search-form {
   margin-bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  row-gap: 12px;
+}
+
+.search-form .el-form-item {
+  margin-bottom: 0;
+  margin-right: 16px;
+  align-items: center;
+}
+
+/* 搜索区控件统一高度 40px（select / input / date） */
+.search-form .el-input__wrapper,
+.search-form .el-select__wrapper,
+.search-form .el-date-editor.el-input__wrapper,
+.search-form .el-range-editor.el-input__wrapper {
+  min-height: 40px;
+  height: 40px;
+  box-sizing: border-box;
+}
+
+.search-form .el-select .el-input__wrapper {
+  min-height: 40px;
+  height: 40px;
+}
+
+.search-form .el-range-editor {
+  height: 40px;
+  box-sizing: border-box;
+}
+
+.search-form .el-range-editor .el-range-input,
+.search-form .el-range-editor .el-range-separator {
+  height: 38px;
+  line-height: 38px;
+}
+
+.search-form .el-input__inner {
+  height: 38px;
+  line-height: 38px;
+}
+
+/* 查询 / 重置按钮：高度 40px，最小宽 50px，宽度随文案自适应
+ * 覆盖 ones-common 中全局按钮 min-height: 44px 的触摸目标规则
+ */
+.search-form .el-button,
+.search-form .el-form-item .el-button,
+.page-header .header-right > .el-button {
+  min-height: 36px !important;
+  min-width: 60px !important;
+  padding: 0 8px !important;
+  line-height: 1 !important;
+  box-sizing: border-box;
+}
+
+/* 页头右侧搜索控件与搜索区统一高度 */
+.page-header .header-right .el-input__wrapper,
+.page-header .header-right .el-select__wrapper,
+.page-header .header-right .el-date-editor.el-input__wrapper,
+.page-header .header-right .el-range-editor.el-input__wrapper {
+  min-height: 40px;
+  height: 40px;
+  box-sizing: border-box;
+}
+
+.page-header .header-right .el-range-editor {
+  height: 40px;
+  box-sizing: border-box;
 }
 
 /* ========== 表格视图 ========== */
@@ -204,19 +273,35 @@
 
 /* ========== Element Plus 样式覆盖 ========== */
 
-/* 表格样式 */
-:deep(.el-table) {
+/* 表格：圆角 + 统一表头色 */
+.el-table {
   font-size: 14px;
+  border-radius: 4px;
+  overflow: hidden;
 }
 
-:deep(.el-table th) {
-  background-color: #f5f5f5;
+.el-table th.el-table__cell {
+  background-color: #f7fafe !important;
   color: #333;
   font-weight: 500;
 }
 
+/* 固定列表头同步背景色 */
+.el-table .el-table__fixed-header-wrapper th.el-table__cell,
+.el-table .el-table__fixed-right-header-wrapper th.el-table__cell,
+.el-table .el-table__fixed .el-table__header th.el-table__cell,
+.el-table .el-table__fixed-right .el-table__header th.el-table__cell,
+.el-table .el-table__header-wrapper th.el-table__cell {
+  background-color: #f7fafe !important;
+}
+
+/* 带 border 的表格外层圆角 */
+.el-table--border {
+  border-radius: 4px;
+}
+
 /* 空状态 */
-:deep(.el-empty) {
+.el-empty {
   padding: 40px 0;
 }
 

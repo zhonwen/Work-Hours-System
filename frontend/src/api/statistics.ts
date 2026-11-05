@@ -12,18 +12,36 @@ export interface DashboardData {
     status: string
   }>
   pendingTaskCount: number
-  pendingTasks: Array<{
-    id: number
-    title: string
-    status: string
-    priority: string
-    projectId: number
-    planEndDate: string
-  }>
+  pendingTasks: Array<DashboardTaskItem>
+  completedTaskCount?: number
+  completedTasks?: Array<DashboardTaskItem>
   todayHours: number
   weekHours: number
   monthHours: number
   totalHours: number
+}
+
+export interface DashboardTaskItem {
+  id: number
+  title: string
+  description?: string
+  status: string
+  priority: string
+  projectId: number
+  planEndDate?: string
+  actualEndDate?: string
+  parentId?: number | null
+  subtasks?: Array<{
+    id: number
+    title: string
+    description?: string
+    status: string
+    priority: string
+    projectId: number
+    planEndDate?: string
+    actualEndDate?: string
+    parentId?: number | null
+  }>
 }
 
 /**

@@ -40,7 +40,13 @@
       </el-tabs>
 
       <el-table :data="list" stripe v-loading="loading" border>
-        <el-table-column prop="id" label="ID" width="80" />
+        <el-table-column
+          type="index"
+          label="序号"
+          width="64"
+          fixed="left"
+          :index="(index: number) => (searchForm.pageNum - 1) * searchForm.pageSize + index + 1"
+        />
         <el-table-column prop="module" label="模块" width="100">
           <template #default="{ row }">
             <el-tag size="small" type="info">{{ getModuleFromCode(row.code) }}</el-tag>
@@ -53,7 +59,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="name" label="权限名称" min-width="120" />
+        <el-table-column prop="name" label="权限名称" min-width="120" fixed="left" />
         <el-table-column prop="code" label="权限编码" min-width="180" />
         <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
         <el-table-column label="创建时间" width="180">

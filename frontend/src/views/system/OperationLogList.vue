@@ -12,7 +12,7 @@
 
     <!-- 搜索筛选卡片 -->
     <el-card class="search-card">
-      <el-form :inline="true" :model="searchForm">
+      <el-form :inline="true" :model="searchForm" class="search-form">
         <el-form-item label="操作人">
           <el-input v-model="searchForm.username" placeholder="请输入操作人用户名" clearable style="width: 200px" />
         </el-form-item>
@@ -69,8 +69,14 @@
     <!-- 操作日志表格卡片 -->
     <el-card class="table-card">
       <el-table :data="list" stripe v-loading="loading" border>
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="username" label="操作人" width="120" />
+        <el-table-column
+          type="index"
+          label="序号"
+          width="64"
+          fixed="left"
+          :index="(index: number) => (searchForm.pageNum - 1) * searchForm.pageSize + index + 1"
+        />
+        <el-table-column prop="username" label="操作人" width="120" fixed="left" />
         <el-table-column prop="module" label="操作模块" width="120">
           <template #default="{ row }">
             <el-tag :type="getModuleTagType(row.module)" size="small">

@@ -112,11 +112,59 @@
               <el-badge v-if="dashboardData.pendingTasks?.length" :value="dashboardData.pendingTasks.length" class="tab-badge" />
             </span>
           </template>
-          <div v-if="dashboardData.pendingTasks?.length">
-            <el-table :data="enhancedPendingTasks" stripe>
-              <el-table-column prop="id" label="ID" width="70" />
-              <el-table-column prop="title" label="任务标题" min-width="200" />
-              <el-table-column label="所属项目" width="150">
+          <div v-if="dashboardData.pendingTasks?.length" class="pending-task-table-wrap">
+            <div class="pending-toolbar">
+              <el-select
+                v-model="pendingProjectFilter"
+                clearable
+                placeholder="全部项目"
+                style="width: 220px"
+              >
+                <el-option
+                  v-for="item in pendingProjectOptions"
+                  :key="item.id"
+                  :label="item.name"
+                  :value="item.id"
+                />
+              </el-select>
+            </div>
+            <el-table
+              v-if="treePendingTasks.length"
+              class="pending-task-table"
+              :data="treePendingTasks"
+              stripe
+              row-key="id"
+              :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
+            >
+              <!-- 展开箭头独占首列，避免与序号重叠错位 -->
+              <el-table-column width="44" class-name="expand-col" />
+              <el-table-column label="序号" width="64" class-name="index-col">
+                <template #default="{ row }">
+                  <span class="task-index" :class="{ 'is-subtask': row.isSubtask }">{{ row.indexLabel }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="任务标题" min-width="220">
+                <template #default="{ row }">
+                  <div class="task-title-cell" :class="{ 'is-subtask': row.isSubtask }">
+                    <span class="task-title-text" :title="row.title">{{ row.title }}</span>
+                    <el-tag v-if="row.isSubtask" type="info" size="small" class="subtask-count-tag">子任务</el-tag>
+                    <el-tag
+                      v-else-if="row.subtaskCount"
+                      type="info"
+                      size="small"
+                      class="subtask-count-tag"
+                    >
+                      {{ row.subtaskCount }} 子任务
+                    </el-tag>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column label="任务内容" min-width="180" show-overflow-tooltip>
+                <template #default="{ row }">
+                  {{ row.description || '-' }}
+                </template>
+              </el-table-column>
+              <el-table-column label="所属项目" width="140" show-overflow-tooltip>
                 <template #default="{ row }">
                   <el-link type="primary" @click="goToProject(row.projectId)">
                     {{ getProjectName(row.projectId) }}
@@ -144,17 +192,120 @@
                   </span>
                 </template>
               </el-table-column>
-              <el-table-column label="操作" width="70" fixed="right">
+              <el-table-column label="操作" width="72" fixed="right">
                 <template #default="{ row }">
                   <el-button link type="primary" @click="goToTask(row.id)">查看</el-button>
                 </template>
               </el-table-column>
             </el-table>
+            <el-empty v-else description="当前项目下暂无待办任务" :image-size="80" />
             <div class="tab-footer">
               <el-button link type="primary" @click="goToTasks('TODO')">查看全部待办任务 →</el-button>
             </div>
           </div>
           <el-empty v-else description="暂无待办任务" />
+        </el-tab-pane>
+
+        <el-tab-pane label="我的已完成" name="completed">
+          <template #label>
+            <span class="tab-label">
+              我的已完成
+              <el-badge
+                v-if="dashboardData.completedTasks?.length"
+                :value="dashboardData.completedTasks.length"
+                class="tab-badge"
+              />
+            </span>
+          </template>
+          <div v-if="dashboardData.completedTasks?.length" class="pending-task-table-wrap">
+            <div class="pending-toolbar">
+              <el-select
+                v-model="completedProjectFilter"
+                clearable
+                placeholder="全部项目"
+                style="width: 220px"
+              >
+                <el-option
+                  v-for="item in completedProjectOptions"
+                  :key="item.id"
+                  :label="item.name"
+                  :value="item.id"
+                />
+              </el-select>
+            </div>
+            <el-table
+              v-if="treeCompletedTasks.length"
+              class="pending-task-table"
+              :data="treeCompletedTasks"
+              stripe
+              row-key="id"
+              :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
+            >
+              <el-table-column width="44" class-name="expand-col" />
+              <el-table-column label="序号" width="64" class-name="index-col">
+                <template #default="{ row }">
+                  <span class="task-index" :class="{ 'is-subtask': row.isSubtask }">{{ row.indexLabel }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="任务标题" min-width="220">
+                <template #default="{ row }">
+                  <div class="task-title-cell" :class="{ 'is-subtask': row.isSubtask }">
+                    <span class="task-title-text" :title="row.title">{{ row.title }}</span>
+                    <el-tag v-if="row.isSubtask" type="info" size="small" class="subtask-count-tag">子任务</el-tag>
+                    <el-tag
+                      v-else-if="row.subtaskCount"
+                      type="info"
+                      size="small"
+                      class="subtask-count-tag"
+                    >
+                      {{ row.subtaskCount }} 子任务
+                    </el-tag>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column label="任务内容" min-width="180" show-overflow-tooltip>
+                <template #default="{ row }">
+                  {{ row.description || '-' }}
+                </template>
+              </el-table-column>
+              <el-table-column label="所属项目" width="140" show-overflow-tooltip>
+                <template #default="{ row }">
+                  <el-link type="primary" @click="goToProject(row.projectId)">
+                    {{ getProjectName(row.projectId) }}
+                  </el-link>
+                </template>
+              </el-table-column>
+              <el-table-column label="优先级" width="90">
+                <template #default="{ row }">
+                  <el-tag :type="getPriorityType(row.priority)" size="small">
+                    {{ getPriorityText(row.priority) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="状态" width="90">
+                <template #default="{ row }">
+                  <el-tag :type="getStatusType(row.status)" size="small">
+                    {{ getStatusText(row.status) }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column label="完成日期" width="110">
+                <template #default="{ row }">
+                  {{ formatCompletedDate(row.actualEndDate || row.planEndDate) }}
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="72" fixed="right">
+                <template #default="{ row }">
+                  <el-button link type="primary" @click="goToTask(row.id)">查看</el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+            <el-empty v-else description="当前项目下暂无已完成任务" :image-size="80" />
+            <div class="tab-footer">
+              <el-button link type="primary" @click="goToTasks('DONE')">查看全部已完成任务 →</el-button>
+            </div>
+          </div>
+          <el-empty v-else description="暂无已完成任务" />
         </el-tab-pane>
 
         <el-tab-pane label="我的项目" name="projects">
@@ -166,8 +317,8 @@
           </template>
           <div v-if="dashboardData.projects?.length">
             <el-table :data="dashboardData.projects" stripe>
-              <el-table-column prop="id" label="ID" width="80" />
-              <el-table-column prop="name" label="项目名称" min-width="200" />
+              <el-table-column label="序号" type="index" width="64" fixed="left" />
+              <el-table-column prop="name" label="项目名称" min-width="200" fixed="left" show-overflow-tooltip />
               <el-table-column prop="code" label="项目编码" width="150" />
               <el-table-column label="状态" width="100">
                 <template #default="{ row }">
@@ -176,7 +327,7 @@
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column label="操作" width="100">
+              <el-table-column label="操作" width="80" fixed="right">
                 <template #default="{ row }">
                   <el-button link type="primary" @click="goToProject(row.id)">查看</el-button>
                 </template>
@@ -230,21 +381,29 @@ const handleBatchCreateWorkHourWithDate = (date: string) => {
   batchDialogVisible.value = true
 }
 
+type DashboardTaskNode = {
+  id: number
+  title: string
+  description?: string
+  status: string
+  priority: string
+  projectId: number
+  planEndDate?: string
+  actualEndDate?: string
+  parentId?: number | null
+  subtasks?: DashboardTaskNode[]
+}
+
 interface DashboardData {
   projectCount: number
   pendingTaskCount: number
+  completedTaskCount: number
   todayHours: number
   weekHours: number
   monthHours: number
   totalHours: number
-  pendingTasks: Array<{
-    id: number
-    title: string
-    status: string
-    priority: string
-    projectId: number
-    planEndDate?: string
-  }>
+  pendingTasks: DashboardTaskNode[]
+  completedTasks: DashboardTaskNode[]
   projects: Array<{
     id: number
     name: string
@@ -256,22 +415,85 @@ interface DashboardData {
 const dashboardData = reactive<DashboardData>({
   projectCount: 0,
   pendingTaskCount: 0,
+  completedTaskCount: 0,
   todayHours: 0,
   weekHours: 0,
   monthHours: 0,
   totalHours: 0,
   pendingTasks: [],
+  completedTasks: [],
   projects: []
 })
 
-// 增强的待办任务列表（添加项目名称）
-const enhancedPendingTasks = computed(() => {
-  return dashboardData.pendingTasks.map(task => ({
-    ...task,
-    // 如果后端没有返回项目名称，可以从projects列表中匹配
-    projectName: getProjectName(task.projectId)
-  }))
-})
+// 项目筛选（空=全部）
+const pendingProjectFilter = ref<number | undefined>(undefined)
+const completedProjectFilter = ref<number | undefined>(undefined)
+
+const buildProjectOptions = (tasks: DashboardTaskNode[]) => {
+  const map = new Map<number, string>()
+  for (const task of tasks) {
+    if (!map.has(task.projectId)) {
+      map.set(task.projectId, getProjectName(task.projectId))
+    }
+    for (const child of task.subtasks || []) {
+      if (!map.has(child.projectId)) {
+        map.set(child.projectId, getProjectName(child.projectId))
+      }
+    }
+  }
+  return Array.from(map.entries()).map(([id, name]) => ({ id, name }))
+}
+
+const buildTreeTasks = (tasks: DashboardTaskNode[], projectFilter?: number) => {
+  const filtered = projectFilter
+    ? tasks.filter(task => task.projectId === projectFilter)
+    : tasks
+
+  return filtered.map((task, parentIdx) => {
+    const parentIndex = parentIdx + 1
+    const subtasks = task.subtasks || []
+    const children = subtasks.length
+      ? subtasks.map((child, childIdx) => ({
+          id: child.id,
+          title: child.title,
+          description: child.description,
+          status: child.status,
+          priority: child.priority,
+          projectId: child.projectId,
+          planEndDate: child.planEndDate,
+          actualEndDate: child.actualEndDate,
+          isSubtask: true,
+          indexLabel: `${parentIndex}.${childIdx + 1}`
+        }))
+      : undefined
+
+    return {
+      id: task.id,
+      title: task.title,
+      description: task.description,
+      status: task.status,
+      priority: task.priority,
+      projectId: task.projectId,
+      planEndDate: task.planEndDate,
+      actualEndDate: task.actualEndDate,
+      isSubtask: false,
+      subtaskCount: subtasks.length || undefined,
+      indexLabel: String(parentIndex),
+      children
+    }
+  })
+}
+
+const pendingProjectOptions = computed(() => buildProjectOptions(dashboardData.pendingTasks))
+const completedProjectOptions = computed(() => buildProjectOptions(dashboardData.completedTasks))
+
+// 树形列表：默认收起；父任务 1、2…，展开后子任务 1.1、1.2…
+const treePendingTasks = computed(() =>
+  buildTreeTasks(dashboardData.pendingTasks, pendingProjectFilter.value)
+)
+const treeCompletedTasks = computed(() =>
+  buildTreeTasks(dashboardData.completedTasks, completedProjectFilter.value)
+)
 
 const loading = ref(false)
 
@@ -332,7 +554,7 @@ const getProjectName = (projectId: number): string => {
   return project?.name || `项目${projectId}`
 }
 
-// 格式化日期
+// 格式化日期（待办：相对截止日期）
 const formatDate = (dateStr?: string): string => {
   if (!dateStr) return '-'
   const date = new Date(dateStr)
@@ -348,6 +570,14 @@ const formatDate = (dateStr?: string): string => {
   const month = date.getMonth() + 1
   const day = date.getDate()
   return `${month}/${day}`
+}
+
+// 已完成日期：固定展示月/日
+const formatCompletedDate = (dateStr?: string): string => {
+  if (!dateStr) return '-'
+  const date = new Date(dateStr)
+  if (Number.isNaN(date.getTime())) return '-'
+  return `${date.getMonth() + 1}/${date.getDate()}`
 }
 
 // 获取截止日期样式类
@@ -434,5 +664,75 @@ onMounted(() => {
 .due-date-soon {
   color: #e6a23c;
   font-weight: 500;
+}
+
+/* 待办树表：展开列与序号对齐 */
+.pending-task-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.pending-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.pending-task-table :deep(.expand-col .cell) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+
+.pending-task-table :deep(.expand-col .el-table__expand-icon) {
+  margin: 0;
+  height: 20px;
+  line-height: 20px;
+}
+
+.pending-task-table :deep(.index-col .cell) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+/* 序号：父任务深色，子任务浅色 */
+.task-index {
+  display: inline-block;
+  min-width: 28px;
+  text-align: center;
+  font-weight: 600;
+  color: #303133;
+  line-height: 20px;
+}
+
+.task-index.is-subtask {
+  font-weight: 500;
+  color: #909399;
+}
+
+/* 待办标题与子任务 */
+.task-title-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.task-title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subtask-count-tag {
+  flex-shrink: 0;
+}
+
+.task-title-cell.is-subtask {
+  color: #606266;
 }
 </style>

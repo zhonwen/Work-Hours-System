@@ -40,8 +40,8 @@
     <!-- 迭代列表 -->
     <el-card class="table-card">
       <el-table :data="iterationList" stripe v-loading="loading" border>
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="name" label="迭代名称" min-width="200" />
+        <el-table-column type="index" label="序号" width="64" fixed="left" />
+        <el-table-column prop="name" label="迭代名称" min-width="200" fixed="left" />
         <el-table-column prop="description" label="描述" min-width="250" show-overflow-tooltip />
         <el-table-column label="所属项目" width="200">
           <template #default="{ row }">

@@ -60,6 +60,7 @@
         <div v-else-if="activeModule === 'tasks'" key="tasks" class="module-content">
           <!-- 视图切换器 -->
           <div class="view-mode-switcher">
+            <!-- TODO[迭代]: 按迭代筛选 — 后续开放
             <el-select
               v-model="selectedIterationId"
               placeholder="选择迭代"
@@ -74,6 +75,7 @@
                 :value="iteration.id"
               />
             </el-select>
+            -->
             <el-radio-group v-model="taskViewMode" size="small">
               <el-radio-button value="kanban-table">看板表格</el-radio-button>
               <el-radio-button value="traditional">传统视图</el-radio-button>
@@ -157,6 +159,7 @@
       :close-on-click-modal="false"
     >
       <el-form ref="taskFormRef" :model="taskFormData" :rules="taskFormRules" label-width="100px">
+        <!-- TODO[迭代]: 新建任务关联迭代 — 后续开放
         <el-form-item label="所属迭代" v-if="!taskFormData.parentId">
           <el-select
             v-model="taskFormData.iterationId"
@@ -174,6 +177,7 @@
             />
           </el-select>
         </el-form-item>
+        -->
         <el-form-item label="父任务" v-if="taskFormData.parentId">
           <el-input :value="getParentTaskName(taskFormData.parentId)" disabled />
         </el-form-item>

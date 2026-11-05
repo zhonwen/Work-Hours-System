@@ -88,12 +88,13 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/task/TaskDetail.vue'),
         meta: { title: '任务详情', requiresAuth: true },
       },
-      {
-        path: 'projects/:projectId/iterations/:iterationId',
-        name: 'IterationDetail',
-        component: () => import('@/views/iteration/IterationDetail.vue'),
-        meta: { title: '迭代详情', requiresAuth: true },
-      },
+      // TODO[迭代]: 迭代详情路由 — 后续开放
+      // {
+      //   path: 'projects/:projectId/iterations/:iterationId',
+      //   name: 'IterationDetail',
+      //   component: () => import('@/views/iteration/IterationDetail.vue'),
+      //   meta: { title: '迭代详情', requiresAuth: true },
+      // },
       {
         path: 'workhours/calendar',
         name: 'WorkHourCalendar',

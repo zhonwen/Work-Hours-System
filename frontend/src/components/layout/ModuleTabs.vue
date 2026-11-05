@@ -51,7 +51,7 @@ import { useRouter, useRoute } from 'vue-router'
 import {
   DataBoard,
   Document,
-  Calendar,
+  // Calendar, // TODO[迭代]
   Grid,
   Warning,
   DataAnalysis,
@@ -82,7 +82,8 @@ const allModules: ModuleTab[] = [
   { key: 'overview', label: '概览', icon: DataBoard, path: 'overview' },
   { key: 'requirements', label: '需求', icon: Document, path: 'requirements' },
   { key: 'planning', label: '规划', icon: Grid, path: 'planning' },
-  { key: 'iterations', label: '迭代', icon: Calendar, path: 'iterations' },
+  // TODO[迭代]: 迭代模块后续开放
+  // { key: 'iterations', label: '迭代', icon: Calendar, path: 'iterations' },
   { key: 'defects', label: '缺陷', icon: Warning, path: 'defects' },
   { key: 'reports', label: '报表', icon: DataAnalysis, path: 'reports' },
   { key: 'docs', label: '文档', icon: Folder, path: 'docs' },

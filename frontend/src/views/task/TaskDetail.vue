@@ -92,6 +92,7 @@
               <el-descriptions-item label="负责人">
                 {{ task?.assigneeName || '未分配' }}
               </el-descriptions-item>
+              <!-- TODO[迭代]: 所属迭代展示 — 后续开放
               <el-descriptions-item label="所属迭代">
                 <el-link
                   v-if="task?.iterationId"
@@ -102,6 +103,7 @@
                 </el-link>
                 <span v-else>-</span>
               </el-descriptions-item>
+              -->
               <el-descriptions-item label="任务描述" :span="2">
                 <div class="description-content">{{ task?.description || '暂无描述' }}</div>
               </el-descriptions-item>
@@ -704,12 +706,12 @@ const goToProject = () => {
   }
 }
 
-// 跳转到迭代详情
-const goToIteration = () => {
-  if (task.value?.iterationId) {
-    router.push(`/iterations/${task.value.iterationId}`)
-  }
-}
+// TODO[迭代]: 跳转到迭代详情 — 后续开放
+// const goToIteration = () => {
+//   if (task.value?.iterationId) {
+//     router.push(`/iterations/${task.value.iterationId}`)
+//   }
+// }
 
 // 跳转到任务详情
 const goToTaskDetail = (subtaskId?: number) => {

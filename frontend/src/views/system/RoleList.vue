@@ -34,8 +34,14 @@
     <!-- 角色表格 -->
     <el-card class="table-card" shadow="never">
       <el-table :data="list" stripe v-loading="loading" border>
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="name" label="角色名称" width="150" />
+        <el-table-column
+          type="index"
+          label="序号"
+          width="64"
+          fixed="left"
+          :index="(index: number) => (searchForm.pageNum - 1) * searchForm.pageSize + index + 1"
+        />
+        <el-table-column prop="name" label="角色名称" width="150" fixed="left" />
         <el-table-column prop="code" label="角色编码" width="180" />
         <el-table-column prop="description" label="描述" min-width="200" />
         <el-table-column prop="roleType" label="类型" width="120">

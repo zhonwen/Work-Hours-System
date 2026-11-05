@@ -119,6 +119,7 @@
                   {{ getSeverityText(workItem?.severity) }}
                 </el-tag>
               </el-descriptions-item>
+              <!-- TODO[迭代]: 所属迭代展示 — 后续开放
               <el-descriptions-item v-else label="所属迭代">
                 <el-link
                   v-if="workItem?.iterationId"
@@ -129,6 +130,7 @@
                 </el-link>
                 <span v-else>-</span>
               </el-descriptions-item>
+              -->
 
               <!-- 所属项目 -->
               <el-descriptions-item label="所属项目" :span="2">
@@ -146,7 +148,7 @@
               <el-descriptions-item v-if="workItem?.type === 'BUG'" label="修复版本">
                 {{ workItem?.fixVersion || '-' }}
               </el-descriptions-item>
-              <!-- 非缺陷显示所属迭代 -->
+              <!-- TODO[迭代]: 非缺陷所属迭代 — 后续开放
               <el-descriptions-item v-else label="所属迭代">
                 <el-link
                   v-if="workItem?.iterationId"
@@ -157,6 +159,7 @@
                 </el-link>
                 <span v-else>-</span>
               </el-descriptions-item>
+              -->
 
               <!-- 描述 -->
               <el-descriptions-item label="描述" :span="2">
@@ -719,12 +722,12 @@ const goToProject = () => {
   }
 }
 
-// 跳转到迭代详情
-const goToIteration = () => {
-  if (workItem.value?.iterationId) {
-    router.push(`/iterations/${workItem.value.iterationId}`)
-  }
-}
+// TODO[迭代]: 跳转到迭代详情 — 后续开放
+// const goToIteration = () => {
+//   if (workItem.value?.iterationId) {
+//     router.push(`/iterations/${workItem.value.iterationId}`)
+//   }
+// }
 
 // 跳转到工作项详情
 const goToWorkItemDetail = (itemId: number) => {

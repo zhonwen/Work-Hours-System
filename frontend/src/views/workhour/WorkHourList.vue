@@ -129,11 +129,18 @@
     <!-- 工时记录列表 -->
     <el-card class="table-card">
       <el-table :data="workHourList" stripe v-loading="loading" border>
-        <el-table-column prop="id" label="ID" width="80" />
+        <el-table-column
+          type="index"
+          label="序号"
+          width="64"
+          fixed="left"
+          :index="indexMethod"
+        />
         <el-table-column
           v-if="showUserColumn"
           label="人员"
           min-width="120"
+          fixed="left"
           show-overflow-tooltip
         >
           <template #default="{ row }">
@@ -152,7 +159,7 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="项目/请假类型" min-width="160">
+        <el-table-column label="项目/请假类型" min-width="160" :fixed="showUserColumn ? undefined : 'left'" show-overflow-tooltip>
           <template #default="{ row }">
             {{ row.recordType === 'LEAVE' ? (row.leaveTypeName || '-') : (row.projectName || '-') }}
           </template>
@@ -350,6 +357,10 @@ const pagination = reactive({
   pageSize: 10,
   total: 0
 })
+
+/** 表格序号（跨页连续） */
+const indexMethod = (index: number) =>
+  (pagination.pageNum - 1) * pagination.pageSize + index + 1
 
 // 对话框
 const dialogVisible = ref(false)

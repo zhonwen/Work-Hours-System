@@ -208,7 +208,7 @@
         </div>
       </div>
 
-      <!-- 迭代概览 -->
+      <!-- TODO[迭代]: 迭代概览 — 后续开放
       <div class="iteration-section">
         <h3 class="section-title">迭代概览</h3>
         <div v-if="iterations.length > 0" class="iteration-list">
@@ -241,6 +241,7 @@
         </div>
         <el-empty v-else description="暂无迭代数据" :image-size="80" />
       </div>
+      -->
 
       <!-- 最近活动 -->
       <div class="activity-section">

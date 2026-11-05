@@ -146,7 +146,8 @@
     <!-- 表格视图（简化版：8列核心信息） -->
     <div v-else class="table-view">
       <el-table :data="projectList" stripe style="width: 100%">
-        <el-table-column prop="name" label="项目名称" min-width="200">
+        <el-table-column type="index" label="序号" width="64" fixed="left" />
+        <el-table-column prop="name" label="项目名称" min-width="200" fixed="left">
           <template #default="{ row }">
             <div class="table-project-name">
               <div
@@ -284,7 +285,8 @@
                 </div>
                 <div class="type-divider"></div>
                 <div class="type-features">
-                  <div class="feature-item">• 支持迭代管理</div>
+                  <!-- TODO[迭代]: • 支持迭代管理 — 后续开放 -->
+                  <div class="feature-item">• 多团队协作</div>
                   <div class="feature-item">• 敏捷开发</div>
                 </div>
               </div>

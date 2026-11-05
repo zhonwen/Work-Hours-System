@@ -32,8 +32,14 @@
     <!-- 用户表格 -->
     <el-card class="table-card" shadow="never">
       <el-table :data="list" stripe v-loading="loading" border>
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="username" label="用户名" min-width="120" />
+        <el-table-column
+          type="index"
+          label="序号"
+          width="64"
+          fixed="left"
+          :index="(index: number) => (searchForm.pageNum - 1) * searchForm.pageSize + index + 1"
+        />
+        <el-table-column prop="username" label="用户名" min-width="120" fixed="left" />
         <el-table-column prop="nickname" label="姓名" min-width="100" />
         <el-table-column prop="email" label="邮箱" min-width="180" />
         <el-table-column prop="departmentName" label="公司/部门" min-width="120" />

@@ -69,10 +69,12 @@
           <span class="label">成员数量：</span>
           <span class="value">{{ memberCount }} 人</span>
         </div>
+        <!-- TODO[迭代]: 迭代数量 — 后续开放
         <div class="info-item">
           <span class="label">迭代数量：</span>
           <span class="value">{{ iterationCount }} 个</span>
         </div>
+        -->
         <div class="info-item">
           <span class="label">任务数量：</span>
           <span class="value">{{ taskCount }} 个</span>

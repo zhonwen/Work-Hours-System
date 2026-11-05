@@ -281,33 +281,24 @@ public class StatisticsServiceImpl implements StatisticsService {
                 .collect(Collectors.toList());
         result.put("projects", projectList);
 
-        // 获取用户的待办任务（TODO和IN_PROGRESS状态）
+        // 获取用户任务：待办（TODO/IN_PROGRESS）与已完成（DONE）
         List<Task> allTodoTasks = new ArrayList<>();
+        List<Task> allDoneTasks = new ArrayList<>();
         List<Task> allTasks = taskMapper.selectAccessibleTasksByCondition(userId, null, userId, null);
         for (Task task : allTasks) {
             if (task.getStatus() == TaskStatus.TODO || task.getStatus() == TaskStatus.IN_PROGRESS) {
                 allTodoTasks.add(task);
+            } else if (task.getStatus() == TaskStatus.DONE) {
+                allDoneTasks.add(task);
             }
         }
 
         result.put("pendingTaskCount", allTodoTasks.size());
+        result.put("completedTaskCount", allDoneTasks.size());
 
-        // 获取待办任务列表（限制5个，按ID降序）
-        List<Map<String, Object>> taskList = allTodoTasks.stream()
-                .sorted((t1, t2) -> t2.getId().compareTo(t1.getId()))
-                .limit(5)
-                .map(task -> {
-                    Map<String, Object> taskData = new HashMap<>();
-                    taskData.put("id", task.getId());
-                    taskData.put("title", task.getTitle());
-                    taskData.put("status", task.getStatus());
-                    taskData.put("priority", task.getPriority());
-                    taskData.put("projectId", task.getProjectId());
-                    taskData.put("planEndDate", task.getPlanEndDate());
-                    return taskData;
-                })
-                .collect(Collectors.toList());
-        result.put("pendingTasks", taskList);
+        // 按父任务归类：子任务挂在父任务下，不与父任务平级展示
+        result.put("pendingTasks", buildDashboardTaskTree(allTodoTasks));
+        result.put("completedTasks", buildDashboardTaskTree(allDoneTasks));
 
         // 计算今日/本周/本月/总工时（不含请假）
         List<WorkHour> todayWorkHours = onlyWorkRecords(
@@ -334,5 +325,77 @@ public class StatisticsServiceImpl implements StatisticsService {
         logger.info("首页看板数据获取完成: userId={}, projectCount={}, pendingTaskCount={}, todayHours={}",
                 userId, allProjects.size(), allTodoTasks.size(), result.get("todayHours"));
         return result;
+    }
+
+    /**
+     * 将任务按父任务归类：仅顶层父任务进列表，子任务放入 subtasks。
+     * 若仅有子任务命中而父任务未命中，仍拉取父任务作为分组容器。
+     */
+    private List<Map<String, Object>> buildDashboardTaskTree(List<Task> tasks) {
+        if (tasks == null || tasks.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        Map<Long, Task> taskById = new HashMap<>();
+        Map<Long, List<Task>> subtasksByParent = new HashMap<>();
+        Set<Long> parentIds = new HashSet<>();
+
+        for (Task task : tasks) {
+            taskById.put(task.getId(), task);
+            if (task.getParentId() == null) {
+                parentIds.add(task.getId());
+            } else {
+                parentIds.add(task.getParentId());
+                subtasksByParent.computeIfAbsent(task.getParentId(), k -> new ArrayList<>()).add(task);
+            }
+        }
+
+        // 补齐未出现在结果集中的父任务（例如仅子任务命中筛选）
+        List<Long> missingParentIds = parentIds.stream()
+                .filter(id -> !taskById.containsKey(id))
+                .collect(Collectors.toList());
+        Map<Long, Task> parentLookup = new HashMap<>(taskById);
+        if (!missingParentIds.isEmpty()) {
+            List<Task> missingParents = taskMapper.selectTasksByIds(missingParentIds);
+            if (missingParents != null) {
+                for (Task parent : missingParents) {
+                    parentLookup.put(parent.getId(), parent);
+                }
+            }
+        }
+
+        List<Task> roots = parentIds.stream()
+                .map(parentLookup::get)
+                .filter(Objects::nonNull)
+                .sorted((t1, t2) -> t2.getId().compareTo(t1.getId()))
+                .limit(5)
+                .collect(Collectors.toList());
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Task parent : roots) {
+            Map<String, Object> parentData = toDashboardTaskMap(parent);
+            List<Task> children = subtasksByParent.getOrDefault(parent.getId(), Collections.emptyList());
+            List<Map<String, Object>> childMaps = children.stream()
+                    .sorted((t1, t2) -> t2.getId().compareTo(t1.getId()))
+                    .map(this::toDashboardTaskMap)
+                    .collect(Collectors.toList());
+            parentData.put("subtasks", childMaps);
+            result.add(parentData);
+        }
+        return result;
+    }
+
+    private Map<String, Object> toDashboardTaskMap(Task task) {
+        Map<String, Object> taskData = new HashMap<>();
+        taskData.put("id", task.getId());
+        taskData.put("title", task.getTitle());
+        taskData.put("description", task.getDescription());
+        taskData.put("status", task.getStatus());
+        taskData.put("priority", task.getPriority());
+        taskData.put("projectId", task.getProjectId());
+        taskData.put("planEndDate", task.getPlanEndDate());
+        taskData.put("actualEndDate", task.getActualEndDate());
+        taskData.put("parentId", task.getParentId());
+        return taskData;
     }
 }

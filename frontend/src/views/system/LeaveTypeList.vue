@@ -29,8 +29,8 @@
 
     <el-card shadow="never">
       <el-table :data="list" stripe v-loading="loading" border>
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="name" label="名称" min-width="120" />
+        <el-table-column type="index" label="序号" width="64" fixed="left" />
+        <el-table-column prop="name" label="名称" min-width="120" fixed="left" />
         <el-table-column prop="code" label="编码" min-width="120" />
         <el-table-column prop="sort" label="排序" width="80" />
         <el-table-column label="状态" width="100">
