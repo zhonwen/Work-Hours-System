@@ -1,151 +1,169 @@
 <template>
-  <div class="workhour-stats">
-    <!-- 加载状态 -->
+  <div class="workhour-stats page-root">
     <div v-if="loading" class="loading-container">
-      <el-skeleton :rows="5" animated />
+      <el-skeleton :rows="6" animated />
     </div>
 
-    <!-- 统计内容 -->
-    <div v-else class="stats-content">
-      <!-- 统计筛选器 -->
-      <div class="stats-filters">
-        <el-date-picker
-          v-model="dateRange"
-          type="daterange"
-          range-separator="至"
-          start-placeholder="开始日期"
-          end-placeholder="结束日期"
-          format="YYYY-MM-DD"
-          value-format="YYYY-MM-DD"
-          style="width: 300px"
-          @change="handleFilterChange"
-        />
-        <el-select
-          v-model="selectedMemberId"
-          placeholder="全部成员"
-          clearable
-          style="width: 180px"
-          @change="handleFilterChange"
-        >
-          <el-option label="全部成员" :value="undefined" />
-          <el-option
-            v-for="member in members"
-            :key="member.userId"
-            :label="member.nickname"
-            :value="member.userId"
-          >
-            <div class="member-option">
-              <el-avatar :size="20">{{ member.nickname?.charAt(0) }}</el-avatar>
-              <span>{{ member.nickname }}</span>
-            </div>
-          </el-option>
-        </el-select>
-      </div>
-
-      <!-- 统计概览卡片 -->
-      <div class="summary-cards">
-        <div class="summary-card">
-          <div class="card-icon" style="background: #e6f7ff; color: #1890ff;">
-            <el-icon :size="28"><Clock /></el-icon>
-          </div>
-          <div class="card-content">
-            <div class="card-value">{{ summary.totalHours }}</div>
-            <div class="card-label">总工时</div>
-          </div>
-        </div>
-
-        <div class="summary-card">
-          <div class="card-icon" style="background: #f6ffed; color: #52c41a;">
-            <el-icon :size="28"><TrendCharts /></el-icon>
-          </div>
-          <div class="card-content">
-            <div class="card-value">{{ summary.avgHours }}</div>
-            <div class="card-label">人均工时</div>
-          </div>
-        </div>
-
-        <div class="summary-card">
-          <div class="card-icon" style="background: #fff7e6; color: #faad14;">
-            <el-icon :size="28"><User /></el-icon>
-          </div>
-          <div class="card-content">
-            <div class="card-value">{{ summary.activeMembers }}</div>
-            <div class="card-label">活跃成员</div>
-          </div>
-        </div>
-
-        <div class="summary-card">
-          <div class="card-icon" style="background: #fff0f6; color: #eb2f96;">
-            <el-icon :size="28"><Calendar /></el-icon>
-          </div>
-          <div class="card-content">
-            <div class="card-value">{{ summary.workDays }}</div>
-            <div class="card-label">工作日数</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 成员工时排行 -->
-      <div class="member-ranking">
-        <h3 class="section-title">成员贡献度排行</h3>
-        <div class="ranking-list">
-          <div
-            v-for="(item, index) in memberRanking"
-            :key="item.userId"
-            class="ranking-item"
-          >
-            <div class="ranking-number" :class="`rank-${index + 1}`">{{ index + 1 }}</div>
-            <el-avatar :size="36">{{ item.nickname?.charAt(0) }}</el-avatar>
-            <div class="member-info">
-              <div class="member-name">{{ item.nickname }}</div>
-              <div class="member-stats">
-                <span>{{ item.taskCount }} 个任务</span>
-                <span>{{ item.workDays }} 天工作</span>
-              </div>
-            </div>
-            <div class="member-hours">
-              <div class="hours-value">{{ item.totalHours }}</div>
-              <div class="hours-unit">小时</div>
-            </div>
-            <!-- 进度条 -->
-            <div class="hours-bar">
-              <div
-                class="hours-bar-fill"
-                :style="{ width: (item.totalHours / maxHours * 100) + '%' }"
-              ></div>
-            </div>
-          </div>
-          <el-empty v-if="memberRanking.length === 0" description="暂无工时数据" :image-size="80" />
-        </div>
-      </div>
-
-      <!-- 工时趋势图（简化版，使用柱状图表示） -->
-      <div class="hour-trend">
-        <h3 class="section-title">工时趋势（最近30天）</h3>
-        <div class="trend-chart-container">
-          <div class="trend-chart">
-            <div
-              v-for="item in dailyTrend"
-              :key="item.date"
-              class="trend-bar-wrapper"
+    <div v-else class="workhour-stats-body">
+      <!-- 筛选：对齐全局 search-form -->
+      <el-card class="search-card">
+        <el-form :inline="true" class="search-form">
+          <el-form-item>
+            <el-date-picker
+              v-model="dateRange"
+              type="daterange"
+              range-separator="至"
+              start-placeholder="开始日期"
+              end-placeholder="结束日期"
+              format="YYYY-MM-DD"
+              value-format="YYYY-MM-DD"
+              style="width: 300px"
+              @change="handleFilterChange"
+            />
+          </el-form-item>
+          <el-form-item>
+            <el-select
+              v-model="selectedMemberId"
+              placeholder="全部成员"
+              clearable
+              style="width: 180px"
+              @change="handleFilterChange"
             >
-              <div class="trend-bar-container">
-                <div
-                  class="trend-bar"
-                  :style="{ height: (item.hours / maxDailyHours * 100) + '%' }"
-                  :title="`${item.date}: ${item.hours}h`"
-                ></div>
+              <el-option label="全部成员" :value="undefined" />
+              <el-option
+                v-for="member in members"
+                :key="member.userId"
+                :label="member.nickname"
+                :value="member.userId"
+              >
+                <div class="member-option">
+                  <el-avatar :size="20">{{ member.nickname?.charAt(0) }}</el-avatar>
+                  <span>{{ member.nickname }}</span>
+                </div>
+              </el-option>
+            </el-select>
+          </el-form-item>
+        </el-form>
+      </el-card>
+
+      <!-- 概览卡片：与首页 / 我的工时统一 -->
+      <el-row :gutter="16" class="stats-row">
+        <el-col :xs="24" :sm="12" :md="6">
+          <el-card class="stats-card" shadow="never">
+            <div class="stats-content">
+              <div class="stats-icon today">
+                <el-icon><Clock /></el-icon>
               </div>
-              <div class="trend-label">{{ formatTrendDate(item.date) }}</div>
-              <div class="trend-value">{{ item.hours }}h</div>
+              <div class="stats-info">
+                <div class="stats-label">总工时</div>
+                <div class="stats-value">{{ summary.totalHours }}</div>
+              </div>
             </div>
-            <el-empty v-if="dailyTrend.length === 0" description="暂无趋势数据" :image-size="80" />
+          </el-card>
+        </el-col>
+        <el-col :xs="24" :sm="12" :md="6">
+          <el-card class="stats-card" shadow="never">
+            <div class="stats-content">
+              <div class="stats-icon week">
+                <el-icon><TrendCharts /></el-icon>
+              </div>
+              <div class="stats-info">
+                <div class="stats-label">人均工时</div>
+                <div class="stats-value">{{ summary.avgHours }}</div>
+              </div>
+            </div>
+          </el-card>
+        </el-col>
+        <el-col :xs="24" :sm="12" :md="6">
+          <el-card class="stats-card" shadow="never">
+            <div class="stats-content">
+              <div class="stats-icon active">
+                <el-icon><User /></el-icon>
+              </div>
+              <div class="stats-info">
+                <div class="stats-label">活跃成员</div>
+                <div class="stats-value">{{ summary.activeMembers }}</div>
+              </div>
+            </div>
+          </el-card>
+        </el-col>
+        <el-col :xs="24" :sm="12" :md="6">
+          <el-card class="stats-card" shadow="never">
+            <div class="stats-content">
+              <div class="stats-icon days">
+                <el-icon><Calendar /></el-icon>
+              </div>
+              <div class="stats-info">
+                <div class="stats-label">工作日数</div>
+                <div class="stats-value">{{ summary.workDays }}</div>
+              </div>
+            </div>
+          </el-card>
+        </el-col>
+      </el-row>
+
+      <!-- 排行 + 趋势：双列铺满 -->
+      <el-row :gutter="16" class="charts-row">
+        <el-col :xs="24" :lg="14">
+          <div class="section-card">
+            <h3 class="section-title">成员贡献度排行</h3>
+            <div class="ranking-list">
+              <div
+                v-for="(item, index) in memberRanking"
+                :key="item.userId"
+                class="ranking-item"
+              >
+                <div class="ranking-number" :class="`rank-${index + 1}`">{{ index + 1 }}</div>
+                <el-avatar :size="36">{{ item.nickname?.charAt(0) }}</el-avatar>
+                <div class="member-info">
+                  <div class="member-name">{{ item.nickname }}</div>
+                  <div class="member-stats">
+                    <span>{{ item.taskCount }} 个任务</span>
+                    <span>{{ item.workDays }} 天工作</span>
+                  </div>
+                </div>
+                <div class="member-hours">
+                  <div class="hours-value hours-accent">{{ item.totalHours }}</div>
+                  <div class="hours-unit">小时</div>
+                </div>
+                <div class="hours-bar">
+                  <div
+                    class="hours-bar-fill"
+                    :style="{ width: (item.totalHours / maxHours * 100) + '%' }"
+                  ></div>
+                </div>
+              </div>
+              <el-empty v-if="memberRanking.length === 0" description="暂无工时数据" :image-size="80" />
+            </div>
           </div>
-        </div>
-      </div>
+        </el-col>
+        <el-col :xs="24" :lg="10">
+          <div class="section-card">
+            <h3 class="section-title">工时趋势（最近30天）</h3>
+            <div class="trend-chart">
+              <div
+                v-for="item in dailyTrend"
+                :key="item.date"
+                class="trend-bar-wrapper"
+              >
+                <div class="trend-bar-container">
+                  <div
+                    class="trend-bar"
+                    :style="{ height: (item.hours / maxDailyHours * 100) + '%' }"
+                    :title="`${item.date}: ${item.hours}h`"
+                  ></div>
+                </div>
+                <div class="trend-label">{{ formatTrendDate(item.date) }}</div>
+                <div class="trend-value hours-accent">{{ item.hours }}h</div>
+              </div>
+              <el-empty v-if="dailyTrend.length === 0" description="暂无趋势数据" :image-size="80" />
+            </div>
+          </div>
+        </el-col>
+      </el-row>
 
       <!-- 任务工时分布 -->
-      <div class="task-distribution">
+      <div class="section-card">
         <h3 class="section-title">任务工时分布</h3>
         <div class="distribution-chart">
           <div
@@ -153,37 +171,30 @@
             :key="item.taskId"
             class="distribution-item"
           >
-            <div class="distribution-bar-wrapper">
-              <div class="distribution-info">
-                <span class="task-name">{{ item.taskName }}</span>
-                <span class="task-hours">{{ item.totalHours }}h</span>
-              </div>
-              <div class="distribution-bar">
-                <div
-                  class="distribution-bar-fill"
-                  :style="{
-                    width: (item.totalHours / maxTaskHours * 100) + '%',
-                    backgroundColor: getChartColor(index)
-                  }"
-                ></div>
-              </div>
+            <div class="distribution-info">
+              <span class="task-name">{{ item.taskName }}</span>
+              <span class="task-hours hours-accent">{{ item.totalHours }}h</span>
+            </div>
+            <div class="distribution-bar">
+              <div
+                class="distribution-bar-fill"
+                :style="{
+                  width: (item.totalHours / maxTaskHours * 100) + '%',
+                  backgroundColor: getChartColor(index)
+                }"
+              ></div>
             </div>
           </div>
           <el-empty v-if="taskDistribution.length === 0" description="暂无任务分布数据" :image-size="80" />
         </div>
       </div>
 
-      <!-- 工时明细列表 -->
-      <div class="hour-details">
+      <!-- 工时明细 -->
+      <div class="section-card hour-details">
         <h3 class="section-title">工时明细</h3>
-        <el-table
-          :data="workHourList"
-          stripe
-          style="width: 100%"
-          :height="400"
-        >
+        <el-table :data="workHourList" stripe border style="width: 100%">
           <el-table-column prop="workDate" label="日期" width="120" />
-          <el-table-column label="成员" width="120">
+          <el-table-column label="成员" width="140">
             <template #default="{ row }">
               <div class="user-cell">
                 <el-avatar :size="24">{{ (row.userName || 'U')?.charAt(0) }}</el-avatar>
@@ -196,14 +207,14 @@
               <span class="task-link">{{ row.taskName || '无关联任务' }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="hours" label="工时数" width="100">
+          <el-table-column prop="hours" label="工时数" width="100" align="center">
             <template #default="{ row }">
-              <span class="hours-value">{{ row.hours }}h</span>
+              <span class="hours-accent">{{ row.hours }}h</span>
             </template>
           </el-table-column>
-          <el-table-column prop="content" label="工作内容" min-width="250" show-overflow-tooltip />
+          <el-table-column prop="content" label="工作内容" min-width="220" show-overflow-tooltip />
         </el-table>
-        <div class="table-pagination">
+        <div class="pagination-container">
           <el-pagination
             v-model:current-page="pageNum"
             v-model:page-size="pageSize"
@@ -231,12 +242,10 @@ import {
 import { getProjectMembers, type ProjectMember } from '@/api/project'
 import { getWorkHourList, type WorkHourInfo } from '@/api/workhour'
 
-// Props
 const props = defineProps<{
   projectId: number
 }>()
 
-// 数据定义
 const loading = ref(false)
 const members = ref<ProjectMember[]>([])
 const workHourList = ref<WorkHourInfo[]>([])
@@ -244,11 +253,9 @@ const total = ref(0)
 const pageNum = ref(1)
 const pageSize = ref(20)
 
-// 筛选条件
 const dateRange = ref<[string, string]>([])
 const selectedMemberId = ref<number | undefined>(undefined)
 
-// 统计概览
 const summary = reactive({
   totalHours: 0,
   avgHours: 0,
@@ -256,22 +263,15 @@ const summary = reactive({
   workDays: 0
 })
 
-// 成员排行
 const memberRanking = ref<any[]>([])
-
-// 每日趋势
 const dailyTrend = ref<any[]>([])
-
-// 任务工时分布
 const taskDistribution = ref<any[]>([])
 
-// 图表颜色
 const chartColors = [
   '#1890ff', '#52c41a', '#faad14', '#f5222d', '#722ed1',
   '#eb2f96', '#13c2c2', '#2f54eb', '#fa8c16', '#a0d911'
 ]
 
-// 计算属性
 const maxHours = computed(() => {
   return Math.max(...memberRanking.value.map(m => m.totalHours), 1)
 })
@@ -284,7 +284,6 @@ const maxTaskHours = computed(() => {
   return Math.max(...taskDistribution.value.map(t => t.totalHours), 1)
 })
 
-// 获取项目成员
 const fetchMembers = async () => {
   try {
     const res = await getProjectMembers(props.projectId)
@@ -294,7 +293,6 @@ const fetchMembers = async () => {
   }
 }
 
-// 获取工时列表
 const fetchWorkHours = async () => {
   loading.value = true
   try {
@@ -308,8 +306,6 @@ const fetchWorkHours = async () => {
     })
     workHourList.value = res?.list || []
     total.value = res?.total || 0
-
-    // 计算统计数据
     calculateStats()
   } catch (error) {
     console.error('获取工时数据失败:', error)
@@ -319,11 +315,8 @@ const fetchWorkHours = async () => {
   }
 }
 
-// 计算统计数据
 const calculateStats = () => {
   const list = workHourList.value
-
-  // 总工时及相关聚合均不含请假
   const workList = list.filter(item => item.recordType !== 'LEAVE' && item.recordType !== 2)
   summary.totalHours = workList.reduce((sum, item) => sum + Number(item.hours || 0), 0)
 
@@ -399,24 +392,20 @@ const calculateStats = () => {
     .slice(0, 10)
 }
 
-// 筛选变更
 const handleFilterChange = () => {
   pageNum.value = 1
   fetchWorkHours()
 }
 
-// 格式化趋势日期
 const formatTrendDate = (dateStr: string) => {
   const date = new Date(dateStr)
   return `${date.getMonth() + 1}/${date.getDate()}`
 }
 
-// 获取图表颜色
 const getChartColor = (index: number) => {
   return chartColors[index % chartColors.length]
 }
 
-// 生命周期
 onMounted(async () => {
   await fetchMembers()
   await fetchWorkHours()
@@ -425,34 +414,23 @@ onMounted(async () => {
 
 <style scoped>
 .workhour-stats {
+  width: 100%;
   height: 100%;
   overflow-y: auto;
-  padding: 24px;
-  background: #f5f5f5;
+  padding: 16px 20px 24px;
+  box-sizing: border-box;
+  background: #f5f7fa;
+}
+
+.workhour-stats-body {
+  width: 100%;
+  max-width: 100%;
 }
 
 .loading-container {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 400px;
-}
-
-.stats-content {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
-}
-
-/* 统计筛选器 */
-.stats-filters {
+  padding: 24px;
   background: #fff;
-  border-radius: 8px;
-  padding: 20px;
-  display: flex;
-  gap: 16px;
-  align-items: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
 }
 
 .member-option {
@@ -461,69 +439,12 @@ onMounted(async () => {
   gap: 8px;
 }
 
-/* 统计概览卡片 */
-.summary-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 16px;
+.charts-row {
+  margin-bottom: 0;
 }
 
-.summary-card {
-  background: #fff;
-  border-radius: 8px;
-  padding: 24px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  transition: all 0.3s;
-}
-
-.summary-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transform: translateY(-2px);
-}
-
-.card-icon {
-  width: 56px;
-  height: 56px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.card-content {
-  flex: 1;
-}
-
-.card-value {
-  font-size: 32px;
-  font-weight: 600;
-  color: #333;
-  line-height: 1.2;
-}
-
-.card-label {
-  font-size: 14px;
-  color: #999;
-  margin-top: 4px;
-}
-
-/* 成员贡献度排行 */
-.member-ranking {
-  background: #fff;
-  border-radius: 8px;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.section-title {
-  margin: 0 0 20px 0;
-  font-size: 18px;
-  font-weight: 600;
-  color: #333;
+.charts-row .el-col {
+  margin-bottom: 16px;
 }
 
 .ranking-list {
@@ -536,21 +457,22 @@ onMounted(async () => {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 16px;
-  background: #f5f5f5;
-  border-radius: 8px;
+  padding: 14px 16px;
+  background: #f7f8fa;
+  border-radius: 4px;
   position: relative;
+  overflow: hidden;
 }
 
 .ranking-number {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: 600;
-  font-size: 16px;
+  font-size: 14px;
   background: #d9d9d9;
   color: #666;
   flex-shrink: 0;
@@ -577,14 +499,14 @@ onMounted(async () => {
 }
 
 .member-name {
-  font-size: 16px;
+  font-size: 14px;
   font-weight: 500;
   color: #333;
   margin-bottom: 4px;
 }
 
 .member-stats {
-  font-size: 13px;
+  font-size: 12px;
   color: #999;
   display: flex;
   gap: 12px;
@@ -595,13 +517,12 @@ onMounted(async () => {
   flex-direction: column;
   align-items: flex-end;
   gap: 2px;
-  margin-right: 12px;
+  margin-right: 4px;
 }
 
 .hours-value {
-  font-size: 24px;
-  font-weight: 600;
-  color: #1890ff;
+  font-size: 22px;
+  line-height: 1.2;
 }
 
 .hours-unit {
@@ -614,10 +535,8 @@ onMounted(async () => {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 4px;
+  height: 3px;
   background: #f0f0f0;
-  border-radius: 0 0 8px 8px;
-  overflow: hidden;
 }
 
 .hours-bar-fill {
@@ -626,24 +545,12 @@ onMounted(async () => {
   transition: width 0.5s;
 }
 
-/* 工时趋势 */
-.hour-trend {
-  background: #fff;
-  border-radius: 8px;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.trend-chart-container {
-  margin-top: 16px;
-}
-
 .trend-chart {
   display: flex;
   align-items: flex-end;
   gap: 8px;
-  height: 200px;
-  padding-top: 20px;
+  min-height: 200px;
+  padding-top: 12px;
   overflow-x: auto;
 }
 
@@ -653,6 +560,7 @@ onMounted(async () => {
   flex-direction: column;
   align-items: center;
   min-width: 40px;
+  height: 200px;
 }
 
 .trend-bar-container {
@@ -677,55 +585,42 @@ onMounted(async () => {
 }
 
 .trend-value {
-  margin-top: 4px;
+  margin-top: 2px;
   font-size: 12px;
-  color: #1890ff;
-  font-weight: 500;
-}
-
-/* 任务工时分布 */
-.task-distribution {
-  background: #fff;
-  border-radius: 8px;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
 
 .distribution-chart {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-top: 16px;
 }
 
 .distribution-item {
   padding: 12px;
-  background: #f5f5f5;
-  border-radius: 6px;
-}
-
-.distribution-bar-wrapper {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
+  background: #f7f8fa;
+  border-radius: 4px;
 }
 
 .distribution-info {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  margin-bottom: 8px;
+  gap: 12px;
 }
 
 .task-name {
   font-size: 14px;
   color: #333;
   font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .task-hours {
-  font-size: 16px;
-  color: #1890ff;
-  font-weight: 600;
+  font-size: 14px;
+  flex-shrink: 0;
 }
 
 .distribution-bar {
@@ -742,14 +637,6 @@ onMounted(async () => {
   transition: width 0.5s;
 }
 
-/* 工时明细 */
-.hour-details {
-  background: #fff;
-  border-radius: 8px;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
 .user-cell {
   display: flex;
   align-items: center;
@@ -758,16 +645,9 @@ onMounted(async () => {
 
 .task-link {
   color: #1890ff;
-  cursor: pointer;
 }
 
-.task-link:hover {
-  text-decoration: underline;
-}
-
-.table-pagination {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 16px;
+.hour-details {
+  margin-bottom: 0;
 }
 </style>

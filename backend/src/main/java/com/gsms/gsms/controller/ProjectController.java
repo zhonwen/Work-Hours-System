@@ -1,5 +1,6 @@
 package com.gsms.gsms.controller;
 
+import com.gsms.gsms.dto.project.ProjectAnnouncementUpdateReq;
 import com.gsms.gsms.dto.project.ProjectCreateReq;
 import com.gsms.gsms.dto.project.ProjectQueryReq;
 import com.gsms.gsms.dto.project.ProjectUpdateReq;
@@ -83,6 +84,19 @@ public class ProjectController {
         ProjectInfoResp updatedProject = projectService.update(req);
         logger.info("项目更新成功: {}", updatedProject.getId());
         return Result.success(updatedProject);
+    }
+
+    /**
+     * 更新项目公告 / 规划板
+     */
+    @PutMapping("/{id}/announcement")
+    @Operation(summary = "更新项目公告")
+    public Result<ProjectInfoResp> updateProjectAnnouncement(@PathVariable Long id,
+                                                             @Valid @RequestBody ProjectAnnouncementUpdateReq req) {
+        logger.info("更新项目公告: projectId={}, length={}", id,
+                req.getContent() == null ? 0 : req.getContent().length());
+        ProjectInfoResp updated = projectService.updateAnnouncement(id, req);
+        return Result.success(updated);
     }
 
     /**

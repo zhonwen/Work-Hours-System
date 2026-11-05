@@ -48,40 +48,40 @@
     <!-- 统计卡片 -->
     <el-row :gutter="16" class="stats-row" v-if="statisticsData">
       <el-col :span="8">
-        <el-card class="stat-card">
-          <div class="stat-content">
-            <div class="stat-icon">
-              <el-icon :size="32"><Clock /></el-icon>
+        <el-card class="stats-card" shadow="never">
+          <div class="stats-content">
+            <div class="stats-icon today">
+              <el-icon><Clock /></el-icon>
             </div>
-            <div class="stat-info">
-              <div class="stat-label">总工时</div>
-              <div class="stat-value">{{ formatHours(statisticsData.totalHours) }} 小时</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="8">
-        <el-card class="stat-card">
-          <div class="stat-content">
-            <div class="stat-icon">
-              <el-icon :size="32"><Document /></el-icon>
-            </div>
-            <div class="stat-info">
-              <div class="stat-label">工时记录数</div>
-              <div class="stat-value">{{ statisticsData.totalRecords || 0 }} 条</div>
+            <div class="stats-info">
+              <div class="stats-label">总工时</div>
+              <div class="stats-value">{{ formatHours(statisticsData.totalHours) }} 小时</div>
             </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="8">
-        <el-card class="stat-card">
-          <div class="stat-content">
-            <div class="stat-icon">
-              <el-icon :size="32"><User /></el-icon>
+        <el-card class="stats-card" shadow="never">
+          <div class="stats-content">
+            <div class="stats-icon month">
+              <el-icon><Document /></el-icon>
             </div>
-            <div class="stat-info">
-              <div class="stat-label">参与人数</div>
-              <div class="stat-value">{{ statisticsData.userCount || 0 }} 人</div>
+            <div class="stats-info">
+              <div class="stats-label">工时记录数</div>
+              <div class="stats-value">{{ statisticsData.totalRecords || 0 }} 条</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="8">
+        <el-card class="stats-card" shadow="never">
+          <div class="stats-content">
+            <div class="stats-icon active">
+              <el-icon><User /></el-icon>
+            </div>
+            <div class="stats-info">
+              <div class="stats-label">参与人数</div>
+              <div class="stats-value">{{ statisticsData.userCount || 0 }} 人</div>
             </div>
           </div>
         </el-card>
@@ -321,37 +321,9 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
 .card-title {
   font-size: 16px;
   font-weight: 500;
-  color: #333;
-}
-
-.stat-content {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
-.stat-icon {
-  color: #409eff;
-}
-
-.stat-label {
-  font-size: 14px;
-  color: #666;
-  margin-bottom: 8px;
-}
-
-.stat-value {
-  font-size: 22px;
-  font-weight: 600;
   color: #333;
 }
 </style>

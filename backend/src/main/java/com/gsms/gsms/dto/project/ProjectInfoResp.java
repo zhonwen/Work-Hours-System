@@ -33,6 +33,23 @@ public class ProjectInfoResp {
     @Schema(description = "项目描述")
     private String description;
 
+    @Schema(description = "项目公告Markdown内容")
+    private String announcement;
+
+    @Schema(description = "公告最后更新人ID")
+    private Long announcementUpdateUserId;
+
+    @Schema(description = "公告最后更新人姓名")
+    private String announcementUpdateUserName;
+
+    @Schema(description = "公告最后更新时间")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime announcementUpdateTime;
+
+    @Schema(description = "当前用户是否可编辑公告")
+    private Boolean canEditAnnouncement;
+
     @Schema(description = "项目负责人ID")
     private Long managerId;
 
@@ -120,6 +137,46 @@ public class ProjectInfoResp {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getAnnouncement() {
+        return announcement;
+    }
+
+    public void setAnnouncement(String announcement) {
+        this.announcement = announcement;
+    }
+
+    public Long getAnnouncementUpdateUserId() {
+        return announcementUpdateUserId;
+    }
+
+    public void setAnnouncementUpdateUserId(Long announcementUpdateUserId) {
+        this.announcementUpdateUserId = announcementUpdateUserId;
+    }
+
+    public String getAnnouncementUpdateUserName() {
+        return announcementUpdateUserName;
+    }
+
+    public void setAnnouncementUpdateUserName(String announcementUpdateUserName) {
+        this.announcementUpdateUserName = announcementUpdateUserName;
+    }
+
+    public LocalDateTime getAnnouncementUpdateTime() {
+        return announcementUpdateTime;
+    }
+
+    public void setAnnouncementUpdateTime(LocalDateTime announcementUpdateTime) {
+        this.announcementUpdateTime = announcementUpdateTime;
+    }
+
+    public Boolean getCanEditAnnouncement() {
+        return canEditAnnouncement;
+    }
+
+    public void setCanEditAnnouncement(Boolean canEditAnnouncement) {
+        this.canEditAnnouncement = canEditAnnouncement;
     }
 
     public Long getManagerId() {
@@ -232,6 +289,9 @@ public class ProjectInfoResp {
         resp.setCode(project.getCode());
         resp.setProjectType(project.getProjectType());
         resp.setDescription(project.getDescription());
+        resp.setAnnouncement(project.getAnnouncement());
+        resp.setAnnouncementUpdateUserId(project.getAnnouncementUpdateUserId());
+        resp.setAnnouncementUpdateTime(project.getAnnouncementUpdateTime());
         resp.setManagerId(project.getManagerId());
         resp.setStatus(project.getStatus());
         resp.setPlanStartDate(project.getPlanStartDate());

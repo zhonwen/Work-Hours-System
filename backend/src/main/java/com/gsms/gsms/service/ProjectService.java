@@ -1,5 +1,6 @@
 package com.gsms.gsms.service;
 
+import com.gsms.gsms.dto.project.ProjectAnnouncementUpdateReq;
 import com.gsms.gsms.dto.project.ProjectQueryReq;
 import com.gsms.gsms.dto.project.ProjectCreateReq;
 import com.gsms.gsms.dto.project.ProjectUpdateReq;
@@ -37,6 +38,14 @@ public interface ProjectService {
      * @return 更新后的项目响应DTO
      */
     ProjectInfoResp update(ProjectUpdateReq updateReq);
+
+    /**
+     * 更新项目公告 / 规划板
+     * @param projectId 项目ID
+     * @param req 公告内容
+     * @return 更新后的项目详情
+     */
+    ProjectInfoResp updateAnnouncement(Long projectId, ProjectAnnouncementUpdateReq req);
 
     /**
      * 删除项目

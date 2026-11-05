@@ -17,6 +17,11 @@ export const getProjectDetail = (id: number) => {
   return request.get(`/projects/${id}`)
 }
 
+/** 更新项目公告 / 规划板 */
+export const updateProjectAnnouncement = (projectId: number, content: string) => {
+  return request.put(`/projects/${projectId}/announcement`, { content })
+}
+
 // 创建项目
 export interface ProjectCreateReq {
   name: string

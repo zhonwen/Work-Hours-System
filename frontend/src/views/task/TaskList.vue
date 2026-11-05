@@ -416,6 +416,31 @@
         </el-form-item>
         <el-row :gutter="20">
           <el-col :span="12">
+            <el-form-item label="类型" prop="type">
+              <el-select v-model="formData.type" placeholder="请选择类型" style="width: 100%">
+                <el-option label="任务" value="TASK" />
+                <el-option label="需求" value="REQUIREMENT" />
+                <el-option label="缺陷" value="BUG" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="预估工时" prop="estimateHours">
+              <el-input-number
+                v-model="formData.estimateHours"
+                :min="0"
+                :max="9999"
+                :precision="1"
+                :step="0.5"
+                controls-position="right"
+                placeholder="小时"
+                style="width: 100%"
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
             <el-form-item label="负责人" prop="assigneeId">
               <el-select v-model="formData.assigneeId" placeholder="请选择负责人（可选）" clearable filterable style="width: 100%">
                 <el-option
@@ -535,6 +560,8 @@ const formData = reactive({
   description: '',
   projectId: undefined as number | undefined,
   assigneeId: undefined as number | undefined,
+  type: 'TASK' as string,
+  estimateHours: undefined as number | undefined,
   priority: 'MEDIUM',
   planStartDate: '',
   planEndDate: '',
@@ -546,7 +573,8 @@ const formData = reactive({
 // 表单规则（动态计算）
 const formRules = computed(() => {
   const rules: FormRules = {
-    title: [{ required: true, message: '请输入任务标题', trigger: 'blur' }]
+    title: [{ required: true, message: '请输入任务标题', trigger: 'blur' }],
+    type: [{ required: true, message: '请选择类型', trigger: 'change' }]
   }
 
   // 只有在没有父任务时，才验证项目ID必填
@@ -794,6 +822,8 @@ const handleEdit = (task: TaskInfo, parent?: TaskInfo | null) => {
     description: task.description,
     projectId: task.projectId,
     assigneeId: task.assigneeId,
+    type: task.type || 'TASK',
+    estimateHours: task.estimateHours != null ? Number(task.estimateHours) : undefined,
     priority: task.priority || 'MEDIUM',
     planStartDate: task.planStartDate,
     planEndDate: task.planEndDate,
@@ -854,6 +884,7 @@ const handleAddSubtask = (parentTask: TaskInfo) => {
   formData.projectId = parentTask.projectId
   formData.iterationId = parentTask.iterationId
   formData.parentId = parentTask.id
+  formData.type = parentTask.type || 'TASK'
   // 加载项目成员（用于选择负责人）
   fetchProjectMembers(parentTask.projectId)
 }
@@ -880,6 +911,8 @@ const handleSubmit = async () => {
             description: formData.description,
             projectId: formData.projectId!,  // 添加项目ID
             assigneeId: formData.assigneeId,
+            type: formData.type,
+            estimateHours: formData.estimateHours,
             priority: formData.priority,
             planStartDate: formData.planStartDate,
             planEndDate: formData.planEndDate,
@@ -895,6 +928,8 @@ const handleSubmit = async () => {
             description: formData.description,
             projectId: formData.projectId!,
             assigneeId: formData.assigneeId,
+            type: formData.type,
+            estimateHours: formData.estimateHours,
             priority: formData.priority,
             planStartDate: formData.planStartDate,
             planEndDate: formData.planEndDate,
@@ -922,6 +957,8 @@ const resetForm = () => {
   formData.description = ''
   formData.projectId = undefined
   formData.assigneeId = undefined
+  formData.type = 'TASK'
+  formData.estimateHours = undefined
   formData.priority = 'MEDIUM'
   formData.planStartDate = ''
   formData.planEndDate = ''

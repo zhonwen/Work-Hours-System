@@ -26,7 +26,6 @@
 
       <!-- 右侧：操作按钮 -->
       <div class="nav-right">
-        <el-button :icon="Setting" circle text />
         <el-button type="primary" :icon="Plus">新建</el-button>
       </div>
     </div>
@@ -42,63 +41,18 @@
           />
         </div>
 
-        <!-- 需求管理 -->
+        <!-- TODO[迭代/需求规划]: 需求管理（PlanningView）后续开放
         <div v-else-if="activeModule === 'planning'" key="planning" class="module-content">
-          <PlanningView
-            ref="planningViewRef"
-            :project-id="projectId"
-            @create-iteration="handleCreateIteration"
-            @edit-iteration="handleEditIteration"
-            @delete-iteration="handleDeleteIteration"
-            @create-requirement="handleCreateRequirement"
-            @edit-requirement="handleEditTask"
-            @delete-requirement="handleDeleteTask"
-          />
+          <PlanningView ... />
         </div>
+        -->
 
-        <!-- 任务执行 -->
+        <!-- 任务执行：直接传统列表视图 -->
         <div v-else-if="activeModule === 'tasks'" key="tasks" class="module-content">
-          <!-- 视图切换器 -->
-          <div class="view-mode-switcher">
-            <!-- TODO[迭代]: 按迭代筛选 — 后续开放
-            <el-select
-              v-model="selectedIterationId"
-              placeholder="选择迭代"
-              size="small"
-              style="width: 200px; margin-right: 12px"
-              @change="handleIterationChange"
-            >
-              <el-option
-                v-for="iteration in iterations"
-                :key="iteration.id"
-                :label="iteration.name"
-                :value="iteration.id"
-              />
-            </el-select>
-            -->
-            <el-radio-group v-model="taskViewMode" size="small">
-              <el-radio-button value="kanban-table">看板表格</el-radio-button>
-              <el-radio-button value="traditional">传统视图</el-radio-button>
-            </el-radio-group>
-          </div>
-
-          <!-- 看板表格视图 -->
-          <transition name="view-fade" mode="out-in">
-            <KanbanTableView
-              v-if="taskViewMode === 'kanban-table'"
-              key="kanban-table"
-              :project-id="projectId"
-              :iteration-id="selectedIterationId"
-            />
-
-            <!-- 传统任务视图 -->
-            <TasksView
-              v-else
-              key="traditional"
-              ref="tasksViewRef"
-              :project-id="projectId"
-            />
-          </transition>
+          <TasksView
+            ref="tasksViewRef"
+            :project-id="projectId"
+          />
         </div>
 
         <!-- 工时统计（新增） -->
@@ -358,7 +312,6 @@ import {
   VideoPlay,
   TrendCharts,
   User,
-  Setting,
   Filter,
   Clock
 } from '@element-plus/icons-vue'
@@ -392,11 +345,9 @@ const activeTab = ref('workItems')
 // 当前激活的模块标签（默认显示项目概览）
 const activeModule = ref('overview')
 
-// 任务视图模式（看板表格 / 传统视图）
-const taskViewMode = ref<'kanban-table' | 'traditional'>('kanban-table')
-
-// 选中的迭代ID（用于筛选看板表格数据）
-const selectedIterationId = ref<number | undefined>(undefined)
+// TODO[迭代]: 任务视图切换 / 迭代筛选 — 后续开放
+// const taskViewMode = ref<'kanban-table' | 'traditional'>('traditional')
+// const selectedIterationId = ref<number | undefined>(undefined)
 
 // RequirementsView 组件引用
 const planningViewRef = ref<InstanceType<typeof PlanningView>>()
@@ -410,13 +361,13 @@ const defectsViewRef = ref<InstanceType<typeof DefectsView>>()
 // MembersView 组件引用
 const membersViewRef = ref<InstanceType<typeof MembersView>>()
 
-// 模块标签定义（按工作流程顺序）
+// 模块标签定义（按工作流程顺序；需求/迭代规划后续开放）
 const moduleTabs = [
-  { key: 'overview', label: '项目概览' },       // 新增：核心指标和进度可视化
-  { key: 'planning', label: '需求管理' },       // 需求列表、状态管理
-  { key: 'tasks', label: '任务执行' },          // 看板表格、传统视图
-  { key: 'workhours', label: '工时统计' },      // 新增：工时数据、效率分析
-  { key: 'member', label: '团队协作' }          // 成员列表、角色分工
+  { key: 'overview', label: '项目概览' },
+  // TODO[迭代]: { key: 'planning', label: '需求管理' },
+  { key: 'tasks', label: '任务执行' },
+  { key: 'workhours', label: '工时统计' },
+  { key: 'member', label: '团队协作' }
 ]
 
 // ONES 风格：当前视图标签
@@ -672,24 +623,14 @@ const handlePaginationChange = (pageNum: number, pageSize: number) => {
   fetchTasks()
 }
 
-// 获取迭代列表
+// TODO[迭代]: 获取迭代列表 / 切换筛选 — 后续开放
 const fetchIterations = async () => {
   try {
     const res = await getIterationList({ projectId: projectId.value, pageNum: 1, pageSize: 100 })
     iterations.value = res.list || []
-
-    // 自动选择第一个迭代
-    if (iterations.value.length > 0 && !selectedIterationId.value) {
-      selectedIterationId.value = iterations.value[0].id
-    }
   } catch (error) {
     console.error('获取迭代列表失败:', error)
   }
-}
-
-// 处理迭代选择变更
-const handleIterationChange = (iterationId: number) => {
-  selectedIterationId.value = iterationId
 }
 
 // 返回

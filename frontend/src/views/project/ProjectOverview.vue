@@ -243,24 +243,55 @@
       </div>
       -->
 
-      <!-- 最近活动 -->
-      <div class="activity-section">
-        <h3 class="section-title">最近活动</h3>
-        <el-timeline v-if="recentActivities.length > 0">
-          <el-timeline-item
-            v-for="activity in recentActivities.slice(0, 10)"
-            :key="activity.id"
-            :timestamp="formatRelativeTime(activity.timestamp)"
-            placement="top"
-          >
-            <div class="activity-item">
-              <span class="activity-user">{{ activity.user }}</span>
-              <span class="activity-action">{{ activity.action }}</span>
-              <span class="activity-target">{{ activity.target }}</span>
-            </div>
-          </el-timeline-item>
-        </el-timeline>
-        <el-empty v-else description="暂无最近活动" :image-size="80" />
+      <!-- 项目公告 / 规划板 -->
+      <div class="announcement-section">
+        <div class="announcement-header">
+          <div class="announcement-title-wrap">
+            <h3 class="section-title">项目公告 / 规划板</h3>
+            <span class="announcement-hint">近期技术迭代重点 · 开会复盘</span>
+          </div>
+          <div class="announcement-actions" v-if="canEditAnnouncement">
+            <template v-if="!announcementEditing">
+              <el-button type="primary" link @click="startEditAnnouncement">编辑</el-button>
+            </template>
+            <template v-else>
+              <el-button @click="cancelEditAnnouncement" :disabled="announcementSaving">取消</el-button>
+              <el-button type="primary" :loading="announcementSaving" @click="saveAnnouncement">
+                保存
+              </el-button>
+            </template>
+          </div>
+        </div>
+
+        <div v-if="announcementEditing" class="announcement-editor">
+          <el-input
+            v-model="announcementDraft"
+            type="textarea"
+            :rows="12"
+            maxlength="5000"
+            show-word-limit
+            placeholder="支持简单 Markdown：标题、列表、加粗、链接等&#10;&#10;示例：&#10;## 本周迭代重点&#10;- 完成登录改造&#10;- 修复工时统计&#10;&#10;## 复盘&#10;1. …"
+          />
+        </div>
+        <div v-else class="announcement-body">
+          <div
+            v-if="announcementContent.trim()"
+            class="markdown-body"
+            v-html="announcementHtml"
+          />
+          <el-empty
+            v-else
+            description="暂无公告，负责人或项目管理员可补充迭代重点与复盘内容"
+            :image-size="80"
+          />
+        </div>
+
+        <div
+          v-if="!announcementEditing && announcementUpdateMeta"
+          class="announcement-meta"
+        >
+          最后更新：{{ announcementUpdateMeta }}
+        </div>
       </div>
     </div>
 
@@ -320,11 +351,21 @@ import {
   Warning,
   Plus
 } from '@element-plus/icons-vue'
-import { getProjectDetail, getProjectMembers, addProjectMember, removeProjectMember } from '@/api/project'
+import { marked } from 'marked'
+import DOMPurify from 'dompurify'
+import {
+  getProjectDetail,
+  getProjectMembers,
+  addProjectMember,
+  removeProjectMember,
+  updateProjectAnnouncement
+} from '@/api/project'
 import { getAllUsers, type UserInfo } from '@/api/user'
 import { getTasksByProjectId, type TaskInfo } from '@/api/task'
 import { getIterationList, type IterationInfo } from '@/api/iteration'
 import { getWorkHoursByProjectId, type WorkHourInfo } from '@/api/workhour'
+
+marked.setOptions({ breaks: true, gfm: true, async: false })
 
 // Props
 const props = defineProps<{
@@ -371,8 +412,25 @@ const metrics = reactive({
   completionRate: 0
 })
 
-// 最近活动
-const recentActivities = ref<any[]>([])
+// 项目公告 / 规划板
+const announcementContent = ref('')
+const announcementDraft = ref('')
+const announcementEditing = ref(false)
+const announcementSaving = ref(false)
+const canEditAnnouncement = ref(false)
+const announcementUpdateTime = ref('')
+const announcementUpdateUserName = ref('')
+
+const announcementHtml = computed(() => {
+  const raw = marked.parse(announcementContent.value || '', { async: false }) as string
+  return DOMPurify.sanitize(raw)
+})
+
+const announcementUpdateMeta = computed(() => {
+  if (!announcementUpdateTime.value) return ''
+  const who = announcementUpdateUserName.value || '未知'
+  return `${announcementUpdateTime.value} · ${who}`
+})
 
 // 进度条颜色
 const progressColors = [
@@ -412,14 +470,52 @@ const scrollableMembers = computed(() => {
 
 const managerName = computed(() => ownerMember.value?.nickname || '未指定')
 
+const applyAnnouncementFromProject = (res: any) => {
+  announcementContent.value = res?.announcement || ''
+  canEditAnnouncement.value = !!res?.canEditAnnouncement
+  announcementUpdateTime.value = res?.announcementUpdateTime || ''
+  announcementUpdateUserName.value = res?.announcementUpdateUserName || ''
+}
+
 // 获取项目详情
 const fetchProject = async () => {
   try {
     const res = await getProjectDetail(props.projectId)
     project.value = res
+    applyAnnouncementFromProject(res)
   } catch (error) {
     console.error('获取项目详情失败:', error)
     ElMessage.error('获取项目详情失败')
+  }
+}
+
+const startEditAnnouncement = () => {
+  announcementDraft.value = announcementContent.value
+  announcementEditing.value = true
+}
+
+const cancelEditAnnouncement = () => {
+  announcementEditing.value = false
+  announcementDraft.value = announcementContent.value
+}
+
+const saveAnnouncement = async () => {
+  if (announcementDraft.value.length > 5000) {
+    ElMessage.warning('公告内容不能超过5000字')
+    return
+  }
+  announcementSaving.value = true
+  try {
+    const res = await updateProjectAnnouncement(props.projectId, announcementDraft.value)
+    project.value = { ...project.value, ...res }
+    applyAnnouncementFromProject(res)
+    announcementEditing.value = false
+    ElMessage.success('公告已保存')
+  } catch (error) {
+    console.error('保存公告失败:', error)
+    ElMessage.error('保存公告失败')
+  } finally {
+    announcementSaving.value = false
   }
 }
 
@@ -577,21 +673,6 @@ const calculateIterationProgress = (iteration: IterationInfo) => {
 // 查看迭代详情
 const handleViewIteration = (iteration: IterationInfo) => {
   router.push(`/projects/${props.projectId}/iterations/${iteration.id}`)
-}
-
-// 格式化相对时间
-const formatRelativeTime = (timestamp: string) => {
-  const now = new Date()
-  const time = new Date(timestamp)
-  const diff = now.getTime() - time.getTime()
-  const minutes = Math.floor(diff / 60000)
-  const hours = Math.floor(diff / 3600000)
-  const days = Math.floor(diff / 86400000)
-
-  if (minutes < 60) return `${minutes}分钟前`
-  if (hours < 24) return `${hours}小时前`
-  if (days < 7) return `${days}天前`
-  return formatDate(timestamp)
 }
 
 // 生命周期
@@ -1027,35 +1108,154 @@ const handleRemoveMember = async (member: OverviewMember) => {
   margin-top: 8px;
 }
 
-/* 最近活动 */
-.activity-section {
+/* 项目公告 / 规划板 */
+.announcement-section {
   background: #fff;
   border-radius: 8px;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  padding: 24px 28px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
 }
 
-.activity-item {
+.announcement-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.announcement-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.announcement-section .section-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f1f1f;
+}
+
+.announcement-hint {
   font-size: 14px;
-  line-height: 1.6;
+  color: #8c8c8c;
 }
 
-.activity-user {
-  font-weight: 500;
-  color: #333;
+.announcement-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
 }
 
-.activity-action {
-  color: #666;
-  margin: 0 4px;
+.announcement-body {
+  min-height: 160px;
+  max-width: 960px;
 }
 
-.activity-target {
-  color: #1890ff;
-  cursor: pointer;
+.announcement-editor :deep(.el-textarea__inner) {
+  font-family: Consolas, 'Courier New', monospace;
+  font-size: 14px;
+  line-height: 1.7;
 }
 
-.activity-target:hover {
+.markdown-body {
+  font-size: 16px;
+  line-height: 1.8;
+  color: #262626;
+  word-break: break-word;
+}
+
+.markdown-body :deep(h1),
+.markdown-body :deep(h2),
+.markdown-body :deep(h3) {
+  margin: 22px 0 12px;
+  font-weight: 600;
+  color: #1f1f1f;
+  line-height: 1.4;
+}
+
+.markdown-body :deep(h1):first-child,
+.markdown-body :deep(h2):first-child,
+.markdown-body :deep(h3):first-child {
+  margin-top: 0;
+}
+
+.markdown-body :deep(h1) { font-size: 24px; }
+.markdown-body :deep(h2) { font-size: 20px; }
+.markdown-body :deep(h3) { font-size: 18px; }
+
+.markdown-body :deep(p) {
+  margin: 0 0 12px;
+}
+
+.markdown-body :deep(ul),
+.markdown-body :deep(ol) {
+  margin: 0 0 14px;
+  padding-left: 26px;
+}
+
+.markdown-body :deep(li) {
+  margin-bottom: 6px;
+}
+
+.markdown-body :deep(a) {
+  color: #1677ff;
+  text-decoration: none;
+}
+
+.markdown-body :deep(a:hover) {
   text-decoration: underline;
+}
+
+.markdown-body :deep(table) {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 0 0 16px;
+  font-size: 15px;
+}
+
+.markdown-body :deep(th),
+.markdown-body :deep(td) {
+  border: 1px solid #f0f0f0;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.markdown-body :deep(th) {
+  background: #fafafa;
+  font-weight: 600;
+}
+
+.markdown-body :deep(code) {
+  background: #f5f7fa;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.markdown-body :deep(pre) {
+  background: #f5f7fa;
+  padding: 14px;
+  border-radius: 6px;
+  overflow-x: auto;
+  font-size: 14px;
+}
+
+.markdown-body :deep(blockquote) {
+  margin: 0 0 14px;
+  padding: 8px 14px;
+  border-left: 3px solid #d9d9d9;
+  color: #595959;
+  background: #fafafa;
+}
+
+.announcement-meta {
+  margin-top: 20px;
+  padding-top: 14px;
+  border-top: 1px solid #f0f0f0;
+  font-size: 13px;
+  color: #8c8c8c;
 }
 </style>

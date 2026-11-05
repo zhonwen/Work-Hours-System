@@ -583,27 +583,18 @@
 
 /* ========== 可访问性增强 ========== */
 
-/* ✅ 触摸目标优化（最小 44x44px - iOS/Android 标准） */
+/* ✅ 触摸目标优化：仅导航/看板类可点区域，勿套到全部 .el-button（会破坏表单/对话框高度） */
 :root {
   --touch-target-min: 44px;
 }
 
-/* 确保所有交互元素有足够的触摸区域
- * 注：搜索区「查询/重置」由 page-common 强制 40px，覆盖此处 min-height: 44px
- */
-button,
-a,
-.el-button,
-.el-link,
 .sidebar-menu-item,
 .project-brand-sub,
 .iteration-select-trigger,
 .view-tab,
 .task-card,
 .project-card,
-.kanban-column,
-.status-tag,
-.priority-tag {
+.kanban-column {
   min-height: var(--touch-target-min);
   min-width: var(--touch-target-min);
   display: inline-flex;

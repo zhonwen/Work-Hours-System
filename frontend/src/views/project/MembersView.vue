@@ -5,35 +5,35 @@
       <div class="toolbar-left">
         <el-input
           v-model="searchForm.keyword"
+          class="toolbar-search"
           placeholder="搜索成员姓名"
           :prefix-icon="Search"
           clearable
-          style="width: 260px"
           @input="handleSearch"
         />
         <el-select
           v-model="searchForm.roleType"
+          class="toolbar-select"
           placeholder="按角色筛选"
           clearable
-          style="width: 160px"
           @change="handleSearch"
         >
           <el-option label="项目管理员" :value="1" />
           <el-option label="普通成员" :value="2" />
           <el-option label="只读访客" :value="3" />
         </el-select>
-      </div>
-      <div class="toolbar-right">
         <el-select
           v-model="searchForm.sortBy"
+          class="toolbar-select"
           placeholder="排序方式"
-          style="width: 160px"
           @change="handleSort"
         >
           <el-option label="默认排序" value="" />
           <el-option label="任务数量" value="taskCount" />
           <el-option label="工时总数" value="totalHours" />
         </el-select>
+      </div>
+      <div class="toolbar-right">
         <el-button type="primary" :icon="Plus" @click="handleAddMember">
           添加成员
         </el-button>
@@ -723,19 +723,22 @@ onMounted(async () => {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: #f5f5f5;
-  padding: 20px;
+  min-height: 0;
+  background: transparent;
+  padding: 0;
 }
 
-/* 工具栏 */
+/* 工具栏：筛选左聚拢，操作右对齐，避免中间大块空白 */
 .toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 16px;
   background: #fff;
+  border: 1px solid #f0f0f0;
   border-radius: 8px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
   margin-bottom: 16px;
 }
 
@@ -743,17 +746,29 @@ onMounted(async () => {
 .toolbar-right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
-/* 成员网格 */
+.toolbar-search {
+  width: 220px;
+}
+
+.toolbar-select {
+  width: 148px;
+}
+
+/* 成员网格：顶对齐，避免矮卡片被撑出底部空白 */
 .members-grid {
   flex: 1;
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 16px;
+  align-content: start;
+  align-items: start;
   overflow-y: auto;
-  padding: 4px;
+  padding: 2px;
+  min-height: 0;
 }
 
 .members-grid:empty {
@@ -764,32 +779,38 @@ onMounted(async () => {
 
 /* 成员卡片 */
 .member-card {
+  width: 100%;
   background: #fff;
-  border-radius: 8px;
-  padding: 20px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+  padding: 16px;
+  box-shadow: none;
   cursor: pointer;
-  transition: all 0.3s;
+  transition: border-color 0.2s, box-shadow 0.2s;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
 .member-card:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transform: translateY(-2px);
+  border-color: #d6e4ff;
+  box-shadow: 0 4px 14px rgba(24, 144, 255, 0.08);
+  transform: none;
 }
 
 .member-header {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #f0f0f0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f5f5f5;
 }
 
 .member-avatar {
   flex-shrink: 0;
+  background: #e6f4ff;
+  color: #1677ff;
+  font-weight: 600;
 }
 
 .member-basic {
@@ -798,15 +819,16 @@ onMounted(async () => {
 }
 
 .member-name {
-  font-size: 16px;
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 4px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f1f1f;
+  margin-bottom: 2px;
+  line-height: 1.4;
 }
 
 .member-email {
-  font-size: 13px;
-  color: #999;
+  font-size: 12px;
+  color: #8c8c8c;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -816,33 +838,35 @@ onMounted(async () => {
 .member-stats {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  gap: 8px;
 }
 
 .stat-item {
   text-align: center;
-  padding: 8px;
-  background: #f9f9f9;
-  border-radius: 4px;
+  padding: 10px 8px;
+  background: #fafafa;
+  border-radius: 8px;
 }
 
 .stat-label {
   font-size: 12px;
-  color: #666;
+  color: #8c8c8c;
   margin-bottom: 4px;
+  line-height: 1.2;
 }
 
 .stat-value {
   font-size: 18px;
   font-weight: 600;
-  color: #333;
+  color: #262626;
+  line-height: 1.2;
 }
 
 /* 贡献度 */
 .member-contribution {
-  padding: 8px 12px;
-  background: #f9f9f9;
-  border-radius: 4px;
+  padding: 10px 12px;
+  background: #fafafa;
+  border-radius: 8px;
 }
 
 .contribution-header {
@@ -853,18 +877,18 @@ onMounted(async () => {
 }
 
 .contribution-label {
-  font-size: 13px;
-  color: #666;
+  font-size: 12px;
+  color: #8c8c8c;
 }
 
 .contribution-score {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 600;
-  color: #1890ff;
+  color: #1677ff;
 }
 
 .contribution-progress {
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .contribution-stars {
@@ -873,8 +897,9 @@ onMounted(async () => {
 }
 
 .star {
-  font-size: 16px;
+  font-size: 14px;
   color: #d9d9d9;
+  line-height: 1;
 }
 
 .star.active {
@@ -884,10 +909,12 @@ onMounted(async () => {
 /* 操作按钮 */
 .member-actions {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
-  padding-top: 8px;
-  border-top: 1px solid #f0f0f0;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  padding-top: 10px;
+  border-top: 1px solid #f5f5f5;
 }
 
 /* 成员详情对话框 */

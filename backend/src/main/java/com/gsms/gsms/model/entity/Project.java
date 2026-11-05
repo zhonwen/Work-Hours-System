@@ -47,6 +47,26 @@ public class Project {
     private String description;
 
     /**
+     * 项目公告 / 规划板（Markdown）
+     */
+    @Schema(description = "项目公告Markdown内容")
+    private String announcement;
+
+    /**
+     * 公告最后更新人ID
+     */
+    @Schema(description = "公告最后更新人ID")
+    private Long announcementUpdateUserId;
+
+    /**
+     * 公告最后更新时间
+     */
+    @Schema(description = "公告最后更新时间")
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @DateTimeFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    private LocalDateTime announcementUpdateTime;
+
+    /**
      * 项目负责人ID
      */
     @Schema(description = "项目负责人ID")
@@ -163,6 +183,30 @@ public class Project {
 
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getAnnouncement() {
+        return announcement;
+    }
+
+    public void setAnnouncement(String announcement) {
+        this.announcement = announcement;
+    }
+
+    public Long getAnnouncementUpdateUserId() {
+        return announcementUpdateUserId;
+    }
+
+    public void setAnnouncementUpdateUserId(Long announcementUpdateUserId) {
+        this.announcementUpdateUserId = announcementUpdateUserId;
+    }
+
+    public LocalDateTime getAnnouncementUpdateTime() {
+        return announcementUpdateTime;
+    }
+
+    public void setAnnouncementUpdateTime(LocalDateTime announcementUpdateTime) {
+        this.announcementUpdateTime = announcementUpdateTime;
     }
 
     public Long getManagerId() {

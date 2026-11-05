@@ -1,298 +1,136 @@
 <template>
   <div class="tasks-view">
-    <!-- 三栏布局 -->
-    <div class="three-column-layout">
-      <!-- 左栏：迭代+需求导航树 -->
-      <div class="left-column navigation-tree-column">
-        <div class="tree-toolbar">
-          <h3>迭代与需求</h3>
-          <div class="toolbar-actions">
-            <el-tooltip content="全部展开" placement="top">
-              <el-button :icon="ArrowDown" text circle size="small" @click="expandAll" />
-            </el-tooltip>
-            <el-tooltip content="全部折叠" placement="top">
-              <el-button :icon="ArrowRight" text circle size="small" @click="collapseAll" />
-            </el-tooltip>
-          </div>
-        </div>
-        <div class="navigation-tree">
-          <!-- 未分配任务节点 -->
-          <div
-            v-if="unassignedTasks.length > 0"
-            class="iteration-node"
-            :class="{ active: selectedIterationId === null }"
-            @click="handleSelectUnassigned"
-          >
-            <div class="iteration-header">
-              <el-icon><FolderOpened /></el-icon>
-              <span class="iteration-name">未分配任务</span>
-              <el-badge :value="unassignedTasks.length" class="task-badge" />
-            </div>
-          </div>
-
-          <!-- 迭代列表 -->
-          <div
-            v-for="iteration in iterationList"
-            :key="iteration.id"
-            class="iteration-node"
-            :class="{
-              active: selectedIterationId === iteration.id,
-              'status-in-progress': iteration.status === 'IN_PROGRESS',
-              'status-completed': iteration.status === 'COMPLETED',
-              'status-not-started': iteration.status === 'NOT_STARTED'
-            }"
-          >
-            <div class="iteration-header" @click="handleSelectIteration(iteration.id)">
-              <!-- 状态图标 -->
-              <el-icon class="status-icon">
-                <component :is="getIterationStatusIcon(iteration.status)" />
-              </el-icon>
-
-              <!-- 展开/折叠图标 -->
-              <el-icon
-                class="expand-icon"
-                :class="{ expanded: iteration.expanded }"
-                @click.stop="toggleIterationExpand(iteration)"
-              >
-                <ArrowRight />
-              </el-icon>
-
-              <span class="iteration-name">{{ iteration.name }}</span>
-
-              <!-- 状态标签 -->
-              <el-tag v-if="showStatusTags" size="small" :type="getIterationStatusTagType(iteration.status)" class="status-tag">
-                {{ getIterationStatusText(iteration.status) }}
-              </el-tag>
-
-              <!-- 任务数量 -->
-              <el-badge :value="iteration.taskCount" class="task-badge" />
-            </div>
-
-            <!-- 需求列表 -->
-            <div v-if="iteration.expanded" class="iteration-body">
-              <div
-                v-for="requirement in iteration.requirements"
-                :key="requirement.id"
-                class="requirement-node"
-                :class="{ active: selectedRequirementId === requirement.id }"
-                @click.stop="handleSelectRequirement(requirement)"
-              >
-                <div class="requirement-header">
-                  <el-icon class="requirement-icon"><Document /></el-icon>
-                  <span class="requirement-title">{{ requirement.title }}</span>
-                  <el-badge :value="requirement.taskCount" class="task-badge" type="info" />
-                </div>
-              </div>
-
-              <!-- 如果没有需求，显示提示 -->
-              <div v-if="iteration.requirements.length === 0" class="empty-requirements">
-                <span class="empty-text">暂无需求</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 中栏：工作项列表 -->
-      <div class="middle-column work-items-column">
-        <!-- 工具栏 -->
-        <div class="toolbar">
+    <!-- 传统列表：已移除左侧迭代树、看板/树视图切换 -->
+    <div class="tasks-layout">
+      <div class="work-items-column">
+        <div class="toolbar search-form">
           <div class="toolbar-left">
-            <el-input
-              v-model="searchKeyword"
-              placeholder="搜索工作项..."
-              :prefix-icon="Search"
-              clearable
-              style="width: 240px"
-              @input="handleSearch"
-            />
-            <el-select v-model="selectedTaskType" placeholder="类型" clearable style="width: 120px" @change="handleFilterChange">
-              <el-option label="全部" :value="undefined" />
-              <el-option label="任务" value="TASK" />
-              <el-option label="需求" value="REQUIREMENT" />
-              <el-option label="缺陷" value="BUG" />
-            </el-select>
+            <el-form-item class="toolbar-field">
+              <el-input
+                v-model="searchKeyword"
+                placeholder="搜索工作项..."
+                :prefix-icon="Search"
+                clearable
+                style="width: 240px"
+                @input="handleSearch"
+              />
+            </el-form-item>
+            <el-form-item class="toolbar-field">
+              <el-select
+                v-model="selectedTaskType"
+                placeholder="类型"
+                clearable
+                style="width: 120px"
+                @change="handleFilterChange"
+              >
+                <el-option label="全部" :value="undefined" />
+                <el-option label="任务" value="TASK" />
+                <el-option label="需求" value="REQUIREMENT" />
+                <el-option label="缺陷" value="BUG" />
+              </el-select>
+            </el-form-item>
           </div>
           <div class="toolbar-right">
-            <el-button-group>
-              <el-button
-                :type="viewMode === 'list' ? 'primary' : ''"
-                :icon="List"
-                @click="viewMode = 'list'"
-              />
-              <el-button
-                :type="viewMode === 'kanban' ? 'primary' : ''"
-                :icon="Grid"
-                @click="viewMode = 'kanban'"
-              />
-              <el-button
-                :type="viewMode === 'tree' ? 'primary' : ''"
-                :icon="Share"
-                @click="viewMode = 'tree'"
-              />
-            </el-button-group>
             <el-button type="primary" :icon="Plus" @click="handleCreateTask">
               新建工作项
             </el-button>
           </div>
         </div>
 
-        <!-- 列表视图 -->
-        <div v-if="viewMode === 'list'" class="list-view">
+        <div class="list-view">
           <el-table
-            :data="filteredTasks"
-            :show-header="true"
+            :data="treeTableData"
+            class="tasks-table"
             stripe
+            border
+            highlight-current-row
+            :current-row-key="selectedTaskId"
+            row-key="id"
+            :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
+            :row-class-name="tableRowClassName"
             @row-click="handleSelectTask"
           >
-            <el-table-column type="selection" width="55" />
-            <el-table-column prop="id" label="编号" width="80">
+            <!-- 展开箭头独占首列，对齐首页待办树表 -->
+            <el-table-column width="44" class-name="expand-col" />
+            <el-table-column label="序号" width="64" class-name="index-col" align="center">
               <template #default="{ row }">
-                <span class="task-number">{{ row.id }}</span>
+                <span class="task-index" :class="{ 'is-subtask': row.isSubtask }">{{ row.indexLabel }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="title" label="标题" min-width="200" />
-            <el-table-column prop="type" label="类型" width="80">
+            <el-table-column label="标题" min-width="220" show-overflow-tooltip>
+              <template #default="{ row }">
+                <div class="task-title-cell" :class="{ 'is-subtask': row.isSubtask }">
+                  <span class="task-title-text" :title="row.title">{{ row.title }}</span>
+                  <el-tag v-if="row.isSubtask" type="info" size="small" class="subtask-count-tag">子任务</el-tag>
+                  <el-tag
+                    v-else-if="row.subtaskCount"
+                    type="info"
+                    size="small"
+                    class="subtask-count-tag"
+                  >
+                    {{ row.subtaskCount }} 子任务
+                  </el-tag>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column prop="type" label="类型" width="90" align="center">
               <template #default="{ row }">
                 <el-tag :type="getTaskTypeTag(row.type)" size="small">
                   {{ getTaskTypeText(row.type) }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="status" label="状态" width="100">
+            <el-table-column label="预估工时" width="100" align="center">
+              <template #default="{ row }">
+                {{ row.estimateHours != null ? row.estimateHours : '-' }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="status" label="状态" width="100" align="center">
               <template #default="{ row }">
                 <el-tag :type="getStatusTag(row.status)" size="small">
                   {{ getStatusText(row.status) }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="assigneeName" label="负责人" width="100" />
-            <el-table-column prop="iterationName" label="迭代" width="120" />
-            <el-table-column prop="priority" label="优先级" width="80">
+            <el-table-column prop="assigneeName" label="负责人" width="120" show-overflow-tooltip />
+            <el-table-column prop="priority" label="优先级" width="90" align="center">
               <template #default="{ row }">
                 <el-tag :type="getPriorityTag(row.priority)" size="small">
                   {{ getPriorityText(row.priority) }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="120" fixed="right">
+            <el-table-column label="操作" width="140" fixed="right" align="center">
               <template #default="{ row }">
-                <el-button text type="primary" size="small" @click.stop="handleEditTask(row)">
-                  编辑
-                </el-button>
-                <el-button text type="danger" size="small" @click.stop="handleDeleteTask(row)">
-                  删除
-                </el-button>
+                <el-button link type="primary" @click.stop="handleEditTask(row)">编辑</el-button>
+                <el-button link type="danger" @click.stop="handleDeleteTask(row)">删除</el-button>
               </template>
             </el-table-column>
-          </el-table>
-        </div>
-
-        <!-- 看板视图 -->
-        <div v-else-if="viewMode === 'kanban'" class="kanban-view">
-          <el-row :gutter="16">
-            <el-col
-              v-for="column in kanbanColumns"
-              :key="column.key"
-              :xs="24"
-              :sm="12"
-              :md="8"
-            >
-              <div
-                class="kanban-column"
-                @dragover.prevent="handleDragOver"
-                @dragleave="handleDragLeave"
-                @drop="handleDropToStatus($event, column.key)"
-              >
-                <div class="column-header">
-                  <div class="status-dot" :style="{ backgroundColor: column.color }"></div>
-                  <span class="column-title">{{ column.label }}</span>
-                  <el-badge :value="column.tasks.length" class="column-badge" />
-                </div>
-                <div class="column-body">
-                  <div
-                    v-for="task in column.tasks"
-                    :key="task.id"
-                    class="task-card"
-                    draggable="true"
-                    @dragstart="handleDragStart(task, $event)"
-                    @click="handleSelectTask(task)"
-                  >
-                    <div class="task-card-header">
-                      <span class="task-number">{{ task.id }}</span>
-                      <el-tag :type="getTaskTypeTag(task.type)" size="small">
-                        {{ getTaskTypeText(task.type) }}
-                      </el-tag>
-                    </div>
-                    <div class="task-card-title">{{ task.title }}</div>
-                    <div class="task-card-footer">
-                      <el-avatar :size="24" v-if="task.assigneeName">
-                        {{ task.assigneeName?.charAt(0) }}
-                      </el-avatar>
-                      <el-tag :type="getPriorityTag(task.priority)" size="small">
-                        {{ getPriorityText(task.priority) }}
-                      </el-tag>
-                    </div>
-                  </div>
-                  <el-empty v-if="column.tasks.length === 0" description="暂无数据" :image-size="60" />
-                </div>
-              </div>
-            </el-col>
-          </el-row>
-        </div>
-
-        <!-- 树形视图 -->
-        <div v-else-if="viewMode === 'tree'" class="tree-view">
-          <el-table
-            :data="treeTasks"
-            :show-header="true"
-            stripe
-            row-key="id"
-            :tree-props="{ children: 'subtasks', hasChildren: 'hasChildren' }"
-            @row-click="handleSelectTask"
-          >
-            <el-table-column prop="id" label="编号" width="80">
-              <template #default="{ row }">
-                <span class="task-number">{{ row.id }}</span>
-              </template>
-            </el-table-column>
-            <el-table-column prop="title" label="标题" min-width="200" />
-            <el-table-column prop="type" label="类型" width="80">
-              <template #default="{ row }">
-                <el-tag :type="getTaskTypeTag(row.type)" size="small">
-                  {{ getTaskTypeText(row.type) }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="status" label="状态" width="100">
-              <template #default="{ row }">
-                <el-tag :type="getStatusTag(row.status)" size="small">
-                  {{ getStatusText(row.status) }}
-                </el-tag>
-              </template>
-            </el-table-column>
-            <el-table-column prop="assigneeName" label="负责人" width="100" />
           </el-table>
         </div>
       </div>
 
-      <!-- 右栏：详情面板 -->
+      <!-- 右栏：详情面板（含父子级信息，分割线区分） -->
       <div class="right-column detail-panel-column">
         <div v-if="selectedTask" class="detail-panel">
           <div class="panel-header">
             <div class="task-number">{{ selectedTask.id }}</div>
-            <el-button text :icon="Close" @click="selectedTask = null" />
+            <el-button text :icon="Close" @click="clearSelection" />
           </div>
 
           <div class="panel-body">
-            <!-- 标题和状态 -->
             <div class="detail-header">
               <h2 class="task-title">{{ selectedTask.title }}</h2>
               <el-dropdown trigger="click" @command="handleStatusChange">
-                <el-tag :type="getStatusTag(selectedTask.status)" style="cursor: pointer">
-                  {{ getStatusText(selectedTask.status) }}
-                  <el-icon class="el-icon--right"><ArrowDown /></el-icon>
-                </el-tag>
+                <button
+                  type="button"
+                  class="status-trigger"
+                  :class="`status-${(selectedTask.status || 'TODO').toLowerCase()}`"
+                >
+                  <span class="status-dot" />
+                  <span>{{ getStatusText(selectedTask.status) }}</span>
+                  <el-icon class="status-arrow"><ArrowDown /></el-icon>
+                </button>
                 <template #dropdown>
                   <el-dropdown-menu>
                     <el-dropdown-item command="TODO">待办</el-dropdown-item>
@@ -303,19 +141,17 @@
               </el-dropdown>
             </div>
 
-            <!-- 负责人 -->
-            <div class="detail-section">
+            <div class="detail-section assignee-section">
               <div class="section-label">负责人</div>
-              <div class="section-value">
-                <el-avatar :size="32" v-if="selectedTask.assigneeName">
+              <div class="assignee-chip" :class="{ empty: !selectedTask.assigneeName }">
+                <el-avatar :size="28" class="assignee-avatar" v-if="selectedTask.assigneeName">
                   {{ selectedTask.assigneeName?.charAt(0) }}
                 </el-avatar>
-                <span v-if="selectedTask.assigneeName">{{ selectedTask.assigneeName }}</span>
-                <span v-else class="empty-text">未分配</span>
+                <el-avatar :size="28" class="assignee-avatar empty-avatar" v-else>?</el-avatar>
+                <span class="assignee-name">{{ selectedTask.assigneeName || '未分配' }}</span>
               </div>
             </div>
 
-            <!-- 描述 -->
             <div class="detail-section">
               <div class="section-label">描述</div>
               <div class="section-value description">
@@ -323,28 +159,16 @@
               </div>
             </div>
 
-            <!-- 关联信息 -->
-            <div class="detail-section" v-if="selectedTask.parentId">
-              <div class="section-label">父级需求</div>
-              <div class="section-value">
-                <el-link type="primary" @click="handleViewParent(selectedTask.parentId)">
-                  #{{ selectedTask.parentId }}
-                </el-link>
-              </div>
-            </div>
-
-            <!-- 工时信息 -->
             <div class="detail-section">
               <div class="section-label">工时</div>
               <div class="section-value">
                 <div class="hours-info">
-                  <span>预估：{{ selectedTask.estimateHours || '-' }}小时</span>
+                  <span>预估：{{ selectedTask.estimateHours ?? '-' }}小时</span>
                   <span>实际：{{ actualHours }}小时</span>
                 </div>
               </div>
             </div>
 
-            <!-- 元数据 -->
             <div class="detail-section">
               <div class="section-label">元数据</div>
               <div class="section-value metadata">
@@ -352,6 +176,51 @@
                 <div>更新时间：{{ selectedTask.updateTime }}</div>
               </div>
             </div>
+
+            <!-- 父级任务 -->
+            <template v-if="selectedParentTask">
+              <el-divider content-position="left">父级任务</el-divider>
+              <div
+                class="relation-card"
+                @click="handleSelectTask(selectedParentTask)"
+              >
+                <div class="relation-title">{{ selectedParentTask.title }}</div>
+                <div class="relation-meta">
+                  <el-tag :type="getStatusTag(selectedParentTask.status)" size="small">
+                    {{ getStatusText(selectedParentTask.status) }}
+                  </el-tag>
+                  <el-tag :type="getTaskTypeTag(selectedParentTask.type)" size="small">
+                    {{ getTaskTypeText(selectedParentTask.type) }}
+                  </el-tag>
+                  <span>{{ selectedParentTask.assigneeName || '未分配' }}</span>
+                </div>
+              </div>
+            </template>
+
+            <!-- 子任务列表 -->
+            <template v-if="selectedChildTasks.length">
+              <el-divider content-position="left">
+                子任务（{{ selectedChildTasks.length }}）
+              </el-divider>
+              <div
+                v-for="child in selectedChildTasks"
+                :key="child.id"
+                class="relation-card"
+                @click="handleSelectTask(child)"
+              >
+                <div class="relation-title">{{ child.title }}</div>
+                <div class="relation-meta">
+                  <el-tag :type="getStatusTag(child.status)" size="small">
+                    {{ getStatusText(child.status) }}
+                  </el-tag>
+                  <el-tag :type="getPriorityTag(child.priority)" size="small">
+                    {{ getPriorityText(child.priority) }}
+                  </el-tag>
+                  <span>{{ child.assigneeName || '未分配' }}</span>
+                  <span v-if="child.estimateHours != null">{{ child.estimateHours }}h</span>
+                </div>
+              </div>
+            </template>
           </div>
         </div>
         <div v-else class="empty-detail">
@@ -375,22 +244,7 @@
             <el-radio value="BUG">缺陷</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item label="所属迭代">
-          <el-select
-            v-model="taskFormData.iterationId"
-            placeholder="选填：可选择关联迭代"
-            filterable
-            clearable
-            style="width: 100%"
-          >
-            <el-option
-              v-for="iter in iterations"
-              :key="iter.id"
-              :label="iter.name"
-              :value="iter.id"
-            />
-          </el-select>
-        </el-form-item>
+        <!-- TODO[迭代]: 所属迭代选择 — 后续开放 -->
         <el-form-item label="父级任务">
           <el-select
             v-model="taskFormData.parentId"
@@ -402,7 +256,7 @@
             <el-option
               v-for="task in parentTaskOptions"
               :key="task.id"
-              :label="`#${task.id} ${task.title}`"
+              :label="`${task.title}（${getTaskTypeText(task.type)}）`"
               :value="task.id"
             />
           </el-select>
@@ -473,7 +327,7 @@
       </template>
     </el-dialog>
 
-    <!-- 新建迭代对话框 -->
+    <!-- TODO[迭代]: 新建迭代对话框 — 后续开放
     <el-dialog
       v-model="iterationDialogVisible"
       title="新建迭代"
@@ -523,6 +377,7 @@
         </el-button>
       </template>
     </el-dialog>
+    -->
   </div>
 </template>
 
@@ -545,8 +400,12 @@ import { getIterationList, createIteration, type IterationInfo } from '@/api/ite
 import { getAllUsers, type UserInfo } from '@/api/user'
 import { getProjectMembers } from '@/api/project'
 
+const props = defineProps<{
+  projectId: number
+}>()
+
 const route = useRoute()
-const projectId = computed(() => Number(route.params.id))
+const projectId = computed(() => props.projectId || Number(route.params.id))
 
 // 数据定义
 const tasks = ref<TaskInfo[]>([])
@@ -618,24 +477,19 @@ interface IterationNode {
   }[]
 }
 
-// 迭代列表（包含需求）
+// 迭代列表（包含需求）— 基于扁平任务，避免漏掉嵌套子任务
 const iterationList = computed<IterationNode[]>(() => {
+  const flat = flattenTasks(tasks.value)
   return iterations.value.map(iteration => {
-    // 获取该迭代下的所有需求
-    const requirements = tasks.value.filter(
-      t => t.iterationId === iteration.id && t.type === 'REQUIREMENT'
-    ).map(req => ({
-      id: req.id,
-      title: req.title,
-      taskCount: tasks.value.filter(
-        t => t.parentId === req.id || t.id === req.id
-      ).length
-    }))
+    const requirements = flat
+      .filter(t => t.iterationId === iteration.id && t.type === 'REQUIREMENT')
+      .map(req => ({
+        id: req.id,
+        title: req.title,
+        taskCount: flat.filter(t => t.parentId === req.id || t.id === req.id).length
+      }))
 
-    // 获取该迭代下的所有任务（包括直接分配给迭代的）
-    const iterationTasks = tasks.value.filter(
-      t => t.iterationId === iteration.id && !t.parentId
-    )
+    const iterationTasks = flat.filter(t => t.iterationId === iteration.id && !t.parentId)
 
     return {
       id: iteration.id,
@@ -650,39 +504,128 @@ const iterationList = computed<IterationNode[]>(() => {
 
 // 未分配的任务（没有迭代）
 const unassignedTasks = computed(() => {
-  return tasks.value.filter(t => !t.iterationId)
+  return flattenTasks(tasks.value).filter(t => !t.iterationId)
 })
 
-// 过滤后的任务列表
-const filteredTasks = computed(() => {
+/** 展平树形任务（含子任务） */
+const flattenTasks = (list: TaskInfo[]): TaskInfo[] => {
+  const result: TaskInfo[] = []
+  for (const task of list) {
+    result.push(task)
+    if (task.subtasks?.length) {
+      result.push(...flattenTasks(task.subtasks))
+    }
+  }
+  return result
+}
+
+/** 全量扁平任务（含嵌套子任务） */
+const allTasksFlat = computed(() => flattenTasks(tasks.value))
+
+/** 过滤后的根任务（保留子任务树，对齐首页待办） */
+const filteredRootTasks = computed(() => {
   let result = tasks.value
 
-  // 关键词搜索
   if (searchKeyword.value) {
     const keyword = searchKeyword.value.toLowerCase()
-    result = result.filter(t =>
-      t.title.toLowerCase().includes(keyword) ||
-      t.id.toString().includes(keyword)
-    )
+    result = result.filter(t => {
+      const selfMatch =
+        t.title.toLowerCase().includes(keyword) || t.id.toString().includes(keyword)
+      const childMatch = (t.subtasks || []).some(
+        c => c.title.toLowerCase().includes(keyword) || c.id.toString().includes(keyword)
+      )
+      return selfMatch || childMatch
+    })
   }
 
-  // 类型筛选
   if (selectedTaskType.value) {
-    result = result.filter(t => t.type === selectedTaskType.value)
-  }
-
-  // 迭代筛选
-  if (selectedIterationId.value) {
-    result = result.filter(t => t.iterationId === selectedIterationId.value)
-  }
-
-  // 需求筛选
-  if (selectedRequirementId.value) {
-    result = result.filter(t => t.parentId === selectedRequirementId.value || t.id === selectedRequirementId.value)
+    result = result.filter(t => {
+      if (t.type === selectedTaskType.value) return true
+      return (t.subtasks || []).some(c => c.type === selectedTaskType.value)
+    })
   }
 
   return result
 })
+
+/** 表格树行：序号 1 / 1.1，children 供 el-table 展开 */
+interface TaskTreeRow extends TaskInfo {
+  indexLabel: string
+  isSubtask: boolean
+  subtaskCount?: number
+  children?: TaskTreeRow[]
+}
+
+const buildTreeTableRows = (roots: TaskInfo[]): TaskTreeRow[] => {
+  return roots.map((task, parentIdx) => {
+    const parentIndex = parentIdx + 1
+    const subtasks = task.subtasks || []
+    const children = subtasks.length
+      ? subtasks.map((child, childIdx) => ({
+          ...child,
+          isSubtask: true,
+          indexLabel: `${parentIndex}.${childIdx + 1}`,
+          children: undefined
+        }))
+      : undefined
+
+    return {
+      ...task,
+      isSubtask: false,
+      subtaskCount: subtasks.length || undefined,
+      indexLabel: String(parentIndex),
+      children
+    }
+  })
+}
+
+const treeTableData = computed(() => buildTreeTableRows(filteredRootTasks.value))
+
+/** 当前编辑中的任务 ID（新建为空） */
+const editingTaskId = ref<number | undefined>()
+
+/** 新建/编辑时可选父级任务：顶级任务，编辑时排除自身 */
+const parentTaskOptions = computed(() => {
+  return allTasksFlat.value.filter(task => {
+    if (editingTaskId.value && task.id === editingTaskId.value) return false
+    return !task.parentId
+  })
+})
+
+const tableRowClassName = ({ row }: { row: TaskInfo }) =>
+  row.id === selectedTaskId.value ? 'is-selected-row' : ''
+
+/** 详情：父级任务 */
+const selectedParentTask = computed(() => {
+  if (!selectedTask.value?.parentId) return null
+  return allTasksFlat.value.find(t => t.id === selectedTask.value!.parentId) || null
+})
+
+/** 详情：子任务列表 */
+const selectedChildTasks = computed(() => {
+  if (!selectedTask.value) return []
+  if (selectedTask.value.subtasks?.length) return selectedTask.value.subtasks
+  const root = tasks.value.find(t => t.id === selectedTask.value!.id)
+  return root?.subtasks || []
+})
+
+/** 默认选中第一条（或保持当前选中仍在列表中） */
+const ensureDefaultSelection = () => {
+  const list = flattenTasks(filteredRootTasks.value)
+  if (!list.length) {
+    selectedTask.value = null
+    selectedTaskId.value = undefined
+    return
+  }
+  const stillExists =
+    selectedTaskId.value != null && list.some(t => t.id === selectedTaskId.value)
+  if (stillExists) {
+    selectedTask.value = list.find(t => t.id === selectedTaskId.value) || list[0]
+    return
+  }
+  // 默认选中第一个根任务
+  handleSelectTask(filteredRootTasks.value[0] || list[0])
+}
 
 // 看板列定义
 const kanbanColumns = computed(() => {
@@ -691,29 +634,29 @@ const kanbanColumns = computed(() => {
       key: 'TODO',
       label: '待办',
       color: '#faad14',
-      tasks: filteredTasks.value.filter(t => t.status === 'TODO')
+      tasks: filteredRootTasks.value.filter(t => t.status === 'TODO')
     },
     {
       key: 'IN_PROGRESS',
       label: '进行中',
       color: '#1890ff',
-      tasks: filteredTasks.value.filter(t => t.status === 'IN_PROGRESS')
+      tasks: filteredRootTasks.value.filter(t => t.status === 'IN_PROGRESS')
     },
     {
       key: 'DONE',
       label: '已完成',
       color: '#52c41a',
-      tasks: filteredTasks.value.filter(t => t.status === 'DONE')
+      tasks: filteredRootTasks.value.filter(t => t.status === 'DONE')
     }
   ]
 })
 
 // 树形视图数据
 const treeTasks = computed(() => {
-  const requirements = tasks.value.filter(t => t.type === 'REQUIREMENT')
+  const requirements = allTasksFlat.value.filter(t => t.type === 'REQUIREMENT')
   return requirements.map(req => ({
     ...req,
-    subtasks: tasks.value.filter(t => t.parentId === req.id)
+    subtasks: allTasksFlat.value.filter(t => t.parentId === req.id)
   }))
 })
 
@@ -721,16 +664,16 @@ const treeTasks = computed(() => {
 const actualHours = computed(() => {
   if (!selectedTask.value?.estimateHours) return '-'
   // TODO: 从工时记录表获取实际工时
-  // 临时方案：使用剩余工时计算
   const remaining = selectedTask.value.estimateHours - 0
   return remaining.toFixed(1)
 })
 
-// 获取数据
+// 获取数据（后端 /tasks/search 已返回带 subtasks 的树）
 const fetchTasks = async () => {
   try {
     const res = await getTasksByProjectId(projectId.value, 1, 1000)
     tasks.value = res.list || []
+    ensureDefaultSelection()
   } catch (error) {
     console.error('获取任务列表失败:', error)
   }
@@ -765,11 +708,13 @@ const fetchAvailableUsers = async () => {
 
 // 事件处理
 const handleSearch = () => {
-  // 搜索逻辑在 computed 中处理
+  // 搜索后校正选中项
+  ensureDefaultSelection()
 }
 
 const handleFilterChange = () => {
-  // 筛选逻辑在 computed 中处理
+  // 筛选后若当前选中不在结果中，回落到第一条
+  ensureDefaultSelection()
 }
 
 // 选择未分配的任务
@@ -845,12 +790,24 @@ const getIterationStatusText = (status: string) => {
   return texts[status] || '未知'
 }
 
+const resolveTask = (task: TaskInfo): TaskInfo => {
+  return allTasksFlat.value.find(t => t.id === task.id) || task
+}
+
 const handleSelectTask = (task: TaskInfo) => {
-  selectedTaskId.value = task.id
-  selectedTask.value = task
+  const full = resolveTask(task)
+  selectedTaskId.value = full.id
+  selectedTask.value = full
+}
+
+const clearSelection = () => {
+  selectedTask.value = null
+  selectedTaskId.value = undefined
 }
 
 const handleCreateTask = () => {
+  // 必须清空编辑态，否则提交会走 update 覆盖当前选中行
+  editingTaskId.value = undefined
   Object.assign(taskFormData, {
     projectId: projectId.value,
     title: '',
@@ -859,7 +816,7 @@ const handleCreateTask = () => {
     priority: 'MEDIUM',
     status: 'TODO',
     assigneeId: undefined,
-    iterationId: selectedIterationId.value || undefined,
+    iterationId: undefined,
     parentId: undefined,
     estimateHours: undefined
   })
@@ -867,7 +824,9 @@ const handleCreateTask = () => {
 }
 
 const handleEditTask = (task: TaskInfo) => {
+  editingTaskId.value = task.id
   selectedTask.value = task
+  selectedTaskId.value = task.id
   Object.assign(taskFormData, {
     projectId: projectId.value,
     title: task.title,
@@ -910,20 +869,20 @@ const handleTaskSubmit = async () => {
 
     taskSubmitLoading.value = true
     try {
-      if (selectedTask.value) {
-        // 更新
+      // 用 editingTaskId 区分新建/编辑，勿用 selectedTask（列表默认选中会导致新建变成覆盖更新）
+      if (editingTaskId.value) {
         await updateTask({
-          id: selectedTask.value.id,
+          id: editingTaskId.value,
           ...taskFormData
         })
         ElMessage.success('更新成功')
       } else {
-        // 新建
-        await createTask(taskFormData)
+        await createTask({ ...taskFormData })
         ElMessage.success('创建成功')
       }
       taskDialogVisible.value = false
-      fetchTasks()
+      editingTaskId.value = undefined
+      await fetchTasks()
     } catch (error) {
       console.error('操作失败:', error)
       ElMessage.error('操作失败')
@@ -1097,7 +1056,7 @@ const getPriorityText = (priority: string) => {
 }
 
 const handleViewParent = (parentId: number) => {
-  const parent = tasks.value.find(t => t.id === parentId)
+  const parent = allTasksFlat.value.find(t => t.id === parentId)
   if (parent) {
     handleSelectTask(parent)
   }
@@ -1121,8 +1080,7 @@ const handleKeydown = (event: KeyboardEvent) => {
   // Esc - 关闭详情面板
   else if (event.key === 'Escape') {
     if (selectedTask.value) {
-      selectedTask.value = null
-      selectedTaskId.value = undefined
+      clearSelection()
     }
   }
 }
@@ -1150,24 +1108,26 @@ onUnmounted(() => {
   overflow: hidden;
 }
 
-/* 三栏布局 */
-.three-column-layout {
+/* 传统列表布局（已去掉左侧迭代树） */
+.tasks-layout {
   display: flex;
   flex: 1;
   overflow: hidden;
   gap: 0;
 }
 
-/* 左栏：导航树 */
-.left-column {
-  width: 220px;
-  min-width: 220px;
-  max-width: 220px;
+.work-items-column {
+  flex: 1;
+  min-width: 0;
   background: #fff;
-  border-right: 1px solid #f0f0f0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+/* 左栏：导航树（已废弃，保留样式避免历史引用报错） */
+.left-column {
+  display: none;
 }
 
 /* 树形工具栏 */
@@ -1341,16 +1301,21 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: #f5f5f5;
+  background: #fff;
 }
 
 .toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px;
+  padding: 12px 16px;
   background: #fff;
   border-bottom: 1px solid #f0f0f0;
+  margin-bottom: 0;
+}
+
+.toolbar.search-form {
+  flex-wrap: nowrap;
 }
 
 .toolbar-left,
@@ -1360,12 +1325,111 @@ onUnmounted(() => {
   gap: 12px;
 }
 
+.toolbar-field {
+  margin-right: 0 !important;
+  margin-bottom: 0 !important;
+}
+
 .list-view,
 .kanban-view,
 .tree-view {
   flex: 1;
   overflow: auto;
   padding: 16px;
+}
+
+.tasks-table {
+  width: 100%;
+}
+
+.tasks-table :deep(.expand-col .cell) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 4px;
+}
+
+.tasks-table :deep(.expand-col .el-table__expand-icon) {
+  margin: 0;
+  height: 20px;
+  line-height: 20px;
+}
+
+.tasks-table :deep(.index-col .cell) {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+.task-index {
+  display: inline-block;
+  min-width: 28px;
+  text-align: center;
+  font-weight: 600;
+  color: #303133;
+  line-height: 20px;
+}
+
+.task-index.is-subtask {
+  font-weight: 500;
+  color: #909399;
+}
+
+.task-title-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.task-title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subtask-count-tag {
+  flex-shrink: 0;
+}
+
+.task-title-cell.is-subtask {
+  color: #606266;
+}
+
+:deep(.tasks-table .is-selected-row > td.el-table__cell) {
+  background-color: #ecf5ff !important;
+}
+
+.relation-card {
+  padding: 12px;
+  margin-bottom: 8px;
+  border: 1px solid #f0f0f0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.relation-card:hover {
+  background: #f5f9ff;
+  border-color: #c6e2ff;
+}
+
+.relation-title {
+  font-size: 14px;
+  color: #303133;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.relation-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #909399;
 }
 
 .task-number {
@@ -1495,44 +1559,111 @@ onUnmounted(() => {
 .detail-header {
   display: flex;
   align-items: flex-start;
+  justify-content: space-between;
   gap: 12px;
-  margin-bottom: 24px;
+  margin-bottom: 20px;
 }
 
 .task-title {
   flex: 1;
+  min-width: 0;
   margin: 0;
-  font-size: 20px;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1f1f1f;
+  line-height: 1.45;
+  word-break: break-word;
+}
+
+/* 状态切换：更清晰的胶囊按钮 */
+.status-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  font-size: 12px;
   font-weight: 500;
-  color: #333;
-  line-height: 1.4;
+  line-height: 1;
+  cursor: pointer;
+  outline: none;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.status-arrow {
+  font-size: 12px;
+  opacity: 0.7;
+}
+
+.status-todo {
+  color: #595959;
+  background: #f5f5f5;
+  border-color: #e8e8e8;
+}
+
+.status-todo:hover {
+  background: #eeeeee;
+}
+
+.status-in_progress {
+  color: #1677ff;
+  background: #e6f4ff;
+  border-color: #91caff;
+}
+
+.status-in_progress:hover {
+  background: #d6ebff;
+}
+
+.status-done {
+  color: #389e0d;
+  background: #f6ffed;
+  border-color: #b7eb8f;
+}
+
+.status-done:hover {
+  background: #edf9e4;
 }
 
 .detail-section {
-  margin-bottom: 24px;
+  margin-bottom: 18px;
 }
 
 .section-label {
-  font-size: 13px;
-  color: #666;
+  font-size: 12px;
+  color: #8c8c8c;
   margin-bottom: 8px;
   font-weight: 500;
+  letter-spacing: 0.02em;
 }
 
 .section-value {
   font-size: 14px;
-  color: #333;
+  color: #262626;
 }
 
 .section-value.description {
   white-space: pre-wrap;
   line-height: 1.6;
-  color: #666;
+  color: #595959;
+  padding: 10px 12px;
+  background: #fafafa;
+  border-radius: 8px;
 }
 
 .section-value.metadata {
   font-size: 12px;
-  color: #999;
+  color: #8c8c8c;
 }
 
 .section-value.metadata > div {
@@ -1541,11 +1672,57 @@ onUnmounted(() => {
 
 .hours-info {
   display: flex;
-  gap: 16px;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+/* 负责人：紧凑芯片布局 */
+.assignee-section .section-label {
+  margin-bottom: 6px;
+}
+
+.assignee-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  padding: 6px 10px 6px 6px;
+  background: #fafafa;
+  border: 1px solid #f0f0f0;
+  border-radius: 999px;
+}
+
+.assignee-chip.empty {
+  color: #8c8c8c;
+}
+
+.assignee-avatar {
+  flex-shrink: 0;
+  background: #e6f4ff;
+  color: #1677ff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.assignee-avatar.empty-avatar {
+  background: #f0f0f0;
+  color: #8c8c8c;
+}
+
+.assignee-name {
+  font-size: 13px;
+  color: #262626;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assignee-chip.empty .assignee-name {
+  color: #8c8c8c;
 }
 
 .empty-text {
-  color: #999;
+  color: #8c8c8c;
 }
 
 .empty-detail {

@@ -63,7 +63,7 @@
     <!-- 统计卡片 -->
     <el-row :gutter="16" class="stats-row" v-if="statisticsData">
       <el-col :span="24">
-        <el-card class="stat-card">
+        <el-card class="stats-card" shadow="never">
           <template #header>
             <div class="card-header">
               <span class="card-title">趋势总览</span>

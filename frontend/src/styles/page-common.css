@@ -152,6 +152,38 @@
   cursor: move;
 }
 
+/* ========== 全局表单控件高度（对话框 / 普通表单，避免 select/input/number 高低不一） ========== */
+
+.el-dialog .el-form .el-input__wrapper,
+.el-dialog .el-form .el-select__wrapper,
+.el-dialog .el-form .el-date-editor.el-input__wrapper,
+.el-dialog .el-form .el-input-number .el-input__wrapper,
+.el-form:not(.search-form) .el-input__wrapper,
+.el-form:not(.search-form) .el-select__wrapper,
+.el-form:not(.search-form) .el-date-editor.el-input__wrapper,
+.el-form:not(.search-form) .el-input-number .el-input__wrapper {
+  min-height: 36px;
+  height: 36px;
+  box-sizing: border-box;
+}
+
+.el-dialog .el-form .el-textarea__inner,
+.el-form:not(.search-form) .el-textarea__inner {
+  min-height: auto;
+  height: auto;
+}
+
+.el-dialog .el-form .el-input-number,
+.el-form:not(.search-form) .el-input-number {
+  width: 100%;
+  line-height: 36px;
+}
+
+.el-dialog .el-form .el-form-item,
+.el-form:not(.search-form) .el-form-item {
+  align-items: flex-start;
+}
+
 /* ========== 搜索筛选 ========== */
 
 .search-card {
@@ -305,35 +337,72 @@
   padding: 40px 0;
 }
 
-/* ========== 统计卡片（工时页面专用） ========== */
+/* ========== 统计卡片（首页 / 工时 / 统计页统一） ========== */
 
 .stats-row {
   margin-bottom: 16px;
+  width: 100%;
 }
 
 .stats-card {
-  border-radius: 8px;
+  border-radius: 4px;
   overflow: hidden;
+  height: 100%;
 }
 
 .stats-content {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 16px;
 }
 
 .stats-icon {
-  width: 60px;
-  height: 60px;
+  width: 56px;
+  height: 56px;
   border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 28px;
+  font-size: 26px;
+  flex-shrink: 0;
+  color: #fff;
+}
+
+.stats-icon.project {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.stats-icon.task {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+}
+
+.stats-icon.today {
+  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+}
+
+.stats-icon.week {
+  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+}
+
+.stats-icon.month {
+  background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+}
+
+.stats-icon.total {
+  background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);
+}
+
+.stats-icon.active {
+  background: linear-gradient(135deg, #faad14 0%, #ffd666 100%);
+}
+
+.stats-icon.days {
+  background: linear-gradient(135deg, #eb2f96 0%, #ff85c0 100%);
 }
 
 .stats-info {
   flex: 1;
+  min-width: 0;
 }
 
 .stats-label {
@@ -344,7 +413,32 @@
 
 .stats-value {
   font-size: 24px;
-  font-weight: bold;
+  font-weight: 600;
+  color: #333;
+  line-height: 1.2;
+}
+
+/* 工时数值强调色 */
+.hours-accent {
+  color: #1890ff;
+  font-weight: 600;
+}
+
+/* 统计区块卡片 */
+.section-card {
+  background: #fff;
+  border-radius: 4px;
+  padding: 20px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  margin-bottom: 16px;
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.section-card .section-title {
+  margin: 0 0 16px;
+  font-size: 16px;
+  font-weight: 500;
   color: #333;
 }
 

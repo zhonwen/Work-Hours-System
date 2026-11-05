@@ -36,6 +36,12 @@ public interface ProjectMemberMapper {
     List<ProjectMember> selectMembersByProjectId(@Param("projectId") Long projectId);
 
     /**
+     * 查询指定项目下的某个成员
+     */
+    ProjectMember selectByProjectIdAndUserId(@Param("projectId") Long projectId,
+                                             @Param("userId") Long userId);
+
+    /**
      * 从项目中移除成员（逻辑删除）
      */
     int deleteProjectMember(@Param("projectId") Long projectId,

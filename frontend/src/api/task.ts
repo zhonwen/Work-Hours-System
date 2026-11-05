@@ -48,7 +48,7 @@ export const getTaskList = (params: TaskQuery) => {
   return request.get('/tasks/search', { params })
 }
 
-// 根据项目ID获取任务列表（返回扁平列表）
+// 根据项目ID获取任务列表（根任务 + subtasks 树形）
 export const getTasksByProjectId = (projectId: number, pageNum?: number, pageSize?: number) => {
   return request.get('/tasks/search', {
     params: {

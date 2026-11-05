@@ -6,8 +6,8 @@
     </div>
 
     <!-- 筛选条件 -->
-    <el-card class="filter-card">
-      <el-form :inline="true" :model="searchForm">
+    <el-card class="search-card">
+      <el-form :inline="true" :model="searchForm" class="search-form">
         <el-form-item label="用户">
           <el-select
             v-model="searchForm.userId"
@@ -49,40 +49,40 @@
     <!-- 统计卡片 -->
     <el-row :gutter="16" class="stats-row" v-if="statisticsData">
       <el-col :span="8">
-        <el-card class="stat-card">
-          <div class="stat-content">
-            <div class="stat-icon">
-              <el-icon :size="32"><Clock /></el-icon>
+        <el-card class="stats-card" shadow="never">
+          <div class="stats-content">
+            <div class="stats-icon today">
+              <el-icon><Clock /></el-icon>
             </div>
-            <div class="stat-info">
-              <div class="stat-label">总工时</div>
-              <div class="stat-value">{{ statisticsData.totalHours || 0 }} 小时</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="8">
-        <el-card class="stat-card">
-          <div class="stat-content">
-            <div class="stat-icon">
-              <el-icon :size="32"><Document /></el-icon>
-            </div>
-            <div class="stat-info">
-              <div class="stat-label">工时记录数</div>
-              <div class="stat-value">{{ statisticsData.totalRecords || 0 }} 条</div>
+            <div class="stats-info">
+              <div class="stats-label">总工时</div>
+              <div class="stats-value">{{ statisticsData.totalHours || 0 }} 小时</div>
             </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="8">
-        <el-card class="stat-card">
-          <div class="stat-content">
-            <div class="stat-icon">
-              <el-icon :size="32"><Folder /></el-icon>
+        <el-card class="stats-card" shadow="never">
+          <div class="stats-content">
+            <div class="stats-icon month">
+              <el-icon><Document /></el-icon>
             </div>
-            <div class="stat-info">
-              <div class="stat-label">参与项目</div>
-              <div class="stat-value">{{ statisticsData.projectCount || 0 }} 个</div>
+            <div class="stats-info">
+              <div class="stats-label">工时记录数</div>
+              <div class="stats-value">{{ statisticsData.totalRecords || 0 }} 条</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="8">
+        <el-card class="stats-card" shadow="never">
+          <div class="stats-content">
+            <div class="stats-icon project">
+              <el-icon><Folder /></el-icon>
+            </div>
+            <div class="stats-info">
+              <div class="stats-label">参与项目</div>
+              <div class="stats-value">{{ statisticsData.projectCount || 0 }} 个</div>
             </div>
           </div>
         </el-card>
@@ -90,7 +90,7 @@
     </el-row>
 
     <!-- 项目工时分布 -->
-    <el-card class="chart-card" v-if="statisticsData && projectDistribution.length > 0">
+    <el-card class="table-card" v-if="statisticsData && projectDistribution.length > 0">
       <template #header>
         <div class="card-header">
           <span class="card-title">项目工时分布</span>
@@ -259,14 +259,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* ========== 用户统计特定样式 ========== */
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
 .card-title {
   font-size: 16px;
   font-weight: 500;

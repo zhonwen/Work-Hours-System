@@ -26,6 +26,8 @@ public enum ProjectErrorCode implements ErrorCode {
     // ========== 角色验证错误 ==========
     NOT_PROJECT_MANAGER(3010, "只有系统管理员或项目经理才能创建项目"),
     PROJECT_MANAGER_NOT_QUALIFIED(3011, "指定的项目经理须为系统管理员或项目经理角色"),
+    PROJECT_ANNOUNCEMENT_FORBIDDEN(3012, "仅系统管理员、项目负责人或项目管理员可编辑公告"),
+    PROJECT_ANNOUNCEMENT_TOO_LONG(3013, "公告内容不能超过5000字"),
 
     // ========== 操作失败（建议HTTP 500） ==========
     PROJECT_CREATE_FAILED(3901, "项目创建失败"),

@@ -62,6 +62,13 @@ public interface ProjectMapper extends BaseMapper<Project> {
     int update(Project project);
 
     /**
+     * 更新项目公告
+     * @param project 需含 id、announcement、announcementUpdateUserId
+     * @return 影响行数
+     */
+    int updateAnnouncement(Project project);
+
+    /**
      * 根据ID删除项目
      * @param id 项目ID
      * @return 影响行数
