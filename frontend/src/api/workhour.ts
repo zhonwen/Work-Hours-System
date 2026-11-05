@@ -1,8 +1,13 @@
 import request from './request'
 import type { PageResult, ApiResponse } from '@/types'
 
+/** 工时查看范围：SELF 仅自己（默认）/ ALL 全部 / USER 指定人 */
+export type WorkHourViewScope = 'SELF' | 'ALL' | 'USER'
+
 // 工时查询参数
 export interface WorkHourQuery {
+  /** 默认 SELF；ALL/USER 需 WORKHOUR_VIEW_ALL */
+  viewScope?: WorkHourViewScope
   userId?: number
   projectId?: number
   taskId?: number

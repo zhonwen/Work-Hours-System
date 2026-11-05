@@ -103,21 +103,48 @@ public class WorkHourServiceImpl implements WorkHourService {
     }
 
     @Override
-    public List<WorkHour> getWorkHoursByCondition(Long userId, Long projectId, Long taskId, LocalDate startDate, LocalDate endDate) {
+    public List<WorkHour> getWorkHoursByCondition(String viewScope, Long userId, Long projectId, Long taskId,
+                                                  LocalDate startDate, LocalDate endDate) {
         Long currentUserId = UserContext.getCurrentUserId();
-        // 具备全局工时查看权限的用户可以按任意条件查询
-        if (authService.canViewAllWorkHours(currentUserId)) {
-            return workHourMapper.selectByCondition(userId, projectId, taskId, startDate, endDate);
+        if (currentUserId == null) {
+            throw new BusinessException(CommonErrorCode.UNAUTHORIZED);
         }
-        // 普通用户：
-        // 1）只能查询自己的工时，因此强制 userId = 当前用户；
-        // 2）如果传入 projectId，则必须在可访问项目范围内
-        Long queryUserId = currentUserId;
-        Long queryProjectId = projectId;
-        if (projectId != null) {
+
+        String scope = viewScope == null || viewScope.trim().isEmpty()
+                ? "SELF"
+                : viewScope.trim().toUpperCase();
+
+        Long queryUserId;
+        switch (scope) {
+            case "ALL":
+                // 全员：必须显式选择且具备全员工时查看权限
+                if (!authService.canViewAllWorkHours(currentUserId)) {
+                    throw new BusinessException(CommonErrorCode.FORBIDDEN);
+                }
+                queryUserId = null;
+                break;
+            case "USER":
+                // 指定他人：必须具备权限，且必须传 userId
+                if (!authService.canViewAllWorkHours(currentUserId)) {
+                    throw new BusinessException(CommonErrorCode.FORBIDDEN);
+                }
+                if (userId == null) {
+                    throw new BusinessException(CommonErrorCode.PARAM_MISSING);
+                }
+                queryUserId = userId;
+                break;
+            case "SELF":
+            default:
+                // 默认「我的工时」：任何角色（含 admin）只查本人
+                queryUserId = currentUserId;
+                break;
+        }
+
+        // 普通用户按项目筛选时需校验项目成员权限；全员查看权限者可跨项目
+        if (projectId != null && !authService.canViewAllWorkHours(currentUserId)) {
             authService.checkProjectAccess(currentUserId, projectId);
         }
-        return workHourMapper.selectByCondition(queryUserId, queryProjectId, taskId, startDate, endDate);
+        return workHourMapper.selectByCondition(queryUserId, projectId, taskId, startDate, endDate);
     }
 
     @Override

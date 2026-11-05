@@ -2,7 +2,7 @@
   <div class="page-root">
     <!-- 页面头部 -->
     <div class="page-header">
-      <h2 class="page-title">工时日历</h2>
+      <h2 class="page-title">我的工时日历</h2>
     </div>
 
     <!-- 统计卡片：工时不含请假；本月请假单独展示 -->
@@ -231,11 +231,8 @@
 import { ref, reactive, onMounted, watch, computed } from 'vue'
 import { Clock, Calendar, List, Folder, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 import { getMonthRange, getCurrentYearMonth, getMonthText, formatDate, isToday, isWeekend } from '@/utils/dateUtils'
-import { getWorkHourList, getUserWorkHourStatistics, isLeaveRecord, sumWorkHours, type WorkHourInfo } from '@/api/workhour'
-import { useAuthStore } from '@/stores/auth'
+import { getWorkHourList, isLeaveRecord, sumWorkHours, type WorkHourInfo } from '@/api/workhour'
 import { message } from '@/utils/message'
-
-const authStore = useAuthStore()
 
 const detailVisible = ref(false)
 const detailDate = ref('')
@@ -354,7 +351,9 @@ const fetchMonthData = async () => {
   loading.value = true
   try {
     const { start, end } = getMonthRange(currentYear.value, currentMonth.value)
+    // 日历固定「我的工时」：任何角色只查当前登录人
     const res = await getWorkHourList({
+      viewScope: 'SELF',
       startDate: start,
       endDate: end,
       pageNum: 1,
@@ -425,16 +424,16 @@ const updateStatistics = async (allWorkHours: WorkHourInfo[]) => {
       ? sumWorkHours(workOnly.filter(wh => wh.workDate <= todayStr))
       : sumWorkHours(workOnly)
 
-    const currentUserId = authStore.getCurrentUserId()
-    if (currentUserId) {
-      const totalRes = await getUserWorkHourStatistics(currentUserId)
-      statistics.totalHours = Number((totalRes as { totalHours?: number })?.totalHours || 0)
-    } else {
-      statistics.totalHours = sumWorkHours(workOnly)
-    }
+    // 总计：仅本人全部正常工时
+    const totalRes = await getWorkHourList({
+      viewScope: 'SELF',
+      pageNum: 1,
+      pageSize: 10000
+    })
+    statistics.totalHours = sumWorkHours(totalRes?.list || [])
   } catch (error) {
     console.error('更新统计数据失败:', error)
-    statistics.totalHours = sumWorkHours(allWorkHours)
+    statistics.totalHours = sumWorkHours(allWorkHours.filter(wh => !isLeaveRecord(wh)))
   }
 }
 

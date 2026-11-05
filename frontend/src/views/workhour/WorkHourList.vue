@@ -70,6 +70,34 @@
     <!-- 搜索筛选 -->
     <el-card class="search-card">
       <el-form :inline="true" :model="queryForm" class="search-form">
+        <el-form-item v-if="canViewAllWorkHours" label="查看范围">
+          <el-select
+            v-model="queryForm.viewScope"
+            style="width: 140px"
+            @change="handleViewScopeChange"
+          >
+            <el-option label="仅自己" value="SELF" />
+            <el-option label="全部" value="ALL" />
+            <el-option label="指定人员" value="USER" />
+          </el-select>
+        </el-form-item>
+        <el-form-item v-if="canViewAllWorkHours && queryForm.viewScope === 'USER'" label="人员">
+          <el-select
+            v-model="queryForm.userId"
+            placeholder="选择人员"
+            filterable
+            clearable
+            style="width: 180px"
+            @change="handleQuery"
+          >
+            <el-option
+              v-for="u in userOptions"
+              :key="u.id"
+              :label="u.nickname || u.username"
+              :value="u.id"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item label="项目">
           <el-select v-model="queryForm.projectId" placeholder="请选择项目" clearable filterable style="width: 200px" @change="handleQuery">
             <el-option
@@ -242,26 +270,25 @@ import {
   createWorkHour,
   updateWorkHour,
   deleteWorkHour,
-  getUserWorkHourStatistics,
+  sumWorkHours,
   type WorkHourInfo,
-  type WorkHourRecordType
+  type WorkHourRecordType,
+  type WorkHourViewScope
 } from '@/api/workhour'
 import { getProjectList } from '@/api/project'
 import { getTaskList } from '@/api/task'
+import { getAllUsers, type UserInfo } from '@/api/user'
 import { getEnabledLeaveTypes, type LeaveTypeInfo } from '@/api/leaveType'
 import { useAuthStore } from '@/stores/auth'
 import { getWorkHourStatusInfo } from '@/utils/statusMapping'
 
-// 获取 auth store
 const authStore = useAuthStore()
+const canViewAllWorkHours = computed(() => authStore.hasPermission('WORKHOUR_VIEW_ALL'))
 
-// 获取当前用户ID
-const getCurrentUserId = (): number => {
-  return authStore.getCurrentUserId() || 1
-}
-
-// 查询表单
+// 查询表单（默认仅自己）
 const queryForm = reactive({
+  viewScope: 'SELF' as WorkHourViewScope,
+  userId: undefined as number | undefined,
   projectId: undefined as number | undefined,
   startDate: undefined as string | undefined,
   endDate: undefined as string | undefined
@@ -272,9 +299,23 @@ const dateRange = ref<[string, string] | null>(null)
 
 // 项目列表
 const projectList = ref<any[]>([])
+const userOptions = ref<UserInfo[]>([])
 
 // 任务列表
 const taskList = ref<any[]>([])
+
+/** 列表/统计查询参数（与查看范围一致） */
+const buildListQuery = (extra: Record<string, unknown> = {}) => {
+  const scope = canViewAllWorkHours.value ? queryForm.viewScope : 'SELF'
+  return {
+    viewScope: scope,
+    userId: scope === 'USER' ? queryForm.userId : undefined,
+    projectId: queryForm.projectId,
+    startDate: queryForm.startDate,
+    endDate: queryForm.endDate,
+    ...extra
+  }
+}
 
 // 工时列表
 const workHourList = ref<WorkHourInfo[]>([])
@@ -332,15 +373,19 @@ const getStatusText = (status: string) => getWorkHourStatusInfo(status).text
 
 // 获取工时列表
 const fetchWorkHours = async () => {
+  if (queryForm.viewScope === 'USER' && !queryForm.userId) {
+    workHourList.value = []
+    pagination.total = 0
+    return
+  }
   loading.value = true
   try {
-    const res = await getWorkHourList({
-      projectId: queryForm.projectId,
-      startDate: queryForm.startDate,
-      endDate: queryForm.endDate,
-      pageNum: pagination.pageNum,
-      pageSize: pagination.pageSize
-    })
+    const res = await getWorkHourList(
+      buildListQuery({
+        pageNum: pagination.pageNum,
+        pageSize: pagination.pageSize
+      })
+    )
     workHourList.value = res.list || []
     pagination.total = res.total || 0
   } catch (error) {
@@ -351,39 +396,66 @@ const fetchWorkHours = async () => {
   }
 }
 
-// 获取统计数据
+// 顶部统计与当前查看范围一致（不含请假）；默认仅本人
 const fetchStatistics = async () => {
   try {
+    if (queryForm.viewScope === 'USER' && !queryForm.userId) {
+      statistics.todayHours = 0
+      statistics.weekHours = 0
+      statistics.monthHours = 0
+      statistics.totalHours = 0
+      return
+    }
     const today = new Date()
-    const weekStart = new Date(today)
-    weekStart.setDate(today.getDate() - today.getDay())
-    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
-
-    // 获取当前用户ID
-    const currentUserId = authStore.getCurrentUserId()
-
-    // 获取今日工时
     const todayStr = today.toISOString().split('T')[0]
-    const todayRes = await getUserWorkHourStatistics(currentUserId, todayStr, todayStr)
-    statistics.todayHours = todayRes?.totalHours || 0
-
-    // 获取本周工时
+    const weekStart = new Date(today)
+    const day = today.getDay()
+    weekStart.setDate(today.getDate() - (day === 0 ? 6 : day - 1))
     const weekStartStr = weekStart.toISOString().split('T')[0]
-    const todayStr2 = today.toISOString().split('T')[0]
-    const weekRes = await getUserWorkHourStatistics(currentUserId, weekStartStr, todayStr2)
-    statistics.weekHours = weekRes?.totalHours || 0
+    const monthStartStr = new Date(today.getFullYear(), today.getMonth(), 1)
+      .toISOString()
+      .split('T')[0]
 
-    // 获取本月工时
-    const monthStartStr = monthStart.toISOString().split('T')[0]
-    const monthRes = await getUserWorkHourStatistics(currentUserId, monthStartStr, todayStr2)
-    statistics.monthHours = monthRes?.totalHours || 0
+    const res = await getWorkHourList(
+      buildListQuery({
+        projectId: undefined,
+        startDate: undefined,
+        endDate: undefined,
+        pageNum: 1,
+        pageSize: 10000
+      })
+    )
+    const list = res?.list || []
 
-    // 获取总工时
-    const totalRes = await getUserWorkHourStatistics(currentUserId)
-    statistics.totalHours = totalRes?.totalHours || 0
+    statistics.todayHours = sumWorkHours(list.filter(wh => wh.workDate === todayStr))
+    statistics.weekHours = sumWorkHours(
+      list.filter(wh => wh.workDate >= weekStartStr && wh.workDate <= todayStr)
+    )
+    statistics.monthHours = sumWorkHours(
+      list.filter(wh => wh.workDate >= monthStartStr && wh.workDate <= todayStr)
+    )
+    statistics.totalHours = sumWorkHours(list)
   } catch (error) {
     console.error('获取统计数据失败:', error)
   }
+}
+
+const fetchUsers = async () => {
+  if (!canViewAllWorkHours.value) return
+  try {
+    const res: any = await getAllUsers()
+    userOptions.value = res?.list || res || []
+  } catch (error) {
+    console.error('获取用户列表失败:', error)
+  }
+}
+
+const handleViewScopeChange = () => {
+  if (queryForm.viewScope !== 'USER') {
+    queryForm.userId = undefined
+  }
+  handleQuery()
+  fetchStatistics()
 }
 
 // 获取项目列表
@@ -433,16 +505,20 @@ const handleDateRangeChange = (dates: [string, string] | null) => {
 const handleQuery = () => {
   pagination.pageNum = 1
   fetchWorkHours()
+  fetchStatistics()
 }
 
 // 重置
 const handleReset = () => {
+  queryForm.viewScope = 'SELF'
+  queryForm.userId = undefined
   queryForm.projectId = undefined
   queryForm.startDate = undefined
   queryForm.endDate = undefined
   dateRange.value = null
   pagination.pageNum = 1
   fetchWorkHours()
+  fetchStatistics()
 }
 
 // 分页大小变化
@@ -591,6 +667,7 @@ const handleDelete = (row: WorkHourInfo) => {
 
 onMounted(() => {
   fetchProjects()
+  fetchUsers()
   fetchWorkHours()
   fetchStatistics()
   fetchLeaveTypes()

@@ -11,8 +11,15 @@ import java.time.LocalDate;
  */
 @Schema(description = "工时记录查询请求")
 public class WorkHourQueryReq extends BasePageQuery {
+
+    /**
+     * 查看范围：SELF=仅自己（默认），ALL=全部，USER=指定用户。
+     * ALL / USER 需具备 WORKHOUR_VIEW_ALL；日历与「我的工时」默认 SELF。
+     */
+    @Schema(description = "查看范围 SELF/ALL/USER，默认 SELF", example = "SELF")
+    private String viewScope;
     
-    @Schema(description = "用户ID", example = "1")
+    @Schema(description = "用户ID（viewScope=USER 时必填；SELF 时忽略）", example = "1")
     private Long userId;
     
     @Schema(description = "项目ID", example = "1")
@@ -30,6 +37,14 @@ public class WorkHourQueryReq extends BasePageQuery {
     private LocalDate endDate;
 
     // Getter and Setter
+    public String getViewScope() {
+        return viewScope;
+    }
+
+    public void setViewScope(String viewScope) {
+        this.viewScope = viewScope;
+    }
+
     public Long getUserId() {
         return userId;
     }

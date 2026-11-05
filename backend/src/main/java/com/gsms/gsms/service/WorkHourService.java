@@ -33,14 +33,16 @@ public interface WorkHourService {
 
     /**
      * 根据条件查询工时记录
-     * @param userId 用户ID
+     * @param viewScope 查看范围 SELF/ALL/USER，默认 SELF（强制当前登录人）
+     * @param userId 指定用户（VIEW=USER 时使用）；SELF 时忽略
      * @param projectId 项目ID
      * @param taskId 任务ID
      * @param startDate 开始日期
      * @param endDate 结束日期
      * @return 工时记录列表
      */
-    List<WorkHour> getWorkHoursByCondition(Long userId, Long projectId, Long taskId, LocalDate startDate, LocalDate endDate);
+    List<WorkHour> getWorkHoursByCondition(String viewScope, Long userId, Long projectId, Long taskId,
+                                           LocalDate startDate, LocalDate endDate);
 
     /**
      * 创建工时记录

@@ -91,7 +91,8 @@ public class WorkHourController {
         logger.info("根据条件查询工时记录: {}", req);
         PageHelper.startPage(req.getPageNum(), req.getPageSize());
         List<WorkHour> workHours = workHourService.getWorkHoursByCondition(
-                req.getUserId(), req.getProjectId(), req.getTaskId(), req.getStartDate(), req.getEndDate());
+                req.getViewScope(), req.getUserId(), req.getProjectId(), req.getTaskId(),
+                req.getStartDate(), req.getEndDate());
         logger.info("查询到工时记录数量: {}", workHours.size());
         return PageResult.success(workHours);
     }
