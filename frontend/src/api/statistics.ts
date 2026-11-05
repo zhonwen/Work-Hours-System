@@ -31,6 +31,10 @@ export interface DashboardTaskItem {
   planEndDate?: string
   actualEndDate?: string
   parentId?: number | null
+  /** 任务预估工时 */
+  estimateHours?: number | null
+  /** 任务关联实际工时合计（不含请假） */
+  actualHours?: number
   subtasks?: Array<{
     id: number
     title: string
@@ -41,6 +45,8 @@ export interface DashboardTaskItem {
     planEndDate?: string
     actualEndDate?: string
     parentId?: number | null
+    estimateHours?: number | null
+    actualHours?: number
   }>
 }
 

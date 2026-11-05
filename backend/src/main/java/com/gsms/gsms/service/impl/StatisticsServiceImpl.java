@@ -371,13 +371,23 @@ public class StatisticsServiceImpl implements StatisticsService {
                 .limit(5)
                 .collect(Collectors.toList());
 
+        // 批量汇总任务实际工时（关联工时记录合计，不含请假）
+        Set<Long> hourTaskIds = new HashSet<>();
+        for (Task parent : roots) {
+            hourTaskIds.add(parent.getId());
+            for (Task child : subtasksByParent.getOrDefault(parent.getId(), Collections.emptyList())) {
+                hourTaskIds.add(child.getId());
+            }
+        }
+        Map<Long, BigDecimal> actualHoursByTaskId = sumActualHoursByTaskIds(hourTaskIds);
+
         List<Map<String, Object>> result = new ArrayList<>();
         for (Task parent : roots) {
-            Map<String, Object> parentData = toDashboardTaskMap(parent);
+            Map<String, Object> parentData = toDashboardTaskMap(parent, actualHoursByTaskId);
             List<Task> children = subtasksByParent.getOrDefault(parent.getId(), Collections.emptyList());
             List<Map<String, Object>> childMaps = children.stream()
                     .sorted((t1, t2) -> t2.getId().compareTo(t1.getId()))
-                    .map(this::toDashboardTaskMap)
+                    .map(child -> toDashboardTaskMap(child, actualHoursByTaskId))
                     .collect(Collectors.toList());
             parentData.put("subtasks", childMaps);
             result.add(parentData);
@@ -385,7 +395,19 @@ public class StatisticsServiceImpl implements StatisticsService {
         return result;
     }
 
-    private Map<String, Object> toDashboardTaskMap(Task task) {
+    private Map<Long, BigDecimal> sumActualHoursByTaskIds(Set<Long> taskIds) {
+        Map<Long, BigDecimal> hoursByTaskId = new HashMap<>();
+        if (taskIds == null || taskIds.isEmpty()) {
+            return hoursByTaskId;
+        }
+        for (Long taskId : taskIds) {
+            List<WorkHour> workHours = onlyWorkRecords(workHourMapper.selectByTaskId(taskId));
+            hoursByTaskId.put(taskId, sumHours(workHours));
+        }
+        return hoursByTaskId;
+    }
+
+    private Map<String, Object> toDashboardTaskMap(Task task, Map<Long, BigDecimal> actualHoursByTaskId) {
         Map<String, Object> taskData = new HashMap<>();
         taskData.put("id", task.getId());
         taskData.put("title", task.getTitle());
@@ -396,6 +418,11 @@ public class StatisticsServiceImpl implements StatisticsService {
         taskData.put("planEndDate", task.getPlanEndDate());
         taskData.put("actualEndDate", task.getActualEndDate());
         taskData.put("parentId", task.getParentId());
+        taskData.put("estimateHours", task.getEstimateHours());
+        BigDecimal actualHours = actualHoursByTaskId != null
+                ? actualHoursByTaskId.getOrDefault(task.getId(), BigDecimal.ZERO)
+                : BigDecimal.ZERO;
+        taskData.put("actualHours", actualHours);
         return taskData;
     }
 }

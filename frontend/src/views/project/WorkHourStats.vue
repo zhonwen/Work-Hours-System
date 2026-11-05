@@ -1,5 +1,5 @@
 <template>
-  <div class="workhour-stats page-root">
+  <div class="workhour-stats">
     <div v-if="loading" class="loading-container">
       <el-skeleton :rows="6" animated />
     </div>
@@ -37,7 +37,9 @@
                 :value="member.userId"
               >
                 <div class="member-option">
-                  <el-avatar :size="20">{{ member.nickname?.charAt(0) }}</el-avatar>
+                  <el-avatar :size="20">{{
+                    member.nickname?.charAt(0)
+                  }}</el-avatar>
                   <span>{{ member.nickname }}</span>
                 </div>
               </el-option>
@@ -113,7 +115,9 @@
                 :key="item.userId"
                 class="ranking-item"
               >
-                <div class="ranking-number" :class="`rank-${index + 1}`">{{ index + 1 }}</div>
+                <div class="ranking-number" :class="`rank-${index + 1}`">
+                  {{ index + 1 }}
+                </div>
                 <el-avatar :size="36">{{ item.nickname?.charAt(0) }}</el-avatar>
                 <div class="member-info">
                   <div class="member-name">{{ item.nickname }}</div>
@@ -123,17 +127,23 @@
                   </div>
                 </div>
                 <div class="member-hours">
-                  <div class="hours-value hours-accent">{{ item.totalHours }}</div>
+                  <div class="hours-value hours-accent">
+                    {{ item.totalHours }}
+                  </div>
                   <div class="hours-unit">小时</div>
                 </div>
                 <div class="hours-bar">
                   <div
                     class="hours-bar-fill"
-                    :style="{ width: (item.totalHours / maxHours * 100) + '%' }"
+                    :style="{ width: (item.totalHours / maxHours) * 100 + '%' }"
                   ></div>
                 </div>
               </div>
-              <el-empty v-if="memberRanking.length === 0" description="暂无工时数据" :image-size="80" />
+              <el-empty
+                v-if="memberRanking.length === 0"
+                description="暂无工时数据"
+                :image-size="80"
+              />
             </div>
           </div>
         </el-col>
@@ -149,80 +159,206 @@
                 <div class="trend-bar-container">
                   <div
                     class="trend-bar"
-                    :style="{ height: (item.hours / maxDailyHours * 100) + '%' }"
+                    :style="{
+                      height: (item.hours / maxDailyHours) * 100 + '%',
+                    }"
                     :title="`${item.date}: ${item.hours}h`"
                   ></div>
                 </div>
                 <div class="trend-label">{{ formatTrendDate(item.date) }}</div>
                 <div class="trend-value hours-accent">{{ item.hours }}h</div>
               </div>
-              <el-empty v-if="dailyTrend.length === 0" description="暂无趋势数据" :image-size="80" />
+              <el-empty
+                v-if="dailyTrend.length === 0"
+                description="暂无趋势数据"
+                :image-size="80"
+              />
             </div>
           </div>
         </el-col>
       </el-row>
 
-      <!-- 任务工时分布 -->
-      <div class="section-card">
+      <!-- 任务工时分布：父子同卡可展开；有工时→小时；有预估→预估Xh；已完成→完成；否则需评估 -->
+      <div class="section-card section-card--auto">
         <h3 class="section-title">任务工时分布</h3>
-        <div class="distribution-chart">
+        <div v-if="taskDistribution.length" class="wh-task-dist">
           <div
             v-for="(item, index) in taskDistribution"
             :key="item.taskId"
-            class="distribution-item"
+            class="wh-task-dist__card"
+            :class="`is-${item.labelType}`"
           >
-            <div class="distribution-info">
-              <span class="task-name">{{ item.taskName }}</span>
-              <span class="task-hours hours-accent">{{ item.totalHours }}h</span>
+            <div
+              class="wh-task-dist__row"
+              @click="item.children?.length && toggleDistExpand(item.taskId)"
+            >
+              <div class="wh-task-dist__info">
+                <button
+                  v-if="item.children?.length"
+                  type="button"
+                  class="wh-task-dist__expand"
+                  :aria-expanded="isDistExpanded(item.taskId)"
+                  @click.stop="toggleDistExpand(item.taskId)"
+                >
+                  <el-icon>
+                    <ArrowDown v-if="isDistExpanded(item.taskId)" />
+                    <ArrowRight v-else />
+                  </el-icon>
+                </button>
+                <span v-else class="wh-task-dist__expand-placeholder" />
+                <span class="wh-task-dist__name" :title="item.taskName">{{
+                  item.taskName
+                }}</span>
+                <span
+                  v-if="item.children?.length"
+                  class="wh-task-dist__child-count"
+                >
+                  {{ item.children.length }} 子任务
+                </span>
+                <span
+                  class="wh-task-dist__hours"
+                  :class="`label-${item.labelType}`"
+                >
+                  <el-icon
+                    v-if="item.labelType === 'done'"
+                    class="wh-task-dist__done-icon"
+                  >
+                    <CircleCheck />
+                  </el-icon>
+                  {{ item.hoursLabel }}
+                </span>
+              </div>
+              <div class="wh-task-dist__track">
+                <div
+                  v-if="item.labelType === 'hours'"
+                  class="wh-task-dist__fill"
+                  :style="{
+                    width:
+                      Math.max((item.totalHours / maxTaskHours) * 100, 4) + '%',
+                    backgroundColor: getChartColor(index),
+                  }"
+                ></div>
+                <div
+                  v-else-if="item.labelType === 'done'"
+                  class="wh-task-dist__fill wh-task-dist__fill--done"
+                ></div>
+              </div>
             </div>
-            <div class="distribution-bar">
+
+            <!-- 子任务：同卡内展开，评估/工时各自展示 -->
+            <div
+              v-if="item.children?.length && isDistExpanded(item.taskId)"
+              class="wh-task-dist__children"
+            >
               <div
-                class="distribution-bar-fill"
-                :style="{
-                  width: (item.totalHours / maxTaskHours * 100) + '%',
-                  backgroundColor: getChartColor(index)
-                }"
-              ></div>
+                v-for="(child, cIndex) in item.children"
+                :key="child.taskId"
+                class="wh-task-dist__child"
+                :class="`is-${child.labelType}`"
+              >
+                <div class="wh-task-dist__info">
+                  <span class="wh-task-dist__branch" />
+                  <span class="wh-task-dist__name" :title="child.taskName">{{
+                    child.taskName
+                  }}</span>
+                  <span
+                    class="wh-task-dist__hours"
+                    :class="`label-${child.labelType}`"
+                  >
+                    <el-icon
+                      v-if="child.labelType === 'done'"
+                      class="wh-task-dist__done-icon"
+                    >
+                      <CircleCheck />
+                    </el-icon>
+                    {{ child.hoursLabel }}
+                  </span>
+                </div>
+                <div class="wh-task-dist__track">
+                  <div
+                    v-if="child.labelType === 'hours'"
+                    class="wh-task-dist__fill"
+                    :style="{
+                      width:
+                        Math.max((child.totalHours / maxTaskHours) * 100, 4) +
+                        '%',
+                      backgroundColor: getChartColor(index + cIndex + 1),
+                    }"
+                  ></div>
+                  <div
+                    v-else-if="child.labelType === 'done'"
+                    class="wh-task-dist__fill wh-task-dist__fill--done"
+                  ></div>
+                </div>
+              </div>
             </div>
           </div>
-          <el-empty v-if="taskDistribution.length === 0" description="暂无任务分布数据" :image-size="80" />
         </div>
+        <el-empty v-else description="项目暂无任务" :image-size="72" />
       </div>
 
       <!-- 工时明细 -->
-      <div class="section-card hour-details">
-        <h3 class="section-title">工时明细</h3>
-        <el-table :data="workHourList" stripe border style="width: 100%">
+      <div class="section-card section-card--auto hour-details">
+        <div class="hour-details__header">
+          <h3 class="section-title">工时明细</h3>
+          <div style="width: 150px">
+            <el-date-picker
+              v-model="detailDateRange"
+              type="daterange"
+              range-separator="至"
+              start-placeholder="开始日期"
+              end-placeholder="结束日期"
+              format="YYYY-MM-DD"
+              value-format="YYYY-MM-DD"
+              clearable
+              class="hour-details__date-picker"
+              @change="handleDetailDateChange"
+            />
+          </div>
+        </div>
+        <el-table :data="pagedWorkHours" stripe border style="width: 100%">
           <el-table-column prop="workDate" label="日期" width="120" />
           <el-table-column label="成员" width="140">
             <template #default="{ row }">
               <div class="user-cell">
-                <el-avatar :size="24">{{ (row.userName || 'U')?.charAt(0) }}</el-avatar>
-                <span>{{ row.userName || '未知用户' }}</span>
+                <el-avatar :size="24">{{
+                  (row.userName || "U")?.charAt(0)
+                }}</el-avatar>
+                <span>{{ row.userName || "未知用户" }}</span>
               </div>
             </template>
           </el-table-column>
           <el-table-column prop="taskName" label="关联任务" min-width="200">
             <template #default="{ row }">
-              <span class="task-link">{{ row.taskName || '无关联任务' }}</span>
+              <span class="task-link">{{ row.taskName || "无关联任务" }}</span>
             </template>
           </el-table-column>
-          <el-table-column prop="hours" label="工时数" width="100" align="center">
+          <el-table-column
+            prop="hours"
+            label="工时数"
+            width="100"
+            align="center"
+          >
             <template #default="{ row }">
               <span class="hours-accent">{{ row.hours }}h</span>
             </template>
           </el-table-column>
-          <el-table-column prop="content" label="工作内容" min-width="220" show-overflow-tooltip />
+          <el-table-column
+            prop="content"
+            label="工作内容"
+            min-width="220"
+            show-overflow-tooltip
+          />
         </el-table>
         <div class="pagination-container">
           <el-pagination
             v-model:current-page="pageNum"
             v-model:page-size="pageSize"
             :page-sizes="[10, 20, 50, 100]"
-            :total="total"
+            :total="detailWorkHours.length"
             layout="total, sizes, prev, pager, next, jumper"
-            @size-change="fetchWorkHours"
-            @current-change="fetchWorkHours"
+            @size-change="handlePageChange"
+            @current-change="handlePageChange"
           />
         </div>
       </div>
@@ -231,193 +367,490 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ref, reactive, computed, onMounted } from "vue";
+import { ElMessage } from "element-plus";
 import {
   Clock,
   TrendCharts,
   User,
-  Calendar
-} from '@element-plus/icons-vue'
-import { getProjectMembers, type ProjectMember } from '@/api/project'
-import { getWorkHourList, type WorkHourInfo } from '@/api/workhour'
+  Calendar,
+  CircleCheck,
+  ArrowRight,
+  ArrowDown,
+} from "@element-plus/icons-vue";
+import { getProjectMembers } from "@/api/project";
+import { getWorkHoursByProjectId, type WorkHourInfo } from "@/api/workhour";
+import { getTasksByProjectId, type TaskInfo } from "@/api/task";
+
+type DistLabelType = "hours" | "estimate" | "assess" | "done";
+
+type DistItem = {
+  taskId: number;
+  taskName: string;
+  /** 展示用工时：父节点含子孙合计 */
+  totalHours: number;
+  hoursLabel: string;
+  labelType: DistLabelType;
+  children?: DistItem[];
+};
 
 const props = defineProps<{
-  projectId: number
-}>()
+  projectId: number;
+}>();
 
-const loading = ref(false)
-const members = ref<ProjectMember[]>([])
-const workHourList = ref<WorkHourInfo[]>([])
-const total = ref(0)
-const pageNum = ref(1)
-const pageSize = ref(20)
+const loading = ref(false);
+const members = ref<
+  Array<{ userId: number; nickname?: string; roleType?: number }>
+>([]);
+/** 扁平任务（统计成员任务数等） */
+const projectTasks = ref<TaskInfo[]>([]);
+/** 根任务树（工时分布父子同卡） */
+const projectTaskRoots = ref<TaskInfo[]>([]);
+/** 本项目全部工时（项目成员可见，非仅本人） */
+const allProjectHours = ref<WorkHourInfo[]>([]);
+const pageNum = ref(1);
+const pageSize = ref(20);
 
-const dateRange = ref<[string, string]>([])
-const selectedMemberId = ref<number | undefined>(undefined)
+const dateRange = ref<[string, string] | null>(null);
+const detailDateRange = ref<[string, string] | null>(null);
+const selectedMemberId = ref<number | undefined>(undefined);
+/** 展开的父任务 id */
+const expandedDistIds = ref<Set<number>>(new Set());
 
 const summary = reactive({
   totalHours: 0,
   avgHours: 0,
   activeMembers: 0,
-  workDays: 0
-})
+  workDays: 0,
+});
 
-const memberRanking = ref<any[]>([])
-const dailyTrend = ref<any[]>([])
-const taskDistribution = ref<any[]>([])
+const memberRanking = ref<any[]>([]);
+const dailyTrend = ref<any[]>([]);
+const taskDistribution = ref<DistItem[]>([]);
 
 const chartColors = [
-  '#1890ff', '#52c41a', '#faad14', '#f5222d', '#722ed1',
-  '#eb2f96', '#13c2c2', '#2f54eb', '#fa8c16', '#a0d911'
-]
+  "#1890ff",
+  "#52c41a",
+  "#faad14",
+  "#f5222d",
+  "#722ed1",
+  "#eb2f96",
+  "#13c2c2",
+  "#2f54eb",
+  "#fa8c16",
+  "#a0d911",
+];
+
+/** 顶部筛选：影响概览 / 排行 / 趋势 / 分布 */
+const filteredWorkHours = computed(() => {
+  let list = allProjectHours.value.filter(
+    (item) => item.recordType !== "LEAVE" && item.recordType !== 2
+  );
+  const [start, end] = dateRange.value || [];
+  if (start) {
+    list = list.filter((item) => item.workDate >= start);
+  }
+  if (end) {
+    list = list.filter((item) => item.workDate <= end);
+  }
+  if (selectedMemberId.value != null) {
+    list = list.filter(
+      (item) => Number(item.userId) === Number(selectedMemberId.value)
+    );
+  }
+  return list;
+});
+
+/** 明细表：成员沿用顶部筛选，日期用明细独立筛选 */
+const detailWorkHours = computed(() => {
+  let list = allProjectHours.value.filter(
+    (item) => item.recordType !== "LEAVE" && item.recordType !== 2
+  );
+  if (selectedMemberId.value != null) {
+    list = list.filter(
+      (item) => Number(item.userId) === Number(selectedMemberId.value)
+    );
+  }
+  const [start, end] = detailDateRange.value || [];
+  if (start) {
+    list = list.filter((item) => item.workDate >= start);
+  }
+  if (end) {
+    list = list.filter((item) => item.workDate <= end);
+  }
+  return list;
+});
+
+const pagedWorkHours = computed(() => {
+  const start = (pageNum.value - 1) * pageSize.value;
+  return detailWorkHours.value.slice(start, start + pageSize.value);
+});
 
 const maxHours = computed(() => {
-  return Math.max(...memberRanking.value.map(m => m.totalHours), 1)
-})
+  return Math.max(...memberRanking.value.map((m) => m.totalHours), 1);
+});
 
 const maxDailyHours = computed(() => {
-  return Math.max(...dailyTrend.value.map(d => d.hours), 1)
-})
+  return Math.max(...dailyTrend.value.map((d) => d.hours), 1);
+});
 
 const maxTaskHours = computed(() => {
-  return Math.max(...taskDistribution.value.map(t => t.totalHours), 1)
-})
+  const collect = (nodes: DistItem[]): number[] =>
+    nodes.flatMap((n) => [
+      n.totalHours,
+      ...(n.children ? collect(n.children) : []),
+    ]);
+  return Math.max(...collect(taskDistribution.value), 1);
+});
+
+const isDistExpanded = (taskId: number) => expandedDistIds.value.has(taskId);
+
+const toggleDistExpand = (taskId: number) => {
+  const next = new Set(expandedDistIds.value);
+  if (next.has(taskId)) next.delete(taskId);
+  else next.add(taskId);
+  expandedDistIds.value = next;
+};
 
 const fetchMembers = async () => {
   try {
-    const res = await getProjectMembers(props.projectId)
-    members.value = res || []
+    const res = await getProjectMembers(props.projectId);
+    members.value = res || [];
   } catch (error) {
-    console.error('获取成员列表失败:', error)
+    console.error("获取成员列表失败:", error);
   }
-}
+};
 
-const fetchWorkHours = async () => {
-  loading.value = true
+const fetchTasks = async () => {
   try {
-    const res = await getWorkHourList({
-      projectId: props.projectId,
-      userId: selectedMemberId.value,
-      startDate: dateRange.value?.[0],
-      endDate: dateRange.value?.[1],
-      pageNum: pageNum.value,
-      pageSize: pageSize.value
-    })
-    workHourList.value = res?.list || []
-    total.value = res?.total || 0
-    calculateStats()
+    const res = await getTasksByProjectId(props.projectId, 1, 1000);
+    const roots = res?.list || [];
+    projectTaskRoots.value = roots;
+    const flat: TaskInfo[] = [];
+    const walk = (list: TaskInfo[]) => {
+      list.forEach((t) => {
+        flat.push(t);
+        if (t.subtasks?.length) walk(t.subtasks);
+      });
+    };
+    walk(roots);
+    projectTasks.value = flat;
   } catch (error) {
-    console.error('获取工时数据失败:', error)
-    ElMessage.error('获取工时数据失败')
-  } finally {
-    loading.value = false
+    console.error("获取任务列表失败:", error);
+    projectTaskRoots.value = [];
+    projectTasks.value = [];
   }
-}
+};
+
+/** 拉取本项目全部成员工时（非 SELF 范围） */
+const fetchWorkHours = async () => {
+  try {
+    const res = await getWorkHoursByProjectId(props.projectId);
+    allProjectHours.value = res?.list || [];
+    calculateStats();
+  } catch (error) {
+    console.error("获取工时数据失败:", error);
+    ElMessage.error("获取工时数据失败");
+  }
+};
 
 const calculateStats = () => {
-  const list = workHourList.value
-  const workList = list.filter(item => item.recordType !== 'LEAVE' && item.recordType !== 2)
-  summary.totalHours = workList.reduce((sum, item) => sum + Number(item.hours || 0), 0)
+  const workList = filteredWorkHours.value;
+  summary.totalHours =
+    Math.round(
+      workList.reduce((sum, item) => sum + Number(item.hours || 0), 0) * 10
+    ) / 10;
 
-  const uniqueUsers = new Set(workList.map(item => item.userId))
-  summary.activeMembers = uniqueUsers.size
+  const uniqueUsers = new Set(workList.map((item) => item.userId));
+  summary.activeMembers = uniqueUsers.size;
 
-  const uniqueDates = new Set(workList.map(item => item.workDate))
-  summary.workDays = uniqueDates.size
+  const uniqueDates = new Set(workList.map((item) => item.workDate));
+  summary.workDays = uniqueDates.size;
 
-  summary.avgHours = summary.activeMembers > 0
-    ? Math.round(summary.totalHours / summary.activeMembers)
-    : 0
+  const memberDenom =
+    selectedMemberId.value != null
+      ? 1
+      : Math.max(members.value.length, summary.activeMembers, 1);
+  summary.avgHours = Math.round((summary.totalHours / memberDenom) * 10) / 10;
 
-  const memberMap = new Map<number, any>()
-  workList.forEach(item => {
-    if (!memberMap.has(item.userId)) {
-      memberMap.set(item.userId, {
-        userId: item.userId,
-        nickname: item.userName,
-        totalHours: 0,
-        taskCount: 0,
-        workDays: new Set<string>()
-      })
+  // 成员负责任务数（本项目任务 assignee）
+  const assignedTaskCount = new Map<number, number>();
+  projectTasks.value.forEach((t) => {
+    if (t.assigneeId == null) return;
+    assignedTaskCount.set(
+      t.assigneeId,
+      (assignedTaskCount.get(t.assigneeId) || 0) + 1
+    );
+  });
+
+  const hoursByUser = new Map<
+    number,
+    { totalHours: number; workDays: Set<string> }
+  >();
+  workList.forEach((item) => {
+    if (!hoursByUser.has(item.userId)) {
+      hoursByUser.set(item.userId, { totalHours: 0, workDays: new Set() });
     }
-    const member = memberMap.get(item.userId)!
-    member.totalHours += Number(item.hours || 0)
-    member.workDays.add(item.workDate)
-  })
+    const row = hoursByUser.get(item.userId)!;
+    row.totalHours += Number(item.hours || 0);
+    row.workDays.add(item.workDate);
+  });
 
-  const taskSet = new Map<number, Set<number>>()
-  workList.forEach(item => {
-    if (!item.taskId) return
-    if (!taskSet.has(item.userId)) {
-      taskSet.set(item.userId, new Set())
-    }
-    taskSet.get(item.userId)!.add(item.taskId)
-  })
+  const rankingSource =
+    selectedMemberId.value != null
+      ? members.value.filter(
+          (m) => Number(m.userId) === Number(selectedMemberId.value)
+        )
+      : members.value;
 
-  memberRanking.value = Array.from(memberMap.values())
-    .map(member => ({
-      ...member,
-      taskCount: taskSet.get(member.userId)?.size || 0,
-      workDays: member.workDays.size
-    }))
-    .sort((a, b) => b.totalHours - a.totalHours)
+  memberRanking.value = rankingSource
+    .map((m) => {
+      const agg = hoursByUser.get(m.userId);
+      return {
+        userId: m.userId,
+        nickname: m.nickname || `用户${m.userId}`,
+        totalHours: Math.round((agg?.totalHours || 0) * 10) / 10,
+        taskCount: assignedTaskCount.get(m.userId) || 0,
+        workDays: agg?.workDays.size || 0,
+      };
+    })
+    .sort((a, b) => b.totalHours - a.totalHours);
 
-  const dateMap = new Map<string, number>()
-  workList.forEach(item => {
-    const hours = dateMap.get(item.workDate) || 0
-    dateMap.set(item.workDate, hours + Number(item.hours || 0))
-  })
+  hoursByUser.forEach((agg, userId) => {
+    if (memberRanking.value.some((m) => Number(m.userId) === Number(userId)))
+      return;
+    if (
+      selectedMemberId.value != null &&
+      Number(userId) !== Number(selectedMemberId.value)
+    )
+      return;
+    const sample = workList.find((w) => Number(w.userId) === Number(userId));
+    memberRanking.value.push({
+      userId,
+      nickname: sample?.userName || `用户${userId}`,
+      totalHours: Math.round(agg.totalHours * 10) / 10,
+      taskCount: assignedTaskCount.get(userId) || 0,
+      workDays: agg.workDays.size,
+    });
+  });
+  memberRanking.value.sort((a, b) => b.totalHours - a.totalHours);
+
+  const dateMap = new Map<string, number>();
+  workList.forEach((item) => {
+    const hours = dateMap.get(item.workDate) || 0;
+    dateMap.set(item.workDate, hours + Number(item.hours || 0));
+  });
 
   dailyTrend.value = Array.from(dateMap.entries())
-    .map(([date, hours]) => ({ date, hours }))
+    .map(([date, hours]) => ({ date, hours: Math.round(hours * 10) / 10 }))
     .sort((a, b) => a.date.localeCompare(b.date))
-    .slice(-30)
+    .slice(-30);
 
-  const taskMap = new Map<number, any>()
-  workList.forEach(item => {
-    if (!item.taskId) return
-    if (!taskMap.has(item.taskId)) {
-      taskMap.set(item.taskId, {
-        taskId: item.taskId,
-        taskName: item.taskName || `任务 #${item.taskId}`,
-        totalHours: 0
-      })
+  // 任务工时分布：父子同卡；0h 按状态/预估标注
+  const hoursByTask = new Map<number, number>();
+  workList.forEach((item) => {
+    if (!item.taskId) return;
+    hoursByTask.set(
+      item.taskId,
+      (hoursByTask.get(item.taskId) || 0) + Number(item.hours || 0)
+    );
+  });
+
+  const formatEstimate = (hours: number | string | null | undefined) => {
+    if (hours == null || hours === "") return "";
+    const n = Number(hours);
+    if (Number.isNaN(n) || n <= 0) return "";
+    return `${Math.round(n * 10) / 10}h`;
+  };
+
+  const buildLeafLabel = (
+    t: TaskInfo,
+    selfHours: number
+  ): Pick<DistItem, "hoursLabel" | "labelType" | "totalHours"> => {
+    if (selfHours > 0) {
+      return {
+        totalHours: selfHours,
+        hoursLabel: `${selfHours}h`,
+        labelType: "hours",
+      };
     }
-    taskMap.get(item.taskId)!.totalHours += Number(item.hours || 0)
-  })
+    const done = t.status === "DONE" || t.status === "CLOSED";
+    if (done) {
+      return { totalHours: 0, hoursLabel: "完成", labelType: "done" };
+    }
+    const estimateText = formatEstimate(t.estimateHours);
+    if (estimateText) {
+      return {
+        totalHours: 0,
+        hoursLabel: `预估${estimateText}`,
+        labelType: "estimate",
+      };
+    }
+    return { totalHours: 0, hoursLabel: "需评估", labelType: "assess" };
+  };
 
-  taskDistribution.value = Array.from(taskMap.values())
-    .sort((a, b) => b.totalHours - a.totalHours)
-    .slice(0, 10)
-}
+  /** 父节点汇总标签：有实际工时优先；否则父子评估状态拼在一起 */
+  const buildParentLabel = (
+    t: TaskInfo,
+    selfHours: number,
+    children: DistItem[]
+  ): Pick<DistItem, "hoursLabel" | "labelType" | "totalHours"> => {
+    const childSum = children.reduce((s, c) => s + c.totalHours, 0);
+    const total = Math.round((selfHours + childSum) * 10) / 10;
+    if (total > 0) {
+      return { totalHours: total, hoursLabel: `${total}h`, labelType: "hours" };
+    }
+
+    const self = buildLeafLabel(t, 0);
+    const parts: string[] = [self.hoursLabel];
+    children.forEach((c) => {
+      if (!parts.includes(c.hoursLabel)) parts.push(c.hoursLabel);
+    });
+    const joined = parts.join(" / ");
+
+    const allDone =
+      self.labelType === "done" &&
+      children.every((c) => c.labelType === "done");
+    if (allDone) {
+      return { totalHours: 0, hoursLabel: "完成", labelType: "done" };
+    }
+    const hasEstimate =
+      self.labelType === "estimate" ||
+      children.some((c) => c.labelType === "estimate");
+    const hasAssess =
+      self.labelType === "assess" ||
+      children.some((c) => c.labelType === "assess");
+    if (hasEstimate && !hasAssess) {
+      return { totalHours: 0, hoursLabel: joined, labelType: "estimate" };
+    }
+    if (hasEstimate) {
+      // 预估与需评估同卡展示在一起
+      return { totalHours: 0, hoursLabel: joined, labelType: "estimate" };
+    }
+    if (hasAssess) {
+      return { totalHours: 0, hoursLabel: joined, labelType: "assess" };
+    }
+    return { totalHours: 0, hoursLabel: joined, labelType: self.labelType };
+  };
+
+  const buildNode = (t: TaskInfo): DistItem => {
+    const children = (t.subtasks || []).map(buildNode);
+    const selfHours = Math.round((hoursByTask.get(t.id) || 0) * 10) / 10;
+    if (children.length) {
+      const label = buildParentLabel(t, selfHours, children);
+      return {
+        taskId: t.id,
+        taskName: t.title,
+        children,
+        ...label,
+      };
+    }
+    const label = buildLeafLabel(t, selfHours);
+    return {
+      taskId: t.id,
+      taskName: t.title,
+      ...label,
+    };
+  };
+
+  const dist: DistItem[] = projectTaskRoots.value.map(buildNode);
+  const coveredIds = new Set<number>();
+  const mark = (nodes: DistItem[]) => {
+    nodes.forEach((n) => {
+      coveredIds.add(n.taskId);
+      if (n.children?.length) mark(n.children);
+    });
+  };
+  mark(dist);
+
+  // 工时指向已不在树中的任务时补齐为独立卡片
+  hoursByTask.forEach((hours, taskId) => {
+    if (coveredIds.has(Number(taskId))) return;
+    const total = Math.round(hours * 10) / 10;
+    if (total <= 0) return;
+    const sample = workList.find((w) => Number(w.taskId) === Number(taskId));
+    dist.push({
+      taskId,
+      taskName: sample?.taskName || `任务 #${taskId}`,
+      totalHours: total,
+      hoursLabel: `${total}h`,
+      labelType: "hours",
+    });
+  });
+
+  const typeRank = (t: DistLabelType) => {
+    if (t === "hours") return 0;
+    if (t === "estimate") return 1;
+    if (t === "assess") return 2;
+    return 3;
+  };
+  taskDistribution.value = dist
+    .sort(
+      (a, b) =>
+        b.totalHours - a.totalHours ||
+        typeRank(a.labelType) - typeRank(b.labelType) ||
+        a.taskName.localeCompare(b.taskName, "zh-CN")
+    )
+    .slice(0, 30);
+
+  // 默认展开带预估/需评估混合的父子卡，便于一眼看到评估时间
+  const nextExpanded = new Set<number>();
+  taskDistribution.value.forEach((item) => {
+    if (!item.children?.length) return;
+    const mixed = item.hoursLabel.includes("/");
+    if (
+      mixed ||
+      item.children.some(
+        (c) => c.labelType === "estimate" || c.labelType === "assess"
+      )
+    ) {
+      nextExpanded.add(item.taskId);
+    }
+  });
+  expandedDistIds.value = nextExpanded;
+};
 
 const handleFilterChange = () => {
-  pageNum.value = 1
-  fetchWorkHours()
-}
+  pageNum.value = 1;
+  calculateStats();
+};
+
+const handleDetailDateChange = () => {
+  pageNum.value = 1;
+};
+
+const handlePageChange = () => {
+  // 客户端分页，仅依赖 pageNum/pageSize
+};
 
 const formatTrendDate = (dateStr: string) => {
-  const date = new Date(dateStr)
-  return `${date.getMonth() + 1}/${date.getDate()}`
-}
+  const date = new Date(dateStr);
+  return `${date.getMonth() + 1}/${date.getDate()}`;
+};
 
 const getChartColor = (index: number) => {
-  return chartColors[index % chartColors.length]
-}
+  return chartColors[index % chartColors.length];
+};
 
 onMounted(async () => {
-  await fetchMembers()
-  await fetchWorkHours()
-})
+  loading.value = true;
+  try {
+    await Promise.all([fetchMembers(), fetchTasks(), fetchWorkHours()]);
+    calculateStats();
+  } finally {
+    loading.value = false;
+  }
+});
 </script>
 
 <style scoped>
 .workhour-stats {
   width: 100%;
   height: 100%;
+  min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
-  padding: 16px 20px 24px;
+  padding: 16px 20px 56px;
   box-sizing: border-box;
   background: #f5f7fa;
 }
@@ -425,6 +858,8 @@ onMounted(async () => {
 .workhour-stats-body {
   width: 100%;
   max-width: 100%;
+  padding-bottom: 24px;
+  box-sizing: border-box;
 }
 
 .loading-container {
@@ -439,12 +874,30 @@ onMounted(async () => {
   gap: 8px;
 }
 
+/* 覆盖全局 section-card height:100%，避免卡片被撑满视口产生大块空白 */
+.workhour-stats :deep(.section-card) {
+  height: auto;
+}
+
+.section-card--auto {
+  height: auto !important;
+}
+
 .charts-row {
   margin-bottom: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
 }
 
 .charts-row .el-col {
   margin-bottom: 16px;
+  display: flex;
+}
+
+.charts-row .el-col > .section-card {
+  width: 100%;
+  height: 100% !important;
 }
 
 .ranking-list {
@@ -589,52 +1042,172 @@ onMounted(async () => {
   font-size: 12px;
 }
 
-.distribution-chart {
+.wh-task-dist {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 4px;
 }
 
-.distribution-item {
-  padding: 12px;
+.wh-task-dist__card {
+  padding: 12px 14px;
   background: #f7f8fa;
+  border: 1px solid #eef0f3;
+  border-radius: 6px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.wh-task-dist__row {
+  cursor: default;
+}
+
+.wh-task-dist__card:has(.wh-task-dist__expand) .wh-task-dist__row {
+  cursor: pointer;
+}
+
+.wh-task-dist__info {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  gap: 8px;
+}
+
+.wh-task-dist__expand,
+.wh-task-dist__expand-placeholder {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #909399;
+  cursor: pointer;
   border-radius: 4px;
 }
 
-.distribution-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-  gap: 12px;
+.wh-task-dist__expand:hover {
+  background: #e8eaed;
+  color: #303133;
 }
 
-.task-name {
+.wh-task-dist__name {
+  flex: 1;
+  min-width: 0;
   font-size: 14px;
-  color: #333;
+  color: #303133;
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.task-hours {
-  font-size: 14px;
+.wh-task-dist__child-count {
   flex-shrink: 0;
+  font-size: 12px;
+  color: #909399;
+  background: #eef0f3;
+  border-radius: 10px;
+  padding: 1px 8px;
 }
 
-.distribution-bar {
+.wh-task-dist__hours {
+  flex-shrink: 0;
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1890ff;
+  max-width: 46%;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wh-task-dist__hours.label-estimate {
+  color: #303133;
+}
+
+.wh-task-dist__hours.label-assess {
+  color: #e6a23c;
+}
+
+.wh-task-dist__hours.label-done {
+  color: #67c23a;
+}
+
+.wh-task-dist__done-icon {
+  font-size: 16px;
+}
+
+.wh-task-dist__track {
   width: 100%;
   height: 8px;
-  background: #f0f0f0;
+  background: #e8eaed;
   border-radius: 4px;
   overflow: hidden;
 }
 
-.distribution-bar-fill {
+.wh-task-dist__fill {
   height: 100%;
+  min-width: 4px;
   border-radius: 4px;
-  transition: width 0.5s;
+  transition: width 0.35s ease;
+}
+
+.wh-task-dist__fill--done {
+  width: 100%;
+  min-width: 100%;
+  background: linear-gradient(90deg, #95d475 0%, #67c23a 100%);
+}
+
+.wh-task-dist__card.is-assess .wh-task-dist__track,
+.wh-task-dist__card.is-estimate > .wh-task-dist__row .wh-task-dist__track,
+.wh-task-dist__child.is-assess .wh-task-dist__track,
+.wh-task-dist__child.is-estimate .wh-task-dist__track {
+  background: #f0f2f5;
+}
+
+.wh-task-dist__children {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #e4e7ed;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.wh-task-dist__child {
+  padding-left: 4px;
+}
+
+.wh-task-dist__branch {
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+  margin-left: 4px;
+  border-left: 2px solid #dcdfe6;
+  border-bottom: 2px solid #dcdfe6;
+  border-radius: 0 0 0 3px;
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.wh-task-dist__child .wh-task-dist__name {
+  font-weight: 400;
+  color: #606266;
+}
+
+.wh-task-dist__child .wh-task-dist__info {
+  margin-bottom: 8px;
 }
 
 .user-cell {
@@ -648,6 +1221,30 @@ onMounted(async () => {
 }
 
 .hour-details {
+  margin-bottom: 8px;
+}
+
+.hour-details__header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.hour-details__header .section-title {
+  margin: 0;
+}
+
+/* daterange 默认约 350px；父级 flex 下还需压掉 min-width:auto，width 才会生效 */
+.hour-details__date-picker {
+  --el-date-editor-daterange-width: 150px;
+  width: 150px;
+  min-width: 150px;
+  flex-shrink: 0;
+}
+
+.workhour-stats-body > .section-card:last-child {
   margin-bottom: 0;
 }
 </style>

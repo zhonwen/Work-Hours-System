@@ -57,9 +57,10 @@
                 <span class="task-index" :class="{ 'is-subtask': row.isSubtask }">{{ row.indexLabel }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="标题" min-width="220" show-overflow-tooltip>
+            <el-table-column label="标题" min-width="240" show-overflow-tooltip>
               <template #default="{ row }">
                 <div class="task-title-cell" :class="{ 'is-subtask': row.isSubtask }">
+                  <span v-if="row.isSubtask" class="subtask-branch" aria-hidden="true" />
                   <span class="task-title-text" :title="row.title">{{ row.title }}</span>
                   <el-tag v-if="row.isSubtask" type="info" size="small" class="subtask-count-tag">子任务</el-tag>
                   <el-tag
@@ -82,7 +83,17 @@
             </el-table-column>
             <el-table-column label="预估工时" width="100" align="center">
               <template #default="{ row }">
-                {{ row.estimateHours != null ? row.estimateHours : '-' }}
+                <span :class="{ 'estimate-empty': row.estimateHours == null }">
+                  {{ formatEstimateHours(row.estimateHours) }}
+                </span>
+              </template>
+            </el-table-column>
+            <el-table-column label="计划时间" width="200" align="center">
+              <template #default="{ row }">
+                <span v-if="row.planStartDate || row.planEndDate" class="plan-date-text">
+                  {{ formatPlanRange(row.planStartDate, row.planEndDate) }}
+                </span>
+                <span v-else class="estimate-empty">-</span>
               </template>
             </el-table-column>
             <el-table-column prop="status" label="状态" width="100" align="center">
@@ -163,9 +174,16 @@
               <div class="section-label">工时</div>
               <div class="section-value">
                 <div class="hours-info">
-                  <span>预估：{{ selectedTask.estimateHours ?? '-' }}小时</span>
+                  <span>预估：{{ formatEstimateHours(selectedTask.estimateHours) }}小时</span>
                   <span>实际：{{ actualHours }}小时</span>
                 </div>
+              </div>
+            </div>
+
+            <div class="detail-section">
+              <div class="section-label">计划时间</div>
+              <div class="section-value">
+                {{ formatPlanRange(selectedTask.planStartDate, selectedTask.planEndDate) }}
               </div>
             </div>
 
@@ -592,8 +610,28 @@ const parentTaskOptions = computed(() => {
   })
 })
 
-const tableRowClassName = ({ row }: { row: TaskInfo }) =>
-  row.id === selectedTaskId.value ? 'is-selected-row' : ''
+const tableRowClassName = ({ row }: { row: TaskInfo & { isSubtask?: boolean } }) => {
+  const classes: string[] = []
+  if (row.id === selectedTaskId.value) classes.push('is-selected-row')
+  if (row.isSubtask) classes.push('is-subtask-row')
+  return classes.join(' ')
+}
+
+/** 预估工时展示（兼容 number / string） */
+const formatEstimateHours = (hours: number | string | null | undefined) => {
+  if (hours == null || hours === '') return '-'
+  const n = Number(hours)
+  if (Number.isNaN(n)) return '-'
+  return (Math.round(n * 10) / 10).toString()
+}
+
+/** 计划时间区间 */
+const formatPlanRange = (start?: string | null, end?: string | null) => {
+  if (!start && !end) return '-'
+  const s = start || '?'
+  const e = end || '?'
+  return s === e ? s : `${s} ~ ${e}`
+}
 
 /** 详情：父级任务 */
 const selectedParentTask = computed(() => {
@@ -1355,6 +1393,15 @@ onUnmounted(() => {
   line-height: 20px;
 }
 
+/* 树缩进落在首列时压缩占位，标题列自行缩进展示层级 */
+.tasks-table :deep(.expand-col .el-table__indent) {
+  padding-left: 0 !important;
+}
+
+.tasks-table :deep(.expand-col .el-table__placeholder) {
+  width: 0 !important;
+}
+
 .tasks-table :deep(.index-col .cell) {
   display: flex;
   align-items: center;
@@ -1394,12 +1441,38 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 
+/* 子任务：缩进 + 层级引导线 */
 .task-title-cell.is-subtask {
   color: #606266;
+  padding-left: 8px;
+}
+
+.subtask-branch {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  margin-right: 2px;
+  border-left: 2px solid #c0c4cc;
+  border-bottom: 2px solid #c0c4cc;
+  border-radius: 0 0 0 2px;
+  box-sizing: border-box;
+}
+
+:deep(.tasks-table .is-subtask-row > td.el-table__cell) {
+  background-color: #fafbfc;
 }
 
 :deep(.tasks-table .is-selected-row > td.el-table__cell) {
   background-color: #ecf5ff !important;
+}
+
+.estimate-empty {
+  color: #c0c4cc;
+}
+
+.plan-date-text {
+  font-size: 13px;
+  color: #606266;
 }
 
 .relation-card {

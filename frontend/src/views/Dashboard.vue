@@ -263,6 +263,18 @@
                   </div>
                 </template>
               </el-table-column>
+              <el-table-column label="预估" width="88">
+                <template #default="{ row }">
+                  {{ formatEstimateHours(row.estimateHours) }}
+                </template>
+              </el-table-column>
+              <el-table-column label="实际工时" width="110">
+                <template #default="{ row }">
+                  <span :class="{ 'quick-fix-label': isQuickFixTask(row) }">
+                    {{ formatActualHours(row) }}
+                  </span>
+                </template>
+              </el-table-column>
               <el-table-column label="任务内容" min-width="180" show-overflow-tooltip>
                 <template #default="{ row }">
                   {{ row.description || '-' }}
@@ -391,6 +403,8 @@ type DashboardTaskNode = {
   planEndDate?: string
   actualEndDate?: string
   parentId?: number | null
+  estimateHours?: number | null
+  actualHours?: number
   subtasks?: DashboardTaskNode[]
 }
 
@@ -462,6 +476,8 @@ const buildTreeTasks = (tasks: DashboardTaskNode[], projectFilter?: number) => {
           projectId: child.projectId,
           planEndDate: child.planEndDate,
           actualEndDate: child.actualEndDate,
+          estimateHours: child.estimateHours,
+          actualHours: child.actualHours,
           isSubtask: true,
           indexLabel: `${parentIndex}.${childIdx + 1}`
         }))
@@ -476,6 +492,8 @@ const buildTreeTasks = (tasks: DashboardTaskNode[], projectFilter?: number) => {
       projectId: task.projectId,
       planEndDate: task.planEndDate,
       actualEndDate: task.actualEndDate,
+      estimateHours: task.estimateHours,
+      actualHours: task.actualHours,
       isSubtask: false,
       subtaskCount: subtasks.length || undefined,
       indexLabel: String(parentIndex),
@@ -578,6 +596,33 @@ const formatCompletedDate = (dateStr?: string): string => {
   const date = new Date(dateStr)
   if (Number.isNaN(date.getTime())) return '-'
   return `${date.getMonth() + 1}/${date.getDate()}`
+}
+
+/** 预估工时：任务创建时填写的 estimateHours，未填显示 -- */
+const formatEstimateHours = (estimateHours?: number | string | null) => {
+  if (estimateHours == null || estimateHours === '') return '--'
+  const hours = Number(estimateHours)
+  if (!Number.isFinite(hours) || hours <= 0) return '--'
+  return Number.isInteger(hours) ? `${hours} 小时` : `${hours} 小时`
+}
+
+/** 实际工时：关联工时记录合计；已完成且未填则标为快速修复 */
+const getActualHours = (row: { actualHours?: number | string | null }) => {
+  const hours = Number(row.actualHours ?? 0)
+  return Number.isFinite(hours) ? hours : 0
+}
+
+const isQuickFixTask = (row: { actualHours?: number | string | null; status?: string }) => {
+  return getActualHours(row) <= 0 && row.status === 'DONE'
+}
+
+const formatActualHours = (row: { actualHours?: number | string | null; status?: string }) => {
+  const hours = getActualHours(row)
+  if (hours > 0) {
+    return Number.isInteger(hours) ? `${hours} 小时` : `${hours} 小时`
+  }
+  if (row.status === 'DONE') return '快速修复'
+  return '--'
 }
 
 // 获取截止日期样式类
@@ -734,5 +779,9 @@ onMounted(() => {
 
 .task-title-cell.is-subtask {
   color: #606266;
+}
+
+.quick-fix-label {
+  color: #e6a23c;
 }
 </style>

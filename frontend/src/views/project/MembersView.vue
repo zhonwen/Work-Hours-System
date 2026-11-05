@@ -1,44 +1,51 @@
 <template>
   <div class="members-view">
-    <!-- 工具栏 -->
-    <div class="toolbar">
-      <div class="toolbar-left">
-        <el-input
-          v-model="searchForm.keyword"
-          class="toolbar-search"
-          placeholder="搜索成员姓名"
-          :prefix-icon="Search"
-          clearable
-          @input="handleSearch"
-        />
-        <el-select
-          v-model="searchForm.roleType"
-          class="toolbar-select"
-          placeholder="按角色筛选"
-          clearable
-          @change="handleSearch"
-        >
-          <el-option label="项目管理员" :value="1" />
-          <el-option label="普通成员" :value="2" />
-          <el-option label="只读访客" :value="3" />
-        </el-select>
-        <el-select
-          v-model="searchForm.sortBy"
-          class="toolbar-select"
-          placeholder="排序方式"
-          @change="handleSort"
-        >
-          <el-option label="默认排序" value="" />
-          <el-option label="任务数量" value="taskCount" />
-          <el-option label="工时总数" value="totalHours" />
-        </el-select>
-      </div>
-      <div class="toolbar-right">
-        <el-button type="primary" :icon="Plus" @click="handleAddMember">
-          添加成员
-        </el-button>
-      </div>
-    </div>
+    <!-- 搜索筛选：对齐全局 search-form -->
+    <el-card class="search-card" shadow="never">
+      <el-form :inline="true" class="search-form">
+        <el-form-item>
+          <el-input
+            v-model="searchForm.keyword"
+            placeholder="搜索成员姓名"
+            :prefix-icon="Search"
+            clearable
+            style="width: 220px"
+            @input="handleSearch"
+          />
+        </el-form-item>
+        <el-form-item>
+          <el-select
+            v-model="searchForm.roleType"
+            placeholder="按角色筛选"
+            clearable
+            style="width: 148px"
+            @change="handleSearch"
+          >
+            <el-option label="项目管理员" :value="1" />
+            <el-option label="普通成员" :value="2" />
+            <el-option label="只读访客" :value="3" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-select
+            v-model="searchForm.sortBy"
+            placeholder="排序方式"
+            clearable
+            style="width: 148px"
+            @change="handleSort"
+          >
+            <el-option label="默认排序" value="" />
+            <el-option label="任务数量" value="taskCount" />
+            <el-option label="工时总数" value="totalHours" />
+          </el-select>
+        </el-form-item>
+        <el-form-item class="search-form-actions">
+          <el-button type="primary" :icon="Plus" @click="handleAddMember">
+            添加成员
+          </el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
 
     <!-- 成员网格 -->
     <div v-loading="loading" class="members-grid">
@@ -57,9 +64,14 @@
             <div class="member-name">{{ member.nickname }}</div>
             <div class="member-email">{{ member.email || '无邮箱' }}</div>
           </div>
-          <el-tag :type="getRoleType(member.roleType)" size="small">
-            {{ member.roleName }}
-          </el-tag>
+          <div class="member-tags">
+            <el-tag v-if="isProjectOwner(member)" type="warning" size="small" effect="plain">
+              负责人
+            </el-tag>
+            <el-tag :type="getRoleType(member.roleType)" size="small">
+              {{ member.roleName }}
+            </el-tag>
+          </div>
         </div>
 
         <!-- 统计数据 -->
@@ -313,14 +325,19 @@ import {
   Plus,
   ArrowDown
 } from '@element-plus/icons-vue'
-import { getProjectMembers, addProjectMember, removeProjectMember } from '@/api/project'
+import {
+  getProjectMembers,
+  addProjectMember,
+  removeProjectMember,
+  getProjectMemberStats
+} from '@/api/project'
 import { getTasksByProjectId, type TaskInfo } from '@/api/task'
-import { getUserWorkHourStatistics } from '@/api/workhour'
 import { getAllUsers, type UserInfo } from '@/api/user'
 
 // Props
 const props = defineProps<{
   projectId: number
+  managerId?: number
 }>()
 
 // Emits
@@ -367,11 +384,38 @@ const roleFormData = ref({
   roleType: 2
 })
 
-// 过滤后的成员列表
+const isProjectOwner = (member: { userId: number }) => {
+  return props.managerId != null && Number(member.userId) === Number(props.managerId)
+}
+
+/** 负责人始终靠前，其余再按所选规则排序 */
+const compareMembers = (a: any, b: any) => {
+  const aOwner = isProjectOwner(a) ? 0 : 1
+  const bOwner = isProjectOwner(b) ? 0 : 1
+  if (aOwner !== bOwner) return aOwner - bOwner
+
+  if (searchForm.sortBy === 'taskCount') {
+    return getMemberTaskCount(b.userId) - getMemberTaskCount(a.userId)
+  }
+  if (searchForm.sortBy === 'totalHours') {
+    return getMemberTotalHours(b.userId) - getMemberTotalHours(a.userId)
+  }
+  // 默认：负责人 → 项目管理员 → 普通成员 → 访客，同角色按姓名
+  const roleOrder = (roleType?: number) => {
+    if (roleType === 1) return 0
+    if (roleType === 2) return 1
+    if (roleType === 3) return 2
+    return 9
+  }
+  const roleDiff = roleOrder(a.roleType) - roleOrder(b.roleType)
+  if (roleDiff !== 0) return roleDiff
+  return String(a.nickname || '').localeCompare(String(b.nickname || ''), 'zh-CN')
+}
+
+// 过滤后的成员列表（负责人固定首位）
 const filteredMembers = computed(() => {
   let result = [...members.value]
 
-  // 关键词搜索
   if (searchForm.keyword) {
     const keyword = searchForm.keyword.toLowerCase()
     result = result.filter(m =>
@@ -380,18 +424,11 @@ const filteredMembers = computed(() => {
     )
   }
 
-  // 角色筛选
   if (searchForm.roleType !== undefined) {
     result = result.filter(m => m.roleType === searchForm.roleType)
   }
 
-  // 排序
-  if (searchForm.sortBy === 'taskCount') {
-    result.sort((a, b) => getMemberTaskCount(b.userId) - getMemberTaskCount(a.userId))
-  } else if (searchForm.sortBy === 'totalHours') {
-    result.sort((a, b) => getMemberTotalHours(b.userId) - getMemberTotalHours(a.userId))
-  }
-
+  result.sort(compareMembers)
   return result
 })
 
@@ -425,50 +462,33 @@ const fetchAvailableUsers = async () => {
   }
 }
 
-// 计算成员统计数据
+// 计算成员统计数据（工时仅统计本项目）
 const calculateMemberStats = async () => {
   const stats: Record<number, any> = {}
-  const now = new Date()
-  const weekStart = new Date(now)
-  weekStart.setDate(now.getDate() - now.getDay())
-  weekStart.setHours(0, 0, 0, 0)
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
 
   for (const member of members.value) {
     const userId = member.userId
-
-    // 获取任务统计
     const memberTasks = tasks.value.filter(t => t.assigneeId === userId)
     const completedTasks = memberTasks.filter(t => t.status === 'DONE')
 
     stats[userId] = {
       taskCount: memberTasks.length,
-      completedCount: completedTasks.length
+      completedCount: completedTasks.length,
+      totalHours: 0,
+      weekHours: 0,
+      monthHours: 0
     }
 
-    // 获取工时统计
     try {
-      const totalRes = await getUserWorkHourStatistics(userId)
-      stats[userId].totalHours = totalRes.totalHours || 0
-
-      const weekRes = await getUserWorkHourStatistics(
-        userId,
-        weekStart.toISOString().split('T')[0],
-        now.toISOString().split('T')[0]
-      )
-      stats[userId].weekHours = weekRes.totalHours || 0
-
-      const monthRes = await getUserWorkHourStatistics(
-        userId,
-        monthStart.toISOString().split('T')[0],
-        now.toISOString().split('T')[0]
-      )
-      stats[userId].monthHours = monthRes.totalHours || 0
+      const res = await getProjectMemberStats(props.projectId, userId)
+      stats[userId].totalHours = Number(res?.totalHours || 0)
+      stats[userId].weekHours = Number(res?.weekHours || 0)
+      stats[userId].monthHours = Number(res?.monthHours || 0)
+      // 后端已按项目过滤任务数，优先采用
+      if (res?.totalTasks != null) stats[userId].taskCount = res.totalTasks
+      if (res?.completedTasks != null) stats[userId].completedCount = res.completedTasks
     } catch (error) {
-      console.error(`获取成员 ${userId} 工时统计失败:`, error)
-      stats[userId].totalHours = 0
-      stats[userId].weekHours = 0
-      stats[userId].monthHours = 0
+      console.error(`获取成员 ${userId} 本项目工时统计失败:`, error)
     }
   }
 
@@ -725,37 +745,32 @@ onMounted(async () => {
   flex-direction: column;
   min-height: 0;
   background: transparent;
-  padding: 0;
+  padding: 16px 20px 24px;
+  box-sizing: border-box;
 }
 
-/* 工具栏：筛选左聚拢，操作右对齐，避免中间大块空白 */
-.toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  padding: 12px 16px;
-  background: #fff;
-  border: 1px solid #f0f0f0;
-  border-radius: 8px;
+.members-view .search-card {
   margin-bottom: 16px;
 }
 
-.toolbar-left,
-.toolbar-right {
+.members-view .search-form {
+  width: 100%;
   display: flex;
-  align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
+  align-items: center;
 }
 
-.toolbar-search {
-  width: 220px;
+.members-view .search-form-actions {
+  margin-left: auto;
+  margin-right: 0 !important;
 }
 
-.toolbar-select {
-  width: 148px;
+.member-tags {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 /* 成员网格：顶对齐，避免矮卡片被撑出底部空白 */

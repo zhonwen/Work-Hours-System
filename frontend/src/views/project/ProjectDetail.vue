@@ -17,7 +17,7 @@
             :key="tab.key"
             class="module-tab"
             :class="{ active: activeModule === tab.key }"
-            @click="activeModule = tab.key"
+            @click="switchModule(tab.key)"
           >
             <span>{{ tab.label }}</span>
           </div>
@@ -30,45 +30,39 @@
       </div>
     </div>
 
-    <!-- 内容区域（根据模块标签显示不同内容） -->
+    <!-- 内容区域：keep-alive 保活 + ?tab= 刷新不丢当前模块 -->
     <div class="content-area">
-      <transition name="module-fade" mode="out-in">
-        <!-- 项目概览（新增） -->
-        <div v-if="activeModule === 'overview'" key="overview" class="module-content">
-          <ProjectOverview
-            :project-id="projectId"
-            @navigate-members="activeModule = 'member'"
-          />
-        </div>
-
-        <!-- TODO[迭代/需求规划]: 需求管理（PlanningView）后续开放
-        <div v-else-if="activeModule === 'planning'" key="planning" class="module-content">
-          <PlanningView ... />
-        </div>
-        -->
-
-        <!-- 任务执行：直接传统列表视图 -->
-        <div v-else-if="activeModule === 'tasks'" key="tasks" class="module-content">
-          <TasksView
-            ref="tasksViewRef"
-            :project-id="projectId"
-          />
-        </div>
-
-        <!-- 工时统计（新增） -->
-        <div v-else-if="activeModule === 'workhours'" key="workhours" class="module-content">
-          <WorkHourStats :project-id="projectId" />
-        </div>
-
-        <!-- 团队协作 -->
-        <div v-else-if="activeModule === 'member'" key="member" class="module-content">
-          <MembersView
-            ref="membersViewRef"
-            :project-id="projectId"
-            @refresh="fetchMembers"
-          />
-        </div>
-      </transition>
+      <keep-alive>
+        <ProjectOverview
+          v-if="activeModule === 'overview'"
+          key="overview"
+          class="module-content"
+          :project-id="projectId"
+          @navigate-members="switchModule('member')"
+        />
+        <TasksView
+          v-else-if="activeModule === 'tasks'"
+          key="tasks"
+          class="module-content"
+          ref="tasksViewRef"
+          :project-id="projectId"
+        />
+        <WorkHourStats
+          v-else-if="activeModule === 'workhours'"
+          key="workhours"
+          class="module-content"
+          :project-id="projectId"
+        />
+        <MembersView
+          v-else-if="activeModule === 'member'"
+          key="member"
+          class="module-content"
+          ref="membersViewRef"
+          :project-id="projectId"
+          :manager-id="project?.managerId"
+          @refresh="fetchMembers"
+        />
+      </keep-alive>
     </div>
 
     <!-- 编辑项目对话框 -->
@@ -293,7 +287,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import {
@@ -342,20 +336,8 @@ const projectId = computed(() => Number(route.params.id))
 // 当前激活的标签页（默认显示工作项列表，符合"工作项为核心"理念）
 const activeTab = ref('workItems')
 
-// 当前激活的模块标签（默认显示项目概览）
-const activeModule = ref('overview')
-
-// TODO[迭代]: 任务视图切换 / 迭代筛选 — 后续开放
-// const taskViewMode = ref<'kanban-table' | 'traditional'>('traditional')
-// const selectedIterationId = ref<number | undefined>(undefined)
-
-// RequirementsView 组件引用
+// RequirementsView / DefectsView 引用（历史逻辑仍可能调用 refresh）
 const planningViewRef = ref<InstanceType<typeof PlanningView>>()
-
-// 重复声明已删除
-
-
-// DefectsView 组件引用
 const defectsViewRef = ref<InstanceType<typeof DefectsView>>()
 
 // MembersView 组件引用
@@ -369,6 +351,37 @@ const moduleTabs = [
   { key: 'workhours', label: '工时统计' },
   { key: 'member', label: '团队协作' }
 ]
+
+const MODULE_KEYS = new Set(moduleTabs.map(t => t.key))
+
+/** 从 URL ?tab= 恢复模块；非法值回落到 overview */
+const resolveModuleFromQuery = (tab: unknown): string => {
+  const key = typeof tab === 'string' ? tab : ''
+  return MODULE_KEYS.has(key) ? key : 'overview'
+}
+
+const activeModule = ref(resolveModuleFromQuery(route.query.tab))
+
+const switchModule = (key: string) => {
+  if (!MODULE_KEYS.has(key) || activeModule.value === key) return
+  activeModule.value = key
+  router.replace({
+    query: {
+      ...route.query,
+      tab: key === 'overview' ? undefined : key
+    }
+  })
+}
+
+watch(
+  () => route.query.tab,
+  (tab) => {
+    const next = resolveModuleFromQuery(tab)
+    if (next !== activeModule.value) {
+      activeModule.value = next
+    }
+  }
+)
 
 // ONES 风格：当前视图标签
 const currentViewTab = ref('kanban')
@@ -1079,9 +1092,21 @@ onMounted(() => {
 
 .module-content {
   height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* 工时统计：模块自身滚动，避免底部内容被 overflow:hidden 裁切 */
+.module-content.workhour-stats,
+.content-area > .workhour-stats {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
 }
 
 /* 视图切换器 */
