@@ -9,7 +9,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import org.springframework.format.annotation.DateTimeFormat;
 
 import javax.validation.constraints.NotBlank;
-import javax.validation.constraints.NotNull;
 import javax.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -19,8 +18,7 @@ import java.time.LocalDate;
  */
 public abstract class TaskBaseReq {
     
-    @NotNull(message = "项目ID不能为空")
-    @Schema(description = "项目ID", example = "1")
+    @Schema(description = "项目ID（创建必填，更新可选）", example = "1")
     private Long projectId;
 
     @Schema(description = "迭代ID", example = "1")

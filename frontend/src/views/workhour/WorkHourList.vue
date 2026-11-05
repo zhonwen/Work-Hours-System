@@ -130,6 +130,16 @@
     <el-card class="table-card">
       <el-table :data="workHourList" stripe v-loading="loading" border>
         <el-table-column prop="id" label="ID" width="80" />
+        <el-table-column
+          v-if="showUserColumn"
+          label="人员"
+          min-width="120"
+          show-overflow-tooltip
+        >
+          <template #default="{ row }">
+            {{ row.userName || '-' }}
+          </template>
+        </el-table-column>
         <el-table-column label="工作日期" width="120">
           <template #default="{ row }">
             {{ row.workDate }}
@@ -293,6 +303,11 @@ const queryForm = reactive({
   startDate: undefined as string | undefined,
   endDate: undefined as string | undefined
 })
+
+/** 查看全部或指定他人时显示「人员」列，避免缺主语 */
+const showUserColumn = computed(
+  () => canViewAllWorkHours.value && queryForm.viewScope !== 'SELF'
+)
 
 // 日期范围
 const dateRange = ref<[string, string] | null>(null)

@@ -127,17 +127,17 @@ public class ProjectServiceImpl implements ProjectService {
     public ProjectInfoResp create(ProjectCreateReq createReq) {
         Long currentUserId = UserContext.getCurrentUserId();
 
-        // 检查当前用户是否具有 PROJECT_MANAGER 角色
-        if (!authService.hasRole(currentUserId, "PROJECT_MANAGER")) {
+        // 系统管理员或项目经理可创建项目
+        if (!canManageProjects(currentUserId)) {
             throw new BusinessException(ProjectErrorCode.NOT_PROJECT_MANAGER);
         }
 
         // DTO转Entity
         Project project = ProjectConverter.toProject(createReq);
 
-        // 检查项目的 managerId 是否具有 PROJECT_MANAGER 角色
+        // 项目负责人须为系统管理员或项目经理
         Long managerId = project.getManagerId();
-        if (managerId != null && !authService.hasRole(managerId, "PROJECT_MANAGER")) {
+        if (managerId != null && !canManageProjects(managerId)) {
             throw new BusinessException(ProjectErrorCode.PROJECT_MANAGER_NOT_QUALIFIED);
         }
 
@@ -364,5 +364,11 @@ public class ProjectServiceImpl implements ProjectService {
         log.info("生成项目编码: 前缀={}, 最大编号={}, 新编码={}", prefix, maxNumber, generatedCode);
 
         return generatedCode;
+    }
+
+    /** 系统管理员或项目经理可创建/担任项目负责人 */
+    private boolean canManageProjects(Long userId) {
+        return authService.hasRole(userId, "SYS_ADMIN")
+                || authService.hasRole(userId, "PROJECT_MANAGER");
     }
 }

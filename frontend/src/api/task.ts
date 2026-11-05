@@ -22,6 +22,10 @@ export interface TaskInfo {
   estimateHours?: number
   createTime?: string
   updateTime?: string
+  createUserId?: number
+  createUserName?: string
+  updateUserId?: number
+  updateUserName?: string
   subtasks?: TaskInfo[]
   // 缺陷特有字段
   severity?: string  // 严重程度：TRIVIAL, MINOR, MAJOR, CRITICAL, BLOCKER
@@ -87,12 +91,17 @@ export interface TaskUpdateReq {
   iterationId?: number
   parentId?: number
   assigneeId?: number
-  priority?: number
-  status?: number
+  type?: string
+  priority?: string
+  status?: string
   planStartDate?: string
   planEndDate?: string
   actualStartDate?: string
   actualEndDate?: string
+  estimateHours?: number
+  severity?: string
+  reproductionSteps?: string
+  fixVersion?: string
 }
 
 export const updateTask = (data: TaskUpdateReq) => {

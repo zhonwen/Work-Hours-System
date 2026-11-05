@@ -25,13 +25,6 @@ public interface OperationLogMapper extends BaseMapper<OperationLog> {
 
     /**
      * 根据条件查询操作日志
-     * @param username 操作人用户名
-     * @param module 操作模块
-     * @param operationType 操作类型
-     * @param status 操作状态
-     * @param startTime 开始时间
-     * @param endTime 结束时间
-     * @return 操作日志列表
      */
     List<OperationLog> findByCondition(
             @Param("username") String username,
@@ -39,7 +32,9 @@ public interface OperationLogMapper extends BaseMapper<OperationLog> {
             @Param("operationType") OperationType operationType,
             @Param("status") OperationStatus status,
             @Param("startTime") String startTime,
-            @Param("endTime") String endTime
+            @Param("endTime") String endTime,
+            @Param("businessType") String businessType,
+            @Param("businessId") Long businessId
     );
 
     /**

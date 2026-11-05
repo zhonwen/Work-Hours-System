@@ -4,6 +4,7 @@
     <resultMap id="WorkHourResultMap" type="com.gsms.gsms.model.entity.WorkHour">
         <id column="id" property="id"/>
         <result column="user_id" property="userId"/>
+        <result column="user_name" property="userName"/>
         <result column="project_id" property="projectId"/>
         <result column="project_name" property="projectName"/>
         <result column="task_id" property="taskId"/>
@@ -19,14 +20,24 @@
                 typeHandler="com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler"/>
         <result column="create_user_id" property="createUserId"/>
         <result column="update_user_id" property="updateUserId"/>
+        <result column="create_time" property="createTime"/>
         <result column="update_time" property="updateTime"/>
         <result column="is_deleted" property="isDeleted"/>
     </resultMap>
 
     <sql id="selectAllFieldsWithJoins">
-        wh.id, wh.user_id, wh.project_id, p.name as project_name, wh.task_id, t.title as task_name,
+        wh.id, wh.user_id,
+        COALESCE(NULLIF(u.nickname, ''), u.username) as user_name,
+        wh.project_id, p.name as project_name, wh.task_id, t.title as task_name,
         wh.work_date, wh.hours, wh.content, wh.record_type, wh.leave_type_id, lt.name as leave_type_name,
         wh.status, wh.create_user_id, wh.update_user_id, wh.create_time, wh.update_time, wh.is_deleted
+    </sql>
+
+    <sql id="workHourJoins">
+        LEFT JOIN sys_user u ON wh.user_id = u.id AND u.is_deleted = 0
+        LEFT JOIN gsms_project p ON wh.project_id = p.id AND p.is_deleted = 0
+        LEFT JOIN gsms_task t ON wh.task_id = t.id AND t.is_deleted = 0
+        LEFT JOIN gsms_leave_type lt ON wh.leave_type_id = lt.id AND lt.is_deleted = 0
     </sql>
 
     <!-- 请假记录无项目；正常工时需项目未删除 -->
@@ -41,9 +52,7 @@
     <select id="selectById" parameterType="long" resultMap="WorkHourResultMap">
         SELECT <include refid="selectAllFieldsWithJoins"/>
         FROM gsms_work_hour wh
-        LEFT JOIN gsms_project p ON wh.project_id = p.id AND p.is_deleted = 0
-        LEFT JOIN gsms_task t ON wh.task_id = t.id AND t.is_deleted = 0
-        LEFT JOIN gsms_leave_type lt ON wh.leave_type_id = lt.id AND lt.is_deleted = 0
+        <include refid="workHourJoins"/>
         WHERE wh.id = #{id}
         <include refid="visibleWorkHourFilter"/>
     </select>
@@ -51,9 +60,7 @@
     <select id="selectByUserId" parameterType="long" resultMap="WorkHourResultMap">
         SELECT <include refid="selectAllFieldsWithJoins"/>
         FROM gsms_work_hour wh
-        LEFT JOIN gsms_project p ON wh.project_id = p.id AND p.is_deleted = 0
-        LEFT JOIN gsms_task t ON wh.task_id = t.id AND t.is_deleted = 0
-        LEFT JOIN gsms_leave_type lt ON wh.leave_type_id = lt.id AND lt.is_deleted = 0
+        <include refid="workHourJoins"/>
         WHERE wh.user_id = #{userId}
         <include refid="visibleWorkHourFilter"/>
         ORDER BY wh.work_date DESC, wh.create_time DESC
@@ -62,9 +69,7 @@
     <select id="selectByProjectId" parameterType="long" resultMap="WorkHourResultMap">
         SELECT <include refid="selectAllFieldsWithJoins"/>
         FROM gsms_work_hour wh
-        LEFT JOIN gsms_project p ON wh.project_id = p.id AND p.is_deleted = 0
-        LEFT JOIN gsms_task t ON wh.task_id = t.id AND t.is_deleted = 0
-        LEFT JOIN gsms_leave_type lt ON wh.leave_type_id = lt.id AND lt.is_deleted = 0
+        <include refid="workHourJoins"/>
         WHERE wh.project_id = #{projectId}
           AND wh.record_type = 1
         <include refid="visibleWorkHourFilter"/>
@@ -74,9 +79,7 @@
     <select id="selectByTaskId" parameterType="long" resultMap="WorkHourResultMap">
         SELECT <include refid="selectAllFieldsWithJoins"/>
         FROM gsms_work_hour wh
-        LEFT JOIN gsms_project p ON wh.project_id = p.id AND p.is_deleted = 0
-        LEFT JOIN gsms_task t ON wh.task_id = t.id AND t.is_deleted = 0
-        LEFT JOIN gsms_leave_type lt ON wh.leave_type_id = lt.id AND lt.is_deleted = 0
+        <include refid="workHourJoins"/>
         WHERE wh.task_id = #{taskId}
         <include refid="visibleWorkHourFilter"/>
         ORDER BY wh.work_date DESC, wh.create_time DESC
@@ -85,9 +88,7 @@
     <select id="selectByCondition" resultMap="WorkHourResultMap">
         SELECT <include refid="selectAllFieldsWithJoins"/>
         FROM gsms_work_hour wh
-        LEFT JOIN gsms_project p ON wh.project_id = p.id AND p.is_deleted = 0
-        LEFT JOIN gsms_task t ON wh.task_id = t.id AND t.is_deleted = 0
-        LEFT JOIN gsms_leave_type lt ON wh.leave_type_id = lt.id AND lt.is_deleted = 0
+        <include refid="workHourJoins"/>
         <where>
             <if test="userId != null">
                 AND wh.user_id = #{userId}

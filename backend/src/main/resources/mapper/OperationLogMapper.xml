@@ -61,6 +61,12 @@
             <if test="endTime != null and endTime != ''">
                 AND operation_time &lt;= #{endTime}
             </if>
+            <if test="businessType != null and businessType != ''">
+                AND business_type = #{businessType}
+            </if>
+            <if test="businessId != null">
+                AND business_id = #{businessId}
+            </if>
         </where>
         ORDER BY operation_time DESC
     </select>

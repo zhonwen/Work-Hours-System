@@ -203,10 +203,10 @@
           <el-collapse-item name="creator" title="创建信息">
             <el-descriptions :column="2" border>
               <el-descriptions-item label="创建人">
-                {{ workItem?.createUserName }}
+                {{ workItem?.createUserName || '-' }}
               </el-descriptions-item>
               <el-descriptions-item label="更新人">
-                {{ workItem?.updateUserName }}
+                {{ workItem?.updateUserName || '-' }}
               </el-descriptions-item>
             </el-descriptions>
           </el-collapse-item>
@@ -428,9 +428,9 @@
               <el-select v-model="editFormData.assigneeId" placeholder="请选择负责人" clearable filterable style="width: 100%">
                 <el-option
                   v-for="user in projectMembers"
-                  :key="user.id"
+                  :key="user.userId"
                   :label="user.nickname"
-                  :value="user.id"
+                  :value="user.userId"
                 />
               </el-select>
             </el-form-item>
@@ -662,7 +662,11 @@ const fetchProjectMembers = async () => {
 
   try {
     const res = await getProjectMembers(projectId.value)
-    projectMembers.value = res || []
+    // 成员接口：id=成员表主键，userId=用户ID；负责人必须传 userId
+    projectMembers.value = (res || []).map((m: any) => ({
+      userId: m.userId,
+      nickname: m.nickname
+    }))
   } catch (error) {
     console.error('获取项目成员失败:', error)
   }
@@ -908,15 +912,19 @@ const handleReopenTask = async () => {
 }
 
 // 编辑工作项
-const handleEdit = () => {
+const handleEdit = async () => {
   if (!workItem.value) return
+
+  if (!projectMembers.value.length) {
+    await fetchProjectMembers()
+  }
 
   editFormData.title = workItem.value.title
   editFormData.description = workItem.value.description || ''
-  editFormData.type = workItem.value.type || ''
-  editFormData.priority = workItem.value.priority || ''
+  editFormData.type = workItem.value.type || 'TASK'
+  editFormData.priority = workItem.value.priority || 'MEDIUM'
   editFormData.assigneeId = workItem.value.assigneeId
-  editFormData.status = workItem.value.status || ''
+  editFormData.status = workItem.value.status || 'TODO'
   editFormData.planStartDate = workItem.value.planStartDate || ''
   editFormData.planEndDate = workItem.value.planEndDate || ''
   editFormData.estimateHours = workItem.value.estimateHours || 0
@@ -937,18 +945,19 @@ const handleEditSubmit = async () => {
       try {
         await updateTask({
           id: workItemId.value,
+          projectId: workItem.value?.projectId || projectId.value,
           title: editFormData.title,
           description: editFormData.description,
-          type: editFormData.type,
-          priority: editFormData.priority,
+          type: editFormData.type || undefined,
+          priority: editFormData.priority || undefined,
           assigneeId: editFormData.assigneeId,
-          status: editFormData.status,
-          planStartDate: editFormData.planStartDate,
-          planEndDate: editFormData.planEndDate,
+          status: editFormData.status || undefined,
+          planStartDate: editFormData.planStartDate || undefined,
+          planEndDate: editFormData.planEndDate || undefined,
           estimateHours: editFormData.estimateHours,
-          severity: editFormData.severity,
-          reproductionSteps: editFormData.reproductionSteps,
-          fixVersion: editFormData.fixVersion
+          severity: editFormData.severity || undefined,
+          reproductionSteps: editFormData.reproductionSteps || undefined,
+          fixVersion: editFormData.fixVersion || undefined
         })
         ElMessage.success('更新成功')
         editDialogVisible.value = false

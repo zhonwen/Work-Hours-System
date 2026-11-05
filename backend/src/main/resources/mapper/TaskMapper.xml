@@ -42,20 +42,30 @@
         create_user_id, update_user_id, create_time, update_time, is_deleted
     </sql>
 
-    <!-- 根据ID查询任务 -->
+    <!-- 根据ID查询任务（关联项目/迭代名称） -->
     <select id="selectById" parameterType="long" resultMap="TaskResultMap">
-        SELECT <include refid="selectAllFields"/>
-        FROM gsms_task
-        WHERE id = #{id} AND is_deleted = 0
+        SELECT t.id, t.project_id, p.name AS project_name, t.iteration_id, i.name AS iteration_name,
+               t.parent_id, t.title, t.description, t.type, t.priority, t.severity,
+               t.reproduction_steps, t.attachments, t.fix_version, t.assignee_id, t.status,
+               t.plan_start_date, t.plan_end_date, t.actual_start_date, t.actual_end_date, t.estimate_hours,
+               t.create_user_id, t.update_user_id, t.create_time, t.update_time, t.is_deleted
+        FROM gsms_task t
+        LEFT JOIN gsms_project p ON t.project_id = p.id AND p.is_deleted = 0
+        LEFT JOIN gsms_iteration i ON t.iteration_id = i.id AND i.is_deleted = 0
+        WHERE t.id = #{id} AND t.is_deleted = 0
     </select>
 
     <!-- 根据ID查询任务（仅限用户可访问的项目） -->
     <select id="selectByIdForUser" parameterType="map" resultMap="TaskResultMap">
-        SELECT DISTINCT t.id, t.project_id, t.iteration_id, t.title, t.description, t.type, t.priority, 
-               t.assignee_id, t.status, t.plan_start_date, t.plan_end_date, t.actual_start_date, t.actual_end_date, 
+        SELECT DISTINCT t.id, t.project_id, p.name AS project_name, t.iteration_id, i.name AS iteration_name,
+               t.parent_id, t.title, t.description, t.type, t.priority, t.severity,
+               t.reproduction_steps, t.attachments, t.fix_version, t.assignee_id, t.status,
+               t.plan_start_date, t.plan_end_date, t.actual_start_date, t.actual_end_date,
                t.estimate_hours, t.create_user_id, t.update_user_id, t.create_time, t.update_time, t.is_deleted
         FROM gsms_task t
         INNER JOIN gsms_project_member pm ON t.project_id = pm.project_id AND pm.is_deleted = 0
+        LEFT JOIN gsms_project p ON t.project_id = p.id AND p.is_deleted = 0
+        LEFT JOIN gsms_iteration i ON t.iteration_id = i.id AND i.is_deleted = 0
         WHERE t.id = #{id} AND t.is_deleted = 0 AND pm.user_id = #{userId}
     </select>
 

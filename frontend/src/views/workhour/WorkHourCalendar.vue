@@ -2,7 +2,7 @@
   <div class="page-root">
     <!-- 页面头部 -->
     <div class="page-header">
-      <h2 class="page-title">我的工时日历</h2>
+      <h2 class="page-title">{{ pageTitle }}</h2>
     </div>
 
     <!-- 统计卡片：工时不含请假；本月请假单独展示 -->
@@ -76,6 +76,24 @@
           <el-button :icon="ArrowRight" @click="handleNextMonth">下个月</el-button>
         </el-button-group>
         <div class="current-month">{{ currentMonthText }}</div>
+      </div>
+      <div v-if="canViewAllWorkHours" class="toolbar-right">
+        <span class="filter-label">查看人员</span>
+        <el-select
+          v-model="selectedUserId"
+          placeholder="我自己"
+          clearable
+          filterable
+          style="width: 200px"
+          @change="handleUserChange"
+        >
+          <el-option
+            v-for="u in userOptions"
+            :key="u.id"
+            :label="u.nickname || u.username"
+            :value="u.id"
+          />
+        </el-select>
       </div>
     </div>
 
@@ -231,8 +249,36 @@
 import { ref, reactive, onMounted, watch, computed } from 'vue'
 import { Clock, Calendar, List, Folder, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 import { getMonthRange, getCurrentYearMonth, getMonthText, formatDate, isToday, isWeekend } from '@/utils/dateUtils'
-import { getWorkHourList, isLeaveRecord, sumWorkHours, type WorkHourInfo } from '@/api/workhour'
+import {
+  getWorkHourList,
+  isLeaveRecord,
+  sumWorkHours,
+  type WorkHourInfo,
+  type WorkHourViewScope
+} from '@/api/workhour'
+import { getAllUsers, type UserInfo } from '@/api/user'
+import { useAuthStore } from '@/stores/auth'
 import { message } from '@/utils/message'
+
+const authStore = useAuthStore()
+const canViewAllWorkHours = computed(() => authStore.hasPermission('WORKHOUR_VIEW_ALL'))
+/** 空 = 我自己；有值 = 一次只看该人 */
+const selectedUserId = ref<number | undefined>(undefined)
+const userOptions = ref<UserInfo[]>([])
+
+const viewingQuery = computed(() => {
+  if (canViewAllWorkHours.value && selectedUserId.value) {
+    return { viewScope: 'USER' as WorkHourViewScope, userId: selectedUserId.value }
+  }
+  return { viewScope: 'SELF' as WorkHourViewScope }
+})
+
+const pageTitle = computed(() => {
+  if (!selectedUserId.value) return '我的工时日历'
+  const u = userOptions.value.find(item => item.id === selectedUserId.value)
+  const name = u?.nickname || u?.username || '该成员'
+  return `${name}的工时日历`
+})
 
 const detailVisible = ref(false)
 const detailDate = ref('')
@@ -351,9 +397,9 @@ const fetchMonthData = async () => {
   loading.value = true
   try {
     const { start, end } = getMonthRange(currentYear.value, currentMonth.value)
-    // 日历固定「我的工时」：任何角色只查当前登录人
+    // 默认 SELF；有权限且选中某人时 USER（一次一人，不叠全员）
     const res = await getWorkHourList({
-      viewScope: 'SELF',
+      ...viewingQuery.value,
       startDate: start,
       endDate: end,
       pageNum: 1,
@@ -396,7 +442,7 @@ const updateStatistics = async (allWorkHours: WorkHourInfo[]) => {
     const workOnly = allWorkHours.filter(wh => !isLeaveRecord(wh))
     const leaveOnly = allWorkHours.filter(wh => isLeaveRecord(wh))
 
-    // 本月请假：当前日历月份内全部请假（不计入工时卡）
+    // 本月请假：当前日历月份内（当前查看对象）
     monthLeaveItems.value = [...leaveOnly].sort((a, b) =>
       a.workDate === b.workDate
         ? Number(b.hours || 0) - Number(a.hours || 0)
@@ -417,16 +463,15 @@ const updateStatistics = async (allWorkHours: WorkHourInfo[]) => {
       workOnly.filter(wh => wh.workDate >= weekStartStr && wh.workDate <= todayStr)
     )
 
-    // 本月工时：仅正常工时（当前视图月内、截至今天；翻月时按该月数据）
     const isCurrentMonth =
       currentYear.value === today.getFullYear() && currentMonth.value === today.getMonth() + 1
     statistics.monthHours = isCurrentMonth
       ? sumWorkHours(workOnly.filter(wh => wh.workDate <= todayStr))
       : sumWorkHours(workOnly)
 
-    // 总计：仅本人全部正常工时
+    // 总计：与当前查看对象一致（本人或所选一人）
     const totalRes = await getWorkHourList({
-      viewScope: 'SELF',
+      ...viewingQuery.value,
       pageNum: 1,
       pageSize: 10000
     })
@@ -435,6 +480,23 @@ const updateStatistics = async (allWorkHours: WorkHourInfo[]) => {
     console.error('更新统计数据失败:', error)
     statistics.totalHours = sumWorkHours(allWorkHours.filter(wh => !isLeaveRecord(wh)))
   }
+}
+
+const fetchUsers = async () => {
+  if (!canViewAllWorkHours.value) return
+  try {
+    const res: any = await getAllUsers()
+    const list: UserInfo[] = res?.list || res || []
+    const myId = authStore.getCurrentUserId()
+    // 下拉不含自己（清空即回「我自己」）
+    userOptions.value = list.filter(u => u.id !== myId)
+  } catch (error) {
+    console.error('获取用户列表失败:', error)
+  }
+}
+
+const handleUserChange = () => {
+  fetchMonthData()
 }
 
 const openLeaveDetail = () => {
@@ -477,6 +539,7 @@ watch([currentYear, currentMonth], () => {
 })
 
 onMounted(() => {
+  fetchUsers()
   fetchMonthData()
 })
 </script>
@@ -567,6 +630,18 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 16px;
+}
+
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-label {
+  font-size: 14px;
+  color: #666;
+  white-space: nowrap;
 }
 
 .current-month {

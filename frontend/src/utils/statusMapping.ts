@@ -83,10 +83,31 @@ export const TASK_STATUS_MAP: StatusMapConfig = {
     text: '进行中',
     color: '#1890ff'  /* ✅ 对比度 4.5:1 (WCAG AA) */
   },
-  COMPLETED: {
+  // 后端枚举为 DONE；保留 COMPLETED 兼容旧数据/文案
+  DONE: {
     type: 'success',
     text: '已完成',
     color: '#059669'  /* ✅ 对比度 4.6:1 (WCAG AA) */
+  },
+  COMPLETED: {
+    type: 'success',
+    text: '已完成',
+    color: '#059669'
+  },
+  TESTING: {
+    type: 'warning',
+    text: '待验证',
+    color: '#f59e0b'
+  },
+  REOPENED: {
+    type: 'warning',
+    text: '重新打开',
+    color: '#f59e0b'
+  },
+  CLOSED: {
+    type: 'info',
+    text: '已关闭',
+    color: '#6b7280'
   },
   CANCELLED: {
     type: 'danger',

@@ -21,6 +21,11 @@ public interface TaskService {
     Task getById(Long id);
 
     /**
+     * 将任务实体转为详情响应（填充创建人/更新人/负责人及项目名称等）
+     */
+    TaskInfoResp toInfoResp(Task task);
+
+    /**
      * 根据条件分页查询任务
      * @return 分页结果
      */

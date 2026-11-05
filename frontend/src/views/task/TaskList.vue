@@ -134,42 +134,149 @@
       />
 
       <el-table v-loading="loading" :data="taskList" stripe style="width: 100%">
-        <!-- 展开列 -->
+        <!-- 展开列：左需求 / 右执行 -->
         <el-table-column type="expand" width="50">
           <template #default="{ row }">
             <div class="expand-content">
-              <el-descriptions :column="3" border>
-                <el-descriptions-item label="任务描述" :span="3">
-                  {{ row.description || '暂无描述' }}
-                </el-descriptions-item>
-                <el-descriptions-item label="任务类型">
-                  {{ getTypeText(row.type) }}
-                </el-descriptions-item>
-                <el-descriptions-item label="计划开始时间">
-                  {{ formatDate(row.planStartDate) }}
-                </el-descriptions-item>
-                <el-descriptions-item label="计划结束时间">
-                  {{ formatDate(row.planEndDate) }}
-                </el-descriptions-item>
-                <el-descriptions-item label="实际开始时间">
-                  {{ formatDate(row.actualStartDate) }}
-                </el-descriptions-item>
-                <el-descriptions-item label="实际结束时间">
-                  {{ formatDate(row.actualEndDate) }}
-                </el-descriptions-item>
-                <el-descriptions-item label="创建人">
-                  {{ row.createUserName || '-' }}
-                </el-descriptions-item>
-                <el-descriptions-item label="更新人">
-                  {{ row.updateUserName || '-' }}
-                </el-descriptions-item>
-                <el-descriptions-item label="创建时间" :span="2">
-                  {{ formatDateTime(row.createTime) }}
-                </el-descriptions-item>
-                <el-descriptions-item label="更新时间">
-                  {{ formatDateTime(row.updateTime) }}
-                </el-descriptions-item>
-              </el-descriptions>
+              <div class="expand-panels">
+                <div class="expand-panel expand-panel--req">
+                  <div class="panel-title">需求信息</div>
+                  <div class="panel-body">
+                    <div class="info-block">
+                      <div class="info-label">任务描述</div>
+                      <div class="info-value desc">{{ row.description || '暂无描述' }}</div>
+                    </div>
+                    <div class="info-grid">
+                      <div class="info-item">
+                        <span class="info-label">类型</span>
+                        <span class="info-value">{{ getTypeText(row.type) }}</span>
+                      </div>
+                      <div class="info-item">
+                        <span class="info-label">提出人</span>
+                        <span class="info-value">{{ row.createUserName || '-' }}</span>
+                      </div>
+                      <div class="info-item">
+                        <span class="info-label">计划开始</span>
+                        <span class="info-value">{{ formatDate(row.planStartDate) }}</span>
+                      </div>
+                      <div class="info-item">
+                        <span class="info-label">计划结束</span>
+                        <span class="info-value">{{ formatDate(row.planEndDate) }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="expand-panel expand-panel--exec">
+                  <div class="panel-title">执行信息</div>
+                  <div class="panel-body">
+                    <div class="info-grid">
+                      <div class="info-item">
+                        <span class="info-label">负责人</span>
+                        <span class="info-value">{{ row.assigneeName || '未分配' }}</span>
+                      </div>
+                      <div class="info-item">
+                        <span class="info-label">状态</span>
+                        <span class="info-value">
+                          <el-tag :type="getStatusType(row.status)" size="small">
+                            {{ getStatusText(row.status) }}
+                          </el-tag>
+                        </span>
+                      </div>
+                      <div class="info-item">
+                        <span class="info-label">实际开始</span>
+                        <span class="info-value">{{ formatDate(row.actualStartDate) }}</span>
+                      </div>
+                      <div class="info-item">
+                        <span class="info-label">实际结束</span>
+                        <span class="info-value">{{ formatDate(row.actualEndDate) }}</span>
+                      </div>
+                      <div class="info-item">
+                        <span class="info-label">更新人</span>
+                        <span class="info-value">{{ row.updateUserName || '-' }}</span>
+                      </div>
+                    </div>
+                    <div class="panel-actions">
+                      <el-button link type="primary" :icon="View" @click="handleView(row)">
+                        查看详情
+                      </el-button>
+                      <el-button
+                        v-permission="'TASK_EDIT'"
+                        link
+                        type="primary"
+                        :icon="Edit"
+                        @click="handleEdit(row)"
+                      >
+                        编辑
+                      </el-button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 子任务：展开内可直接编辑 -->
+              <div class="expand-subtasks">
+                <div class="subtasks-header">
+                  <span class="panel-title">子任务</span>
+                  <el-button
+                    v-permission="'TASK_CREATE'"
+                    link
+                    type="primary"
+                    :icon="Plus"
+                    @click="handleAddSubtask(row)"
+                  >
+                    添加子任务
+                  </el-button>
+                </div>
+                <el-table
+                  v-if="row.subtasks && row.subtasks.length"
+                  :data="row.subtasks"
+                  size="small"
+                  stripe
+                  class="subtask-table"
+                >
+                  <el-table-column prop="title" label="标题" min-width="180" show-overflow-tooltip />
+                  <el-table-column prop="status" label="状态" width="90">
+                    <template #default="{ row: sub }">
+                      <el-tag :type="getStatusType(sub.status)" size="small">
+                        {{ getStatusText(sub.status) }}
+                      </el-tag>
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="assigneeName" label="负责人" width="100">
+                    <template #default="{ row: sub }">
+                      {{ sub.assigneeName || '-' }}
+                    </template>
+                  </el-table-column>
+                  <el-table-column prop="planEndDate" label="计划结束" width="110">
+                    <template #default="{ row: sub }">
+                      {{ formatDate(sub.planEndDate) }}
+                    </template>
+                  </el-table-column>
+                  <el-table-column label="操作" width="160" fixed="right">
+                    <template #default="{ row: sub }">
+                      <el-button link type="primary" @click="handleView(sub)">查看</el-button>
+                      <el-button
+                        v-permission="'TASK_EDIT'"
+                        link
+                        type="primary"
+                        @click="handleEditSubtask(sub, row)"
+                      >
+                        编辑
+                      </el-button>
+                      <el-button
+                        v-permission="'TASK_DELETE'"
+                        link
+                        type="danger"
+                        @click="handleDelete(sub)"
+                      >
+                        删除
+                      </el-button>
+                    </template>
+                  </el-table-column>
+                </el-table>
+                <div v-else class="subtasks-empty">暂无子任务</div>
+              </div>
             </div>
           </template>
         </el-table-column>
@@ -308,9 +415,9 @@
               <el-select v-model="formData.assigneeId" placeholder="请选择负责人（可选）" clearable filterable style="width: 100%">
                 <el-option
                   v-for="user in projectMembers"
-                  :key="user.id"
+                  :key="user.userId"
                   :label="user.nickname"
-                  :value="user.id"
+                  :value="user.userId"
                 />
               </el-select>
             </el-form-item>
@@ -467,8 +574,8 @@ const projectList = ref<any[]>([])
 // 用户列表
 const userList = ref<UserInfo[]>([])
 
-// 项目成员列表（根据选择的项目动态加载）
-const projectMembers = ref<UserInfo[]>([])
+// 项目成员列表（根据选择的项目动态加载；userId 为用户ID，勿用成员表 id）
+const projectMembers = ref<{ userId: number; nickname?: string }[]>([])
 
 // 项目迭代列表（根据选择的项目动态加载）
 const projectIterations = ref<any[]>([])
@@ -617,9 +724,11 @@ const fetchProjectMembers = async (projectId: number) => {
   }
   try {
     const res = await getProjectMembers(projectId)
-    console.log('项目成员响应:', res)
-    // 根据实际API响应格式调整
-    projectMembers.value = res || []
+    // 成员接口：id=成员表主键，userId=用户ID；负责人必须传 userId
+    projectMembers.value = (res || []).map((m: any) => ({
+      userId: m.userId,
+      nickname: m.nickname
+    }))
   } catch (error) {
     console.error('获取项目成员失败:', error)
     projectMembers.value = []
@@ -662,16 +771,15 @@ const handleView = (task: TaskInfo) => {
 }
 
 // 编辑任务
-const handleEdit = (task: TaskInfo) => {
+const handleEdit = (task: TaskInfo, parent?: TaskInfo | null) => {
   dialogTitle.value = '编辑任务'
   dialogVisible.value = true
 
-  // 如果有父任务，查找并保存父任务信息
-  if (task.parentId) {
-    const parent = taskList.value.find(t => t.id === task.parentId)
-    if (parent) {
-      parentTaskInfo.value = parent
-    }
+  if (parent) {
+    parentTaskInfo.value = parent
+  } else if (task.parentId) {
+    const found = taskList.value.find(t => t.id === task.parentId)
+    parentTaskInfo.value = found || null
   } else {
     parentTaskInfo.value = null
   }
@@ -682,19 +790,23 @@ const handleEdit = (task: TaskInfo) => {
     description: task.description,
     projectId: task.projectId,
     assigneeId: task.assigneeId,
-    priority: task.priority,
+    priority: task.priority || 'MEDIUM',
     planStartDate: task.planStartDate,
     planEndDate: task.planEndDate,
-    status: task.status,
-    iterationId: task.iterationId,  // 所属迭代
-    parentId: task.parentId         // 父任务
+    status: task.status || 'TODO',
+    iterationId: task.iterationId,
+    parentId: task.parentId || parent?.id
   })
 
-  // 加载项目成员和迭代列表
   if (task.projectId) {
     fetchProjectMembers(task.projectId)
     fetchProjectIterations(task.projectId)
   }
+}
+
+// 从展开区编辑子任务（保留父任务上下文）
+const handleEditSubtask = (subtask: TaskInfo, parent: TaskInfo) => {
+  handleEdit(subtask, parent)
 }
 
 // 删除任务
@@ -936,18 +1048,126 @@ onMounted(() => {
   font-variant-numeric: tabular-nums;
 }
 
-/* 表格展开内容样式 */
+/* 表格展开内容：左右分栏 */
 .expand-content {
-  padding: 20px;
-  background-color: #fafafa;
+  padding: 16px 20px 20px;
+  background: #f7f8fa;
 }
 
-:deep(.expand-content .el-descriptions) {
-  --el-descriptions-table-border: 1px solid #e4e7ed;
+.expand-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
 }
 
-:deep(.expand-content .el-descriptions__label) {
-  font-weight: 500;
-  background-color: #f5f5f5;
+.expand-panel {
+  background: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  padding: 14px 16px;
+  min-width: 0;
+}
+
+.panel-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 12px;
+  padding-left: 8px;
+  border-left: 3px solid #409eff;
+  line-height: 1.2;
+}
+
+.expand-panel--exec .panel-title {
+  border-left-color: #67c23a;
+}
+
+.panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.info-block .info-label {
+  margin-bottom: 6px;
+}
+
+.info-block .desc {
+  color: #606266;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 96px;
+  overflow: auto;
+  padding: 8px 10px;
+  background: #fafafa;
+  border-radius: 4px;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 16px;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.info-label {
+  font-size: 12px;
+  color: #909399;
+}
+
+.info-value {
+  font-size: 13px;
+  color: #303133;
+}
+
+.panel-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 4px;
+  padding-top: 4px;
+  border-top: 1px dashed #ebeef5;
+}
+
+.expand-subtasks {
+  margin-top: 16px;
+  background: #fff;
+  border: 1px solid #ebeef5;
+  border-radius: 6px;
+  padding: 14px 16px;
+}
+
+.subtasks-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.subtasks-header .panel-title {
+  margin-bottom: 0;
+  border-left-color: #e6a23c;
+}
+
+.subtasks-empty {
+  font-size: 13px;
+  color: #909399;
+  padding: 8px 0 4px;
+}
+
+.subtask-table {
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .expand-panels {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

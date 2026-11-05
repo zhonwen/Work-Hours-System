@@ -30,6 +30,12 @@ public class OperationLogQueryReq extends BasePageQuery {
     @Schema(description = "结束时间（格式：yyyy-MM-dd HH:mm:ss）", example = "2026-01-31 23:59:59")
     private String endTime;
 
+    @Schema(description = "业务类型", example = "TASK")
+    private String businessType;
+
+    @Schema(description = "业务ID", example = "1")
+    private Long businessId;
+
     public String getUsername() {
         return username;
     }
@@ -76,5 +82,21 @@ public class OperationLogQueryReq extends BasePageQuery {
 
     public void setEndTime(String endTime) {
         this.endTime = endTime;
+    }
+
+    public String getBusinessType() {
+        return businessType;
+    }
+
+    public void setBusinessType(String businessType) {
+        this.businessType = businessType;
+    }
+
+    public Long getBusinessId() {
+        return businessId;
+    }
+
+    public void setBusinessId(Long businessId) {
+        this.businessId = businessId;
     }
 }

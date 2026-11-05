@@ -5,6 +5,7 @@ import com.github.pagehelper.PageInfo;
 import com.gsms.gsms.model.entity.Task;
 import com.gsms.gsms.model.entity.Project;
 import com.gsms.gsms.model.enums.TaskStatus;
+import com.gsms.gsms.model.enums.TaskType;
 import com.gsms.gsms.model.enums.ProjectType;
 import com.gsms.gsms.dto.task.TaskInfoResp;
 import com.gsms.gsms.dto.task.TaskQueryReq;
@@ -18,7 +19,10 @@ import com.gsms.gsms.infra.exception.CommonErrorCode;
 import com.gsms.gsms.model.enums.errorcode.TaskErrorCode;
 import com.gsms.gsms.model.enums.errorcode.ProjectErrorCode;
 import com.gsms.gsms.infra.exception.BusinessException;
+import com.gsms.gsms.infra.utils.OperationLogHelper;
 import com.gsms.gsms.infra.utils.UserContext;
+import com.gsms.gsms.model.enums.OperationModule;
+import com.gsms.gsms.model.enums.OperationType;
 import com.gsms.gsms.repository.TaskMapper;
 import com.gsms.gsms.repository.ProjectMapper;
 import com.gsms.gsms.repository.ProjectMemberMapper;
@@ -53,17 +57,20 @@ public class TaskServiceImpl implements TaskService {
     private final AuthService authService;
     private final CacheService cacheService;
     private final WorkHourService workHourService;
+    private final OperationLogHelper operationLogHelper;
 
     public TaskServiceImpl(TaskMapper taskMapper, ProjectMapper projectMapper,
                            ProjectMemberMapper projectMemberMapper,
                            AuthService authService, CacheService cacheService,
-                           WorkHourService workHourService) {
+                           WorkHourService workHourService,
+                           OperationLogHelper operationLogHelper) {
         this.taskMapper = taskMapper;
         this.projectMapper = projectMapper;
         this.projectMemberMapper = projectMemberMapper;
         this.authService = authService;
         this.cacheService = cacheService;
         this.workHourService = workHourService;
+        this.operationLogHelper = operationLogHelper;
     }
 
     @Override
@@ -87,6 +94,20 @@ public class TaskServiceImpl implements TaskService {
             throw new BusinessException(TaskErrorCode.TASK_NOT_FOUND);
         }
         return task;
+    }
+
+    @Override
+    public TaskInfoResp toInfoResp(Task task) {
+        TaskInfoResp resp = TaskInfoResp.from(task);
+        enrichTaskInfoResp(resp);
+        // 详情查询可能未带出项目/迭代名时兜底
+        if ((resp.getProjectName() == null || resp.getProjectName().isEmpty()) && resp.getProjectId() != null) {
+            Project project = projectMapper.selectById(resp.getProjectId());
+            if (project != null) {
+                resp.setProjectName(project.getName());
+            }
+        }
+        return resp;
     }
 
     @Override
@@ -256,6 +277,10 @@ public class TaskServiceImpl implements TaskService {
         if (task.getStatus() == null) {
             task.setStatus(TaskStatus.TODO);
         }
+        // 默认任务类型
+        if (task.getType() == null) {
+            task.setType(TaskType.TASK);
+        }
 
         task.setCreateUserId(currentUserId);
         task.setUpdateUserId(currentUserId);
@@ -265,8 +290,19 @@ public class TaskServiceImpl implements TaskService {
             throw new BusinessException(TaskErrorCode.TASK_CREATE_FAILED);
         }
 
+        Task created = taskMapper.selectById(task.getId());
+        operationLogHelper.logSuccessWithChanges(
+                OperationType.CREATE,
+                OperationModule.TASK,
+                "TASK",
+                created.getId(),
+                null,
+                created,
+                String.format("创建任务: %s (ID=%d)", created.getTitle(), created.getId())
+        );
+
         logger.info("任务创建成功: {}", task.getTitle());
-        return task;
+        return created;
     }
 
     @Override
@@ -282,6 +318,11 @@ public class TaskServiceImpl implements TaskService {
         // 鉴权 - 检查项目访问权限
         Long currentUserId = UserContext.getCurrentUserId();
         authService.checkProjectAccess(currentUserId, existTask.getProjectId());
+
+        // 更新未传 projectId 时沿用原项目，避免误清空
+        if (updateReq.getProjectId() == null) {
+            updateReq.setProjectId(existTask.getProjectId());
+        }
 
         // DTO转Entity
         Task task = TaskConverter.toTask(updateReq);
@@ -317,8 +358,19 @@ public class TaskServiceImpl implements TaskService {
             throw new BusinessException(TaskErrorCode.TASK_UPDATE_FAILED);
         }
 
+        Task updated = taskMapper.selectById(task.getId());
+        operationLogHelper.logSuccessWithChanges(
+                OperationType.UPDATE,
+                OperationModule.TASK,
+                "TASK",
+                updated.getId(),
+                existTask,
+                updated,
+                String.format("更新任务: %s (ID=%d)", updated.getTitle(), updated.getId())
+        );
+
         logger.info("任务更新成功: {}", task.getId());
-        return taskMapper.selectById(task.getId());
+        return updated;
     }
 
     @Override
@@ -396,9 +448,23 @@ public class TaskServiceImpl implements TaskService {
             throw new BusinessException(TaskErrorCode.TASK_UPDATE_FAILED);
         }
 
+        Task updated = taskMapper.selectById(task.getId());
+        String oldStatusName = oldStatus != null ? oldStatus.name() : "NULL";
+        String newStatusName = newStatus != null ? newStatus.name() : "NULL";
+        operationLogHelper.logSuccessWithChanges(
+                OperationType.UPDATE,
+                OperationModule.TASK,
+                "TASK",
+                updated.getId(),
+                existTask,
+                updated,
+                String.format("更新任务状态: %s (ID=%d) %s → %s",
+                        updated.getTitle(), updated.getId(), oldStatusName, newStatusName)
+        );
+
         logger.info("任务状态更新成功: {}, 实际开始时间={}, 实际结束时间={}",
                     task.getId(), task.getActualStartDate(), task.getActualEndDate());
-        return taskMapper.selectById(task.getId());
+        return updated;
     }
 
     @Override
@@ -419,6 +485,16 @@ public class TaskServiceImpl implements TaskService {
         if (result <= 0) {
             throw new BusinessException(TaskErrorCode.TASK_DELETE_FAILED);
         }
+
+        operationLogHelper.logSuccessWithChanges(
+                OperationType.DELETE,
+                OperationModule.TASK,
+                "TASK",
+                existTask.getId(),
+                existTask,
+                null,
+                String.format("删除任务: %s (ID=%d)", existTask.getTitle(), existTask.getId())
+        );
 
         logger.info("任务删除成功: {}", id);
     }

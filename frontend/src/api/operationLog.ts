@@ -8,6 +8,8 @@ export interface OperationLogQuery {
   status?: string
   startTime?: string
   endTime?: string
+  businessType?: string
+  businessId?: number
   pageNum?: number
   pageSize?: number
 }

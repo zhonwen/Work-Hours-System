@@ -64,7 +64,7 @@ public class TaskController {
     public Result<TaskInfoResp> getById(@PathVariable Long id) {
         logger.info("根据ID查询任务: {}", id);
         Task task = taskService.getById(id);
-        TaskInfoResp resp = TaskInfoResp.from(task);
+        TaskInfoResp resp = taskService.toInfoResp(task);
         logger.info("成功查询到任务: {}", task.getTitle());
         return Result.success(resp);
     }
@@ -81,7 +81,7 @@ public class TaskController {
         logger.info("创建任务: title={}, projectId={}, iterationId={}, parentId={}",
                 req.getTitle(), req.getProjectId(), req.getIterationId(), req.getParentId());
         Task createdTask = taskService.create(req);
-        TaskInfoResp resp = TaskInfoResp.from(createdTask);
+        TaskInfoResp resp = taskService.toInfoResp(createdTask);
         logger.info("任务创建成功: id={}, parentId={}", createdTask.getId(), createdTask.getParentId());
         return Result.success(resp);
     }
@@ -99,7 +99,7 @@ public class TaskController {
         logger.info("更新任务: id={}, title={}, projectId={}, iterationId={}, parentId={}",
                 req.getId(), req.getTitle(), req.getProjectId(), req.getIterationId(), req.getParentId());
         Task updatedTask = taskService.update(req);
-        TaskInfoResp resp = TaskInfoResp.from(updatedTask);
+        TaskInfoResp resp = taskService.toInfoResp(updatedTask);
         logger.info("任务更新成功: id={}, parentId={}", updatedTask.getId(), updatedTask.getParentId());
         return Result.success(resp);
     }
@@ -115,7 +115,7 @@ public class TaskController {
     public Result<TaskInfoResp> updateStatus(@RequestBody @Valid TaskStatusUpdateReq req) {
         logger.info("更新任务状态: taskId={}, status={}", req.getId(), req.getStatus());
         Task updatedTask = taskService.updateStatus(req);
-        TaskInfoResp resp = TaskInfoResp.from(updatedTask);
+        TaskInfoResp resp = taskService.toInfoResp(updatedTask);
         logger.info("任务状态更新成功: {}", updatedTask.getId());
         return Result.success(resp);
     }
@@ -134,7 +134,7 @@ public class TaskController {
             @RequestParam(required = false) Long iterationId) {
         logger.info("更新任务迭代ID: taskId={}, iterationId={}", taskId, iterationId);
         Task updatedTask = taskService.updateIterationId(taskId, iterationId);
-        TaskInfoResp resp = TaskInfoResp.from(updatedTask);
+        TaskInfoResp resp = taskService.toInfoResp(updatedTask);
         logger.info("任务迭代ID更新成功: taskId={}, iterationId={}", taskId, iterationId);
         return Result.success(resp);
     }

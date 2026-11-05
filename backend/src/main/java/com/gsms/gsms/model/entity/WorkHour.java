@@ -28,6 +28,12 @@ public class WorkHour {
     private Long userId;
 
     /**
+     * 用户显示名（关联查询：优先昵称）
+     */
+    @Schema(description = "用户名/昵称")
+    private String userName;
+
+    /**
      * 项目ID
      */
     @Schema(description = "项目ID")
@@ -144,6 +150,14 @@ public class WorkHour {
 
     public void setUserId(Long userId) {
         this.userId = userId;
+    }
+
+    public String getUserName() {
+        return userName;
+    }
+
+    public void setUserName(String userName) {
+        this.userName = userName;
     }
 
     public Long getProjectId() {

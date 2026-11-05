@@ -119,10 +119,10 @@
           <el-collapse-item name="creator" title="创建信息">
             <el-descriptions :column="2" border>
               <el-descriptions-item label="创建人">
-                {{ task?.createUserName }}
+                {{ task?.createUserName || '-' }}
               </el-descriptions-item>
               <el-descriptions-item label="更新人">
-                {{ task?.updateUserName }}
+                {{ task?.updateUserName || '-' }}
               </el-descriptions-item>
             </el-descriptions>
           </el-collapse-item>
@@ -213,9 +213,34 @@
                 {{ row.planEndDate || '-' }}
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="120" align="center" fixed="right">
+            <el-table-column label="操作" width="260" align="center" fixed="right">
               <template #default="{ row }">
-                <el-link type="primary" @click="goToTaskDetail(row.id)">查看</el-link>
+                <el-button
+                  v-if="row.status === 'TODO' || !row.status"
+                  link
+                  type="primary"
+                  @click="handleSubtaskStart(row)"
+                >
+                  开始
+                </el-button>
+                <el-button
+                  v-if="row.status === 'IN_PROGRESS'"
+                  link
+                  type="success"
+                  @click="handleSubtaskComplete(row)"
+                >
+                  完成
+                </el-button>
+                <el-button
+                  v-if="row.status === 'DONE'"
+                  link
+                  type="warning"
+                  @click="handleSubtaskReopen(row)"
+                >
+                  重开
+                </el-button>
+                <el-button link type="primary" @click="goToTaskDetail(row.id)">查看</el-button>
+                <el-button link type="primary" @click="handleEditSubtask(row)">编辑</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -230,8 +255,25 @@
             操作历史
           </span>
         </template>
-        <div class="tab-content">
-          <el-empty description="操作历史功能开发中" :image-size="100" />
+        <div class="tab-content" v-loading="historyLoading">
+          <el-timeline v-if="operationHistory.length > 0">
+            <el-timeline-item
+              v-for="item in operationHistory"
+              :key="item.id"
+              :timestamp="item.operationTime"
+              placement="top"
+            >
+              <el-card shadow="never" class="history-card">
+                <div class="history-title">{{ getHistoryTitle(item) }}</div>
+                <p class="history-desc">{{ item.operationContent }}</p>
+                <div class="history-user">
+                  <el-avatar :size="24">{{ (item.username || '?').charAt(0) }}</el-avatar>
+                  <span>{{ item.username || '-' }}</span>
+                </div>
+              </el-card>
+            </el-timeline-item>
+          </el-timeline>
+          <el-empty v-else description="暂无操作历史" :image-size="100" />
         </div>
       </el-tab-pane>
     </el-tabs>
@@ -281,9 +323,9 @@
               <el-select v-model="editFormData.assigneeId" placeholder="请选择负责人" clearable filterable style="width: 100%">
                 <el-option
                   v-for="user in projectMembers"
-                  :key="user.id"
+                  :key="user.userId"
                   :label="user.nickname"
-                  :value="user.id"
+                  :value="user.userId"
                 />
               </el-select>
             </el-form-item>
@@ -396,6 +438,7 @@ import { getProjectMembers } from '@/api/project'
 import { getAllUsers } from '@/api/user'
 import { getTaskStatusInfo, getTaskPriorityInfo } from '@/utils/statusMapping'
 import { getWorkHourList, createWorkHour, updateWorkHour, deleteWorkHour, type WorkHourInfo } from '@/api/workhour'
+import { getOperationLogList, type OperationLogInfo } from '@/api/operationLog'
 
 const route = useRoute()
 const router = useRouter()
@@ -417,10 +460,16 @@ const projectMembers = ref<any[]>([])
 const subtasks = ref<any[]>([])
 const subtasksLoading = ref(false)
 
+// 操作历史
+const operationHistory = ref<OperationLogInfo[]>([])
+const historyLoading = ref(false)
+
 // 编辑对话框
 const editDialogVisible = ref(false)
 const editSubmitLoading = ref(false)
 const editFormRef = ref<FormInstance>()
+/** 当前编辑目标任务 ID（父任务或子任务） */
+const editingTaskId = ref<number>(0)
 const editFormData = reactive({
   title: '',
   description: '',
@@ -464,6 +513,8 @@ const fetchTask = async () => {
   try {
     const res = await getTaskDetail(taskId.value)
     task.value = res
+    // 任务加载后再拉成员，避免 projectId 为空导致负责人下拉无选项
+    await fetchProjectMembers()
   } catch (error) {
     console.error('获取任务详情失败:', error)
     ElMessage.error('获取任务详情失败')
@@ -476,7 +527,11 @@ const fetchProjectMembers = async () => {
 
   try {
     const res = await getProjectMembers(task.value.projectId)
-    projectMembers.value = res || []
+    // 成员接口：id=成员表主键，userId=用户ID；负责人必须传 userId
+    projectMembers.value = (res || []).map((m: any) => ({
+      userId: m.userId,
+      nickname: m.nickname
+    }))
   } catch (error) {
     console.error('获取项目成员失败:', error)
   }
@@ -545,8 +600,48 @@ const goToTaskDetail = (subtaskId: number) => {
 watch(activeTab, (newTab) => {
   if (newTab === 'subtasks') {
     fetchSubtasks()
+  } else if (newTab === 'history') {
+    fetchOperationHistory()
+  } else if (newTab === 'workhours' && task.value) {
+    fetchWorkHours()
   }
 })
+
+// 拉取任务操作历史
+const fetchOperationHistory = async () => {
+  if (!taskId.value) return
+  historyLoading.value = true
+  try {
+    const res = await getOperationLogList({
+      businessType: 'TASK',
+      businessId: taskId.value,
+      pageNum: 1,
+      pageSize: 50
+    })
+    operationHistory.value = res?.list || []
+  } catch (error) {
+    console.error('获取操作历史失败:', error)
+    operationHistory.value = []
+  } finally {
+    historyLoading.value = false
+  }
+}
+
+const getHistoryTitle = (item: OperationLogInfo) => {
+  const typeMap: Record<string, string> = {
+    CREATE: '创建任务',
+    UPDATE: '更新任务',
+    DELETE: '删除任务'
+  }
+  return typeMap[item.operationType] || item.operationType || '操作记录'
+}
+
+const refreshAfterMutation = async () => {
+  await fetchTask()
+  if (activeTab.value === 'history') {
+    await fetchOperationHistory()
+  }
+}
 
 // 开始任务
 const handleStartTask = async () => {
@@ -556,7 +651,7 @@ const handleStartTask = async () => {
       status: 'IN_PROGRESS'
     })
     ElMessage.success('任务已开始')
-    fetchTask()
+    await refreshAfterMutation()
   } catch (error) {
     console.error('开始任务失败:', error)
   }
@@ -570,7 +665,7 @@ const handleCompleteTask = async () => {
       status: 'DONE'
     })
     ElMessage.success('任务已完成')
-    fetchTask()
+    await refreshAfterMutation()
   } catch (error) {
     console.error('完成任务失败:', error)
   }
@@ -584,22 +679,75 @@ const handleReopenTask = async () => {
       status: 'TODO'
     })
     ElMessage.success('任务已重新打开')
-    fetchTask()
+    await refreshAfterMutation()
   } catch (error) {
     console.error('重新打开任务失败:', error)
   }
 }
 
+// 子任务：开始 / 完成 / 重开 / 编辑
+const handleSubtaskStart = async (row: any) => {
+  try {
+    await updateTaskStatus({ id: row.id, status: 'IN_PROGRESS' })
+    ElMessage.success('子任务已开始')
+    fetchSubtasks()
+  } catch (error) {
+    console.error('开始子任务失败:', error)
+  }
+}
+
+const handleSubtaskComplete = async (row: any) => {
+  try {
+    await updateTaskStatus({ id: row.id, status: 'DONE' })
+    ElMessage.success('子任务已完成')
+    fetchSubtasks()
+  } catch (error) {
+    console.error('完成子任务失败:', error)
+  }
+}
+
+const handleSubtaskReopen = async (row: any) => {
+  try {
+    await updateTaskStatus({ id: row.id, status: 'TODO' })
+    ElMessage.success('子任务已重新打开')
+    fetchSubtasks()
+  } catch (error) {
+    console.error('重开子任务失败:', error)
+  }
+}
+
+const handleEditSubtask = async (row: any) => {
+  if (!projectMembers.value.length && task.value?.projectId) {
+    await fetchProjectMembers()
+  }
+  editingTaskId.value = row.id
+  editFormData.title = row.title
+  editFormData.description = row.description || ''
+  editFormData.type = row.type || 'TASK'
+  editFormData.priority = row.priority || 'MEDIUM'
+  editFormData.assigneeId = row.assigneeId
+  editFormData.status = row.status || 'TODO'
+  editFormData.planStartDate = row.planStartDate || ''
+  editFormData.planEndDate = row.planEndDate || ''
+  editDialogVisible.value = true
+}
+
 // 编辑任务
-const handleEdit = () => {
+const handleEdit = async () => {
   if (!task.value) return
 
+  if (!projectMembers.value.length && task.value.projectId) {
+    await fetchProjectMembers()
+  }
+
+  editingTaskId.value = taskId.value
   editFormData.title = task.value.title
   editFormData.description = task.value.description || ''
-  editFormData.type = task.value.type || ''
-  editFormData.priority = task.value.priority || ''
+  // 历史数据可能无 type，编辑时默认任务，避免提交空字符串导致反序列化失败
+  editFormData.type = task.value.type || 'TASK'
+  editFormData.priority = task.value.priority || 'MEDIUM'
   editFormData.assigneeId = task.value.assigneeId
-  editFormData.status = task.value.status || ''
+  editFormData.status = task.value.status || 'TODO'
   editFormData.planStartDate = task.value.planStartDate || ''
   editFormData.planEndDate = task.value.planEndDate || ''
 
@@ -614,20 +762,29 @@ const handleEditSubmit = async () => {
     if (valid) {
       editSubmitLoading.value = true
       try {
+        const targetId = editingTaskId.value || taskId.value
         await updateTask({
-          id: taskId.value,
+          id: targetId,
+          projectId: task.value?.projectId,
           title: editFormData.title,
           description: editFormData.description,
-          type: editFormData.type,
-          priority: editFormData.priority,
+          type: editFormData.type || undefined,
+          priority: editFormData.priority || undefined,
           assigneeId: editFormData.assigneeId,
-          status: editFormData.status,
-          planStartDate: editFormData.planStartDate,
-          planEndDate: editFormData.planEndDate
+          status: editFormData.status || undefined,
+          planStartDate: editFormData.planStartDate || undefined,
+          planEndDate: editFormData.planEndDate || undefined
         })
         ElMessage.success('更新成功')
         editDialogVisible.value = false
-        fetchTask()
+        if (targetId === taskId.value) {
+          await refreshAfterMutation()
+        } else {
+          await fetchSubtasks()
+          if (activeTab.value === 'history') {
+            await fetchOperationHistory()
+          }
+        }
       } catch (error) {
         console.error('更新任务失败:', error)
       } finally {
@@ -772,14 +929,6 @@ const formatDateTime = (date: string) => {
 
 onMounted(() => {
   fetchTask()
-  fetchProjectMembers()
-})
-
-// 监听标签页切换，加载工时记录
-watch(activeTab, (newTab) => {
-  if (newTab === 'workhours' && task.value) {
-    fetchWorkHours()
-  }
 })
 </script>
 
@@ -843,9 +992,33 @@ watch(activeTab, (newTab) => {
 /* 标签页内容 */
 .tab-content {
   min-height: 400px;
+  padding: 8px 4px;
+}
+
+.history-card {
+  border: 1px solid #ebeef5;
+}
+
+.history-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 6px;
+}
+
+.history-desc {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: #606266;
+  line-height: 1.5;
+}
+
+.history-user {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #909399;
 }
 
 .tab-content-workhours {

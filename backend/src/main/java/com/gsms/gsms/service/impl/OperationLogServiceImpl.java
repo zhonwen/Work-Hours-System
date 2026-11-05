@@ -86,7 +86,9 @@ public class OperationLogServiceImpl implements OperationLogService {
                 queryReq.getOperationType(),
                 queryReq.getStatus(),
                 queryReq.getStartTime(),
-                queryReq.getEndTime()
+                queryReq.getEndTime(),
+                queryReq.getBusinessType(),
+                queryReq.getBusinessId()
         );
 
         PageInfo<OperationLog> pageInfo = new PageInfo<>(logs);

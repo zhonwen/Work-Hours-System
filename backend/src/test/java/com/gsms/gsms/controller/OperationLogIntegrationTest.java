@@ -102,7 +102,9 @@ public class OperationLogIntegrationTest extends BaseControllerTest {
                 null,  // operationType
                 null,  // status
                 null,  // startTime
-                null   // endTime
+                null,  // endTime
+                null,  // businessType
+                null   // businessId
         );
 
         // 找到最新的 CREATE 操作日志
@@ -157,6 +159,8 @@ public class OperationLogIntegrationTest extends BaseControllerTest {
 
         // Then - 查询操作日志
         java.util.List<com.gsms.gsms.model.entity.OperationLog> logs = operationLogMapper.findByCondition(
+                null,
+                null,
                 null,
                 null,
                 null,
@@ -220,6 +224,8 @@ public class OperationLogIntegrationTest extends BaseControllerTest {
 
         // Then - 查询操作日志
         java.util.List<com.gsms.gsms.model.entity.OperationLog> logs = operationLogMapper.findByCondition(
+                null,
+                null,
                 null,
                 null,
                 null,
