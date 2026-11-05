@@ -458,11 +458,12 @@ const fetchTasks = async () => {
 const fetchProjectWorkHours = async () => {
   try {
     const res = await getWorkHoursByProjectId(props.projectId)
-    projectWorkHours.value = (Array.isArray(res) ? res : []) as WorkHourInfo[]
+    projectWorkHours.value = res?.list || []
     calculateMetrics()
   } catch (error) {
     console.error('获取项目工时失败:', error)
     projectWorkHours.value = []
+    calculateMetrics()
   }
 }
 

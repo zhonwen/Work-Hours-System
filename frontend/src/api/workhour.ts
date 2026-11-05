@@ -111,7 +111,10 @@ export const getWorkHoursByUserId = (userId: number): Promise<ApiResponse<WorkHo
   return request.get(`/work-hours/user/${userId}`)
 }
 
-export const getWorkHoursByProjectId = (projectId: number): Promise<ApiResponse<WorkHourInfo[]>> => {
+/** 按项目查工时：后端 PageResult，拦截器返回 { list, total } */
+export const getWorkHoursByProjectId = (
+  projectId: number
+): Promise<{ list: WorkHourInfo[]; total: number }> => {
   return request.get(`/work-hours/project/${projectId}`)
 }
 

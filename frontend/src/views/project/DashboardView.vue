@@ -1719,9 +1719,10 @@ const fetchActivities = async () => {
 const fetchWorkHours = async () => {
   try {
     const whRes = await getWorkHoursByProjectId(props.projectId)
-    workHours.value = whRes || []
+    workHours.value = whRes?.list || []
   } catch (error) {
     console.error('获取工时记录失败:', error)
+    workHours.value = []
   }
 }
 
