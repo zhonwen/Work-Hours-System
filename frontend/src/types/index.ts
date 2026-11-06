@@ -148,10 +148,12 @@ export interface WorkHourStatistics {
 
 // ==================== 用户类型 ====================
 
-/** 用户登录信息 */
+/** 用户登录信息（password 为 RSA 密文：明文密码|cid） */
 export interface LoginRequest {
   username: string
   password: string
+  cid: string
+  captchaCode: string
 }
 
 /** 登录响应 */

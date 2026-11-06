@@ -7,6 +7,8 @@ import com.gsms.gsms.dto.user.UserCreateReq;
 import com.gsms.gsms.dto.user.UserInfoResp;
 import com.gsms.gsms.dto.user.UserUpdateReq;
 import com.gsms.gsms.infra.utils.JwtUtil;
+import com.gsms.gsms.infra.utils.RsaUtil;
+import com.gsms.gsms.service.CaptchaService;
 import com.gsms.gsms.service.UserService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,8 +34,27 @@ public class UserControllerTest extends BaseControllerTest {
     @Autowired
     private UserService userService;
 
+    @Autowired
+    private CaptchaService captchaService;
+
+    @Autowired
+    private RsaUtil rsaUtil;
+
     private User testUser;
     private String testToken;
+
+    /** 组装带验证码与 RSA 密文的登录请求 */
+    private UserLoginReq buildLoginReq(String username, String plainPassword) {
+        String captchaAnswer = "AB12";
+        String cid = captchaService.createCaptchaForTest(captchaAnswer);
+        String cipher = rsaUtil.encryptWithPublicKey(plainPassword + "|" + cid);
+        UserLoginReq loginReq = new UserLoginReq();
+        loginReq.setUsername(username);
+        loginReq.setPassword(cipher);
+        loginReq.setCid(cid);
+        loginReq.setCaptchaCode(captchaAnswer);
+        return loginReq;
+    }
 
     @BeforeEach
     void setUp() throws Exception {
@@ -148,12 +169,8 @@ public class UserControllerTest extends BaseControllerTest {
 
     @Test
     void testLogin_Success() throws Exception {
-        // Given
-        UserLoginReq loginReq = new UserLoginReq();
-        loginReq.setUsername("testuser");
-        loginReq.setPassword("password");
+        UserLoginReq loginReq = buildLoginReq("testuser", "password");
 
-        // When & Then - 调用真实登录接口，生成 JWT
         mockMvc.perform(post("/api/users/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(Objects.requireNonNull(objectMapper.writeValueAsString(loginReq))))
@@ -203,16 +220,24 @@ public class UserControllerTest extends BaseControllerTest {
 
     @Test
     void testLogin_Failure() throws Exception {
-        // Given
-        UserLoginReq loginReq = new UserLoginReq();
-        loginReq.setUsername("testuser");
-        loginReq.setPassword("wrongpassword");
+        UserLoginReq loginReq = buildLoginReq("testuser", "wrongpassword");
 
-        // When & Then - 密码错误，触发业务异常 PASSWORD_ERROR
         mockMvc.perform(post("/api/users/login")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(Objects.requireNonNull(objectMapper.writeValueAsString(loginReq))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.code").value(2003));
+    }
+
+    @Test
+    void testLogin_CaptchaInvalid() throws Exception {
+        UserLoginReq loginReq = buildLoginReq("testuser", "password");
+        loginReq.setCaptchaCode("XXXX");
+
+        mockMvc.perform(post("/api/users/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(Objects.requireNonNull(objectMapper.writeValueAsString(loginReq))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(2008));
     }
 }

@@ -18,6 +18,10 @@ public enum UserErrorCode implements ErrorCode {
     PHONE_FORMAT_ERROR(2005, "手机号格式错误"),
     USER_DISABLED(2006, "用户已禁用"),             // 也可 HTTP 403
     DEFAULT_ROLE_NOT_FOUND(2007, "默认角色不存在"), // EMPLOYEE角色未配置
+    CAPTCHA_INVALID(2008, "验证码错误或已过期"),
+    LOGIN_DECRYPT_FAILED(2009, "密码解密失败"),
+    LOGIN_CID_MISMATCH(2010, "登录凭证校验失败"),
+    PASSWORD_LENGTH_INVALID(2011, "密码长度必须在6-20位之间"),
     
     // ========== 操作失败（建议HTTP 500） ==========
     USER_CREATE_FAILED(2901, "用户创建失败"),

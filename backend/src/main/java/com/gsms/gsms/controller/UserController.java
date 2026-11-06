@@ -11,7 +11,11 @@ import com.gsms.gsms.dto.user.PasswordChangeReq;
 import com.gsms.gsms.dto.user.PasswordResetReq;
 import com.gsms.gsms.infra.common.PageResult;
 import com.gsms.gsms.infra.common.Result;
+import com.gsms.gsms.infra.exception.BusinessException;
 import com.gsms.gsms.infra.utils.JwtUtil;
+import com.gsms.gsms.infra.utils.RsaUtil;
+import com.gsms.gsms.model.enums.errorcode.UserErrorCode;
+import com.gsms.gsms.service.CaptchaService;
 import com.gsms.gsms.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -31,11 +35,16 @@ public class UserController {
     private static final Logger logger = LoggerFactory.getLogger(UserController.class);
 
     private final UserService userService;
-    private final JwtUtil jwtUtil;  // 新增注入
+    private final JwtUtil jwtUtil;
+    private final RsaUtil rsaUtil;
+    private final CaptchaService captchaService;
 
-    public UserController(UserService userService, JwtUtil jwtUtil) {  // 修改构造函数
+    public UserController(UserService userService, JwtUtil jwtUtil,
+                          RsaUtil rsaUtil, CaptchaService captchaService) {
         this.userService = userService;
         this.jwtUtil = jwtUtil;
+        this.rsaUtil = rsaUtil;
+        this.captchaService = captchaService;
     }
 
     /**
@@ -92,31 +101,35 @@ public class UserController {
     }
 
     /**
-     * 用户登录
+     * 用户登录：password 为 RSA 密文（明文格式：密码|cid）
      */
     @PostMapping("/login")
     @Operation(summary = "用户登录")
     public Result<String> login(@Valid @RequestBody UserLoginReq req) {
         logger.info("用户登录: {}", req.getUsername());
-        User user = userService.login(req.getUsername(), req.getPassword());
-        // 使用注入的JwtUtil实例生成token
+        String plainPassword = rsaUtil.decryptPasswordBoundToCid(req.getPassword(), req.getCid());
+        captchaService.verifyAndConsume(req.getCid(), req.getCaptchaCode());
+
+        User user = userService.login(req.getUsername(), plainPassword);
         String token = jwtUtil.generateToken(user.getId(), user.getUsername());
         logger.info("用户登录成功: {}", user.getUsername());
         return Result.success("登录成功", token);
     }
 
     /**
-     * 用户注册
+     * 用户注册：password 为 RSA 密文（明文格式：密码|cid）
      */
     @PostMapping("/register")
     @Operation(summary = "用户注册")
     public Result<UserInfoResp> register(@Valid @RequestBody UserRegisterReq req) {
         logger.info("用户注册: {}", req.getUsername());
+        String plainPassword = rsaUtil.decryptPasswordBoundToCid(req.getPassword(), req.getCid());
+        assertPasswordLength(plainPassword);
+        captchaService.verifyAndConsume(req.getCid(), req.getCaptchaCode());
 
-        // 将注册请求转换为创建请求
         UserCreateReq createReq = new UserCreateReq();
         createReq.setUsername(req.getUsername());
-        createReq.setPassword(req.getPassword());
+        createReq.setPassword(plainPassword);
         createReq.setNickname(req.getNickname());
         createReq.setEmail(req.getEmail());
         createReq.setPhone(req.getPhone());
@@ -127,25 +140,43 @@ public class UserController {
     }
 
     /**
-     * 修改密码
+     * 修改密码：old/new 均为 RSA 密文（明文格式：密码|cid）
      */
     @PutMapping("/password")
     @Operation(summary = "修改密码")
     public Result<String> changePassword(@Valid @RequestBody PasswordChangeReq req) {
         logger.info("用户修改密码");
+        String oldPlain = rsaUtil.decryptPasswordBoundToCid(req.getOldPassword(), req.getCid());
+        String newPlain = rsaUtil.decryptPasswordBoundToCid(req.getNewPassword(), req.getCid());
+        assertPasswordLength(newPlain);
+        captchaService.verifyAndConsume(req.getCid(), req.getCaptchaCode());
+
+        req.setOldPassword(oldPlain);
+        req.setNewPassword(newPlain);
         userService.changePassword(req);
         return Result.success("密码修改成功，请重新登录");
     }
 
     /**
-     * 重置密码（管理员）
+     * 重置密码（管理员）：newPassword 为 RSA 密文（明文格式：密码|cid）
      */
     @PutMapping("/password/reset")
     @Operation(summary = "重置密码（管理员）")
     public Result<String> resetPassword(@Valid @RequestBody PasswordResetReq req) {
         logger.info("管理员重置密码: userId={}", req.getUserId());
+        String newPlain = rsaUtil.decryptPasswordBoundToCid(req.getNewPassword(), req.getCid());
+        assertPasswordLength(newPlain);
+        captchaService.verifyAndConsume(req.getCid(), req.getCaptchaCode());
+
+        req.setNewPassword(newPlain);
         userService.resetPassword(req);
         return Result.success("密码重置成功");
+    }
+
+    private void assertPasswordLength(String plainPassword) {
+        if (plainPassword == null || plainPassword.length() < 6 || plainPassword.length() > 20) {
+            throw new BusinessException(UserErrorCode.PASSWORD_LENGTH_INVALID);
+        }
     }
 
     /**

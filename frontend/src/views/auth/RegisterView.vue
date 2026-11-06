@@ -118,6 +118,26 @@
           />
         </el-form-item>
 
+        <el-form-item label="验证码" prop="captchaCode">
+          <div class="captcha-row">
+            <el-input
+              v-model="registerForm.captchaCode"
+              placeholder="请输入验证码"
+              maxlength="6"
+              clearable
+            />
+            <img
+              v-if="captchaImage"
+              :src="captchaImage"
+              class="captcha-image"
+              alt="验证码"
+              title="点击刷新验证码"
+              @click="refreshCaptcha"
+            />
+            <el-button v-else @click="refreshCaptcha" :loading="captchaLoading">刷新</el-button>
+          </div>
+        </el-form-item>
+
         <el-form-item>
           <el-button
             type="primary"
@@ -139,23 +159,27 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { type FormInstance, type FormRules } from 'element-plus'
 import { message } from '@/utils/message'
 import { User, UserFilled, Message, Phone, Lock } from '@element-plus/icons-vue'
-import { register, type RegisterReq } from '@/api/auth'
+import { getCaptcha, register, type RegisterReq } from '@/api/auth'
+import { encryptPasswordWithCid } from '@/utils/rsaEncrypt'
 
 const router = useRouter()
 const registerFormRef = ref<FormInstance>()
 const loading = ref(false)
+const captchaLoading = ref(false)
 const registerSuccess = ref(false)
-const registerData = ref<RegisterReq>({
+const captchaCid = ref('')
+const captchaPublicKey = ref('')
+const captchaImage = ref('')
+const registerData = ref({
   username: '',
   nickname: '',
   email: '',
-  phone: '',
-  password: ''
+  phone: ''
 })
 
 // 注册表单
@@ -165,7 +189,8 @@ const registerForm = reactive({
   email: '',
   phone: '',
   password: '',
-  confirmPassword: ''
+  confirmPassword: '',
+  captchaCode: ''
 })
 
 // 自定义验证规则
@@ -204,7 +229,26 @@ const registerRules: FormRules = {
   ],
   confirmPassword: [
     { required: true, validator: validateConfirmPassword, trigger: 'blur' }
+  ],
+  captchaCode: [
+    { required: true, message: '请输入验证码', trigger: 'blur' }
   ]
+}
+
+const refreshCaptcha = async () => {
+  captchaLoading.value = true
+  try {
+    const res = await getCaptcha()
+    captchaCid.value = res.cid
+    captchaPublicKey.value = res.publicKey
+    captchaImage.value = res.imageBase64
+    registerForm.captchaCode = ''
+  } catch (error) {
+    console.error('获取验证码失败:', error)
+    message.error('获取验证码失败')
+  } finally {
+    captchaLoading.value = false
+  }
 }
 
 // 注册
@@ -213,27 +257,44 @@ const handleRegister = async () => {
 
   try {
     await registerFormRef.value.validate()
+    if (!captchaCid.value || !captchaPublicKey.value) {
+      message.warning('请先获取验证码')
+      await refreshCaptcha()
+      return
+    }
     loading.value = true
+
+    const encryptedPassword = encryptPasswordWithCid(
+      captchaPublicKey.value,
+      registerForm.password,
+      captchaCid.value
+    )
 
     const data: RegisterReq = {
       username: registerForm.username,
-      password: registerForm.password,
+      password: encryptedPassword,
       nickname: registerForm.nickname,
       email: registerForm.email,
-      phone: registerForm.phone
+      phone: registerForm.phone,
+      cid: captchaCid.value,
+      captchaCode: registerForm.captchaCode
     }
 
     await register(data)
 
-    // 保存注册信息用于成功页面显示
-    registerData.value = data
+    registerData.value = {
+      username: registerForm.username,
+      nickname: registerForm.nickname,
+      email: registerForm.email,
+      phone: registerForm.phone
+    }
     registerSuccess.value = true
 
     message.success('注册成功')
   } catch (error: any) {
-    if (error !== false) { // 表单验证失败时error为false；业务错误已由拦截器提示，此处节流去重
+    if (error !== false) {
       console.error('注册失败:', error)
-      message.error(error.message || '注册失败，请稍后重试')
+      await refreshCaptcha()
     }
   } finally {
     loading.value = false
@@ -244,6 +305,10 @@ const handleRegister = async () => {
 const goToLogin = () => {
   router.push('/login')
 }
+
+onMounted(() => {
+  refreshCaptcha()
+})
 </script>
 
 <style scoped>
@@ -306,6 +371,28 @@ const goToLogin = () => {
   margin-top: 16px;
   font-size: 14px;
   color: #666;
+}
+
+.captcha-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.captcha-row .el-input {
+  flex: 1;
+}
+
+.captcha-image {
+  height: 40px;
+  width: 120px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid #dcdfe6;
+  flex-shrink: 0;
+  object-fit: cover;
+  background: #f5f7fa;
 }
 
 :deep(.el-form-item) {

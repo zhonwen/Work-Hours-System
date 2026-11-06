@@ -7,7 +7,7 @@ import javax.validation.constraints.Pattern;
 import javax.validation.constraints.Size;
 
 /**
- * 用户注册请求
+ * 用户注册请求（password 为 RSA 密文：明文密码|cid）
  */
 @Schema(description = "用户注册请求")
 public class UserRegisterReq {
@@ -18,9 +18,16 @@ public class UserRegisterReq {
     private String username;
     
     @NotBlank(message = "密码不能为空")
-    @Size(min = 6, max = 20, message = "密码长度必须在6-20个字符之间")
-    @Schema(description = "密码", example = "123456")
+    @Schema(description = "RSA 加密后的密文（明文格式：密码|cid）")
     private String password;
+
+    @NotBlank(message = "验证码会话不能为空")
+    @Schema(description = "验证码会话 ID")
+    private String cid;
+
+    @NotBlank(message = "验证码不能为空")
+    @Schema(description = "用户输入的验证码")
+    private String captchaCode;
     
     @Schema(description = "昵称", example = "张三")
     private String nickname;
@@ -47,6 +54,22 @@ public class UserRegisterReq {
 
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public String getCid() {
+        return cid;
+    }
+
+    public void setCid(String cid) {
+        this.cid = cid;
+    }
+
+    public String getCaptchaCode() {
+        return captchaCode;
+    }
+
+    public void setCaptchaCode(String captchaCode) {
+        this.captchaCode = captchaCode;
     }
 
     public String getNickname() {

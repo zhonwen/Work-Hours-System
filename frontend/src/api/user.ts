@@ -104,11 +104,13 @@ export const deleteUser = (id: number) => {
 }
 
 /**
- * 重置密码（管理员）
+ * 重置密码（管理员；newPassword 为 RSA 密文：明文密码|cid）
  */
 export const resetPassword = (data: {
   userId: number
   newPassword: string
+  cid: string
+  captchaCode: string
 }) => {
   return request.put('/users/password/reset', data)
 }

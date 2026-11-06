@@ -224,6 +224,25 @@
             placeholder="请再次输入新密码"
           />
         </el-form-item>
+        <el-form-item label="验证码" prop="captchaCode">
+          <div class="captcha-row">
+            <el-input
+              v-model="resetPasswordForm.captchaCode"
+              placeholder="请输入验证码"
+              maxlength="6"
+              clearable
+            />
+            <img
+              v-if="resetCaptchaImage"
+              :src="resetCaptchaImage"
+              class="captcha-image"
+              alt="验证码"
+              title="点击刷新验证码"
+              @click="refreshResetCaptcha"
+            />
+            <el-button v-else @click="refreshResetCaptcha" :loading="resetCaptchaLoading">刷新</el-button>
+          </div>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="resetPasswordDialogVisible = false">取消</el-button>
@@ -240,6 +259,8 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { Search, Plus } from '@element-plus/icons-vue'
 import { getUserList, assignUserRoles, getUserRoles, createUser, updateUser, deleteUser, resetPassword, type UserInfo, type UserQuery } from '@/api/user'
+import { getCaptcha } from '@/api/auth'
+import { encryptPasswordWithCid } from '@/utils/rsaEncrypt'
 import { getRoleList, type RoleInfo } from '@/api/role'
 import { getAllDepartments, type DepartmentInfo } from '@/api/department'
 
@@ -321,10 +342,15 @@ const editForm = reactive({
 const resetPasswordDialogVisible = ref(false)
 const resetPasswordFormRef = ref<FormInstance>()
 const resetPasswordUser = ref<UserInfo>()
+const resetCaptchaCid = ref('')
+const resetCaptchaPublicKey = ref('')
+const resetCaptchaImage = ref('')
+const resetCaptchaLoading = ref(false)
 const resetPasswordForm = reactive({
   userId: 0,
   newPassword: '',
-  confirmPassword: ''
+  confirmPassword: '',
+  captchaCode: ''
 })
 
 // 表单验证规则
@@ -366,7 +392,26 @@ const resetPasswordFormRules: FormRules = {
       },
       trigger: 'blur'
     }
+  ],
+  captchaCode: [
+    { required: true, message: '请输入验证码', trigger: 'blur' }
   ]
+}
+
+const refreshResetCaptcha = async () => {
+  resetCaptchaLoading.value = true
+  try {
+    const res = await getCaptcha()
+    resetCaptchaCid.value = res.cid
+    resetCaptchaPublicKey.value = res.publicKey
+    resetCaptchaImage.value = res.imageBase64
+    resetPasswordForm.captchaCode = ''
+  } catch (error) {
+    console.error('获取验证码失败:', error)
+    ElMessage.error('获取验证码失败')
+  } finally {
+    resetCaptchaLoading.value = false
+  }
 }
 
 // 生命周期
@@ -602,7 +647,9 @@ const handleResetPassword = (row: UserInfo) => {
   resetPasswordForm.userId = row.id
   resetPasswordForm.newPassword = ''
   resetPasswordForm.confirmPassword = ''
+  resetPasswordForm.captchaCode = ''
   resetPasswordDialogVisible.value = true
+  refreshResetCaptcha()
 }
 
 // 提交重置密码
@@ -611,11 +658,24 @@ const handleSubmitResetPassword = async () => {
 
   try {
     await resetPasswordFormRef.value.validate()
+    if (!resetCaptchaCid.value || !resetCaptchaPublicKey.value) {
+      ElMessage.warning('请先获取验证码')
+      await refreshResetCaptcha()
+      return
+    }
     submitLoading.value = true
+
+    const encryptedPassword = encryptPasswordWithCid(
+      resetCaptchaPublicKey.value,
+      resetPasswordForm.newPassword,
+      resetCaptchaCid.value
+    )
 
     await resetPassword({
       userId: resetPasswordForm.userId,
-      newPassword: resetPasswordForm.newPassword
+      newPassword: encryptedPassword,
+      cid: resetCaptchaCid.value,
+      captchaCode: resetPasswordForm.captchaCode
     })
 
     ElMessage.success('密码重置成功')
@@ -623,7 +683,7 @@ const handleSubmitResetPassword = async () => {
   } catch (error: any) {
     if (error !== false) {
       console.error('重置密码失败:', error)
-      ElMessage.error(error.message || '重置密码失败')
+      await refreshResetCaptcha()
     }
   } finally {
     submitLoading.value = false
@@ -637,6 +697,10 @@ const handleResetPasswordDialogClose = () => {
   resetPasswordForm.userId = 0
   resetPasswordForm.newPassword = ''
   resetPasswordForm.confirmPassword = ''
+  resetPasswordForm.captchaCode = ''
+  resetCaptchaCid.value = ''
+  resetCaptchaPublicKey.value = ''
+  resetCaptchaImage.value = ''
 }
 
 // 工具函数
@@ -652,5 +716,27 @@ const formatDate = (dateStr: string) => {
 /* 树形选择器下拉框样式优化 */
 :deep(.el-tree-select__popper) {
   z-index: 9999 !important;
+}
+
+.captcha-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+}
+
+.captcha-row .el-input {
+  flex: 1;
+}
+
+.captcha-image {
+  height: 40px;
+  width: 120px;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid #dcdfe6;
+  flex-shrink: 0;
+  object-fit: cover;
+  background: #f5f7fa;
 }
 </style>
