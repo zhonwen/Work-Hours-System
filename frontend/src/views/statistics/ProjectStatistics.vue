@@ -92,7 +92,36 @@
     <el-card class="table-card" v-if="statisticsData && userDistribution.length > 0">
       <template #header>
         <div class="card-header">
-          <span class="card-title">用户工时分布</span>
+          <div class="card-title-wrap">
+            <span class="card-title">用户工时分布</span>
+            <el-tooltip
+              placement="bottom-start"
+              :show-after="200"
+              effect="dark"
+              popper-class="stats-rule-tooltip"
+            >
+              <template #content>
+                <div class="rule-tooltip">
+                  <div class="rule-title">计算规则说明</div>
+                  <div class="rule-item">
+                    <span class="rule-label">工时数：</span>
+                    该用户在筛选条件下，于本项目实际填报工时合计（不含请假），单位小时。
+                  </div>
+                  <div class="rule-item">
+                    <span class="rule-label">进度条 / 占比：</span>
+                    该用户工时 ÷ 项目总工时 × 100%，表示各成员对本项目总投入的贡献比例。
+                  </div>
+                  <div class="rule-item">
+                    <span class="rule-label">排名：</span>
+                    按工时数降序排列。
+                  </div>
+                </div>
+              </template>
+              <el-icon class="title-help-icon" tabindex="0">
+                <QuestionFilled />
+              </el-icon>
+            </el-tooltip>
+          </div>
         </div>
       </template>
 
@@ -129,7 +158,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Clock, Document, User } from '@element-plus/icons-vue'
+import { Clock, Document, User, QuestionFilled } from '@element-plus/icons-vue'
 import { getProjectWorkHourStatistics } from '@/api/statistics'
 import { getProjectList } from '@/api/project'
 import { getAllUsers, type UserInfo } from '@/api/user'
@@ -321,9 +350,57 @@ onMounted(async () => {
 </script>
 
 <style scoped>
+.card-header {
+  display: flex;
+  align-items: center;
+}
+
+.card-title-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .card-title {
   font-size: 16px;
   font-weight: 500;
   color: #333;
+}
+
+.title-help-icon {
+  font-size: 16px;
+  color: #909399;
+  cursor: help;
+  outline: none;
+  transition: color 0.2s;
+}
+
+.title-help-icon:hover,
+.title-help-icon:focus {
+  color: #409eff;
+}
+</style>
+
+<style>
+.stats-rule-tooltip {
+  max-width: 380px !important;
+}
+
+.stats-rule-tooltip .rule-tooltip {
+  line-height: 1.65;
+  font-size: 13px;
+}
+
+.stats-rule-tooltip .rule-title {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.stats-rule-tooltip .rule-item + .rule-item {
+  margin-top: 6px;
+}
+
+.stats-rule-tooltip .rule-label {
+  font-weight: 600;
 }
 </style>

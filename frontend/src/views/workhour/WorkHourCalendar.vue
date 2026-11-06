@@ -81,12 +81,11 @@
         <span class="filter-label">查看人员</span>
         <el-select
           v-model="selectedUserId"
-          placeholder="我自己"
-          clearable
           filterable
-          style="width: 200px"
+          class="user-filter-select"
           @change="handleUserChange"
         >
+          <el-option label="我自己" :value="0" />
           <el-option
             v-for="u in userOptions"
             :key="u.id"
@@ -262,19 +261,19 @@ import { message } from '@/utils/message'
 
 const authStore = useAuthStore()
 const canViewAllWorkHours = computed(() => authStore.hasPermission('WORKHOUR_VIEW_ALL'))
-/** 空 = 我自己；有值 = 一次只看该人 */
-const selectedUserId = ref<number | undefined>(undefined)
+/** 0 = 我自己；>0 = 一次只看该人 */
+const selectedUserId = ref(0)
 const userOptions = ref<UserInfo[]>([])
 
 const viewingQuery = computed(() => {
-  if (canViewAllWorkHours.value && selectedUserId.value) {
+  if (canViewAllWorkHours.value && selectedUserId.value > 0) {
     return { viewScope: 'USER' as WorkHourViewScope, userId: selectedUserId.value }
   }
   return { viewScope: 'SELF' as WorkHourViewScope }
 })
 
 const pageTitle = computed(() => {
-  if (!selectedUserId.value) return '我的工时日历'
+  if (selectedUserId.value <= 0) return '我的工时日历'
   const u = userOptions.value.find(item => item.id === selectedUserId.value)
   const name = u?.nickname || u?.username || '该成员'
   return `${name}的工时日历`
@@ -642,6 +641,17 @@ onMounted(() => {
   font-size: 14px;
   color: #666;
   white-space: nowrap;
+}
+
+/* 与左侧 button-group 默认高度对齐，避免选择框显得突兀 */
+.user-filter-select {
+  width: 180px;
+}
+
+.user-filter-select :deep(.el-select__wrapper) {
+  min-height: 32px;
+  height: 32px;
+  box-sizing: border-box;
 }
 
 .current-month {

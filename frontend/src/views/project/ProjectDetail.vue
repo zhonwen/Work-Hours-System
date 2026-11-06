@@ -23,39 +23,34 @@
           </div>
         </div>
       </div>
-
-      <!-- 右侧：操作按钮 -->
-      <div class="nav-right">
-        <el-button type="primary" :icon="Plus">新建</el-button>
-      </div>
     </div>
 
-    <!-- 内容区域：keep-alive 保活 + ?tab= 刷新不丢当前模块 -->
+    <!-- 内容区域：keep-alive 保活当前项目的 tab；key 含 projectId，切项目强制重载（含公告） -->
     <div class="content-area">
       <keep-alive>
         <ProjectOverview
           v-if="activeModule === 'overview'"
-          key="overview"
+          :key="`overview-${projectId}`"
           class="module-content"
           :project-id="projectId"
           @navigate-members="switchModule('member')"
         />
         <TasksView
           v-else-if="activeModule === 'tasks'"
-          key="tasks"
+          :key="`tasks-${projectId}`"
           class="module-content"
           ref="tasksViewRef"
           :project-id="projectId"
         />
         <WorkHourStats
           v-else-if="activeModule === 'workhours'"
-          key="workhours"
+          :key="`workhours-${projectId}`"
           class="module-content"
           :project-id="projectId"
         />
         <MembersView
           v-else-if="activeModule === 'member'"
-          key="member"
+          :key="`member-${projectId}`"
           class="module-content"
           ref="membersViewRef"
           :project-id="projectId"
@@ -298,7 +293,6 @@ import {
   Delete,
   InfoFilled,
   List,
-  Plus,
   View,
   Grid,
   Document,
@@ -382,6 +376,14 @@ watch(
     }
   }
 )
+
+/** 路由切换项目时刷新详情数据（同组件复用不会触发 onMounted） */
+watch(projectId, (id, prev) => {
+  if (!id || id === prev) return
+  fetchProject()
+  fetchMembers()
+  fetchTasks()
+})
 
 // ONES 风格：当前视图标签
 const currentViewTab = ref('kanban')
@@ -1099,7 +1101,9 @@ onMounted(() => {
   box-sizing: border-box;
 }
 
-/* 工时统计：模块自身滚动，避免底部内容被 overflow:hidden 裁切 */
+/* 概览 / 工时统计：模块自身滚动，避免底部内容被 overflow:hidden 裁切 */
+.module-content.project-overview,
+.content-area > .project-overview,
 .module-content.workhour-stats,
 .content-area > .workhour-stats {
   flex: 1 1 auto;
@@ -1119,11 +1123,11 @@ onMounted(() => {
 }
 
 
-/* 项目导航栏 */
+/* 项目导航栏：三列网格，去掉右侧按钮后标签仍居中 */
 .project-navigation {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(140px, 1fr) auto minmax(140px, 1fr);
   align-items: center;
-  justify-content: space-between;
   padding: 12px 16px;
   background: #fff;
   border-bottom: 1px solid #f0f0f0;
@@ -1134,16 +1138,18 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
-  flex-shrink: 0;
+  min-width: 0;
+  justify-self: start;
 }
 
 .project-selector-wrapper {
   display: flex;
   align-items: center;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .nav-center {
-  flex: 1;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -1177,13 +1183,6 @@ onMounted(() => {
   color: #1890ff;
   font-weight: 500;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-}
-
-.nav-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
 }
 
 .header-left {

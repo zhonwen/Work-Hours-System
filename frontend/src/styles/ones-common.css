@@ -589,7 +589,6 @@
 }
 
 .sidebar-menu-item,
-.project-brand-sub,
 .iteration-select-trigger,
 .view-tab,
 .task-card,
@@ -600,6 +599,11 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+/* 项目名选择器：只保证可点高度，不要套 justify-center / 固定 min-width，否则名称会被挤没 */
+.project-brand-sub {
+  min-height: var(--touch-target-min);
 }
 
 /* ✅ 焦点状态可见（键盘导航） */

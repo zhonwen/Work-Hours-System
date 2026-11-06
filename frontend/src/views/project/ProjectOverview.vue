@@ -337,7 +337,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -675,9 +675,15 @@ const handleViewIteration = (iteration: IterationInfo) => {
   router.push(`/projects/${props.projectId}/iterations/${iteration.id}`)
 }
 
-// 生命周期
-onMounted(async () => {
+const loadOverview = async () => {
   loading.value = true
+  // 切项目时先清空公告，避免短暂展示上一项目内容
+  announcementContent.value = ''
+  announcementDraft.value = ''
+  announcementEditing.value = false
+  announcementUpdateTime.value = ''
+  announcementUpdateUserName.value = ''
+  canEditAnnouncement.value = false
   try {
     await Promise.all([
       fetchProject(),
@@ -690,7 +696,19 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+}
+
+onMounted(() => {
+  loadOverview()
 })
+
+watch(
+  () => props.projectId,
+  (id, prev) => {
+    if (!id || id === prev) return
+    loadOverview()
+  }
+)
 
 // 打开添加成员对话框
 const handleAddMember = () => {
@@ -758,6 +776,8 @@ const handleRemoveMember = async (member: OverviewMember) => {
 <style scoped>
 .project-overview {
   height: 100%;
+  min-height: 0;
+  overflow-x: hidden;
   overflow-y: auto;
   padding: 24px;
   background: #f5f5f5;

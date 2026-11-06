@@ -1,7 +1,7 @@
 <template>
   <div class="project-selector">
     <el-dropdown trigger="click" @command="handleSelectProject">
-      <div class="project-brand-sub">
+      <div class="project-brand-sub" :title="currentProjectName">
         <span class="current-project-name">
           {{ currentProjectName }}
         </span>
@@ -126,14 +126,38 @@ onMounted(async () => {
 
 <style scoped>
 .project-selector {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+}
+
+.project-selector :deep(.el-dropdown) {
+  max-width: 100%;
+}
+
+.project-brand-sub {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 280px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  color: #303133;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 22px;
+  cursor: pointer;
 }
 
 .current-project-name {
-  max-width: 200px;
+  display: inline-block;
+  max-width: 240px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
 }
 
 .project-section {
