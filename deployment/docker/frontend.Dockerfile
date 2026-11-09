@@ -4,6 +4,11 @@ FROM node:18-alpine AS builder
 
 WORKDIR /app
 
+ARG VITE_APP_API_BASE_URL=/api
+ARG VITE_APP_API_TIMEOUT=15000
+ENV VITE_APP_API_BASE_URL=$VITE_APP_API_BASE_URL \
+    VITE_APP_API_TIMEOUT=$VITE_APP_API_TIMEOUT
+
 # 复制 package.json 并安装依赖
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm install

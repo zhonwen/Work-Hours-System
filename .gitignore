@@ -31,6 +31,8 @@ Thumbs.db
 
 # 其他
 .env
+.env.prod
+.env.*.local
 *.class
 
 # Maven

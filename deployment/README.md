@@ -1,13 +1,95 @@
 # GSMS 部署指南
 
-本文档介绍如何使用 Docker Compose 部署 GSMS 系统。
+本文档介绍如何使用 Docker Compose 部署 GSMS / TeamChron。
 
 ## 环境要求
 
 - **Docker** 20.10+
-- **Docker Compose** 2.0+
+- **Docker Compose** 2.0+（`docker compose` 插件）
+- 云主机建议：**2 核 2G+**（1G 内存构建易 OOM，可先本机构建再推镜像）
 
-## 快速开始
+---
+
+## 腾讯云轻量（Ubuntu）生产部署
+
+使用仓库根目录的 **`docker-compose.prod.yml`**（MySQL + 后端 + 前端同域反代）。
+
+### 1. 安全组 / 防火墙
+
+放行：**22**（SSH）、**80**（HTTP）。  
+不要对公网放行 **3306**。
+
+### 2. 安装 Docker
+
+```bash
+sudo apt update
+curl -fsSL https://get.docker.com | sudo sh
+sudo usermod -aG docker ubuntu
+newgrp docker
+docker -v && docker compose version
+```
+
+### 3. 获取代码
+
+```bash
+cd ~
+git clone <你的仓库地址> gsms
+cd gsms
+```
+
+### 4. 配置环境变量
+
+```bash
+cp .env.prod.example .env.prod
+nano .env.prod   # 或 vim
+```
+
+必改项：
+
+- `MYSQL_ROOT_PASSWORD` / `MYSQL_PASSWORD`：强密码  
+- `JWT_SECRET`：≥32 位随机串  
+- `CORS_ALLOWED_ORIGINS`：`http://你的公网IP` 或域名（多个用英文逗号）
+
+### 5. 启动
+
+```bash
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+docker compose -f docker-compose.prod.yml --env-file .env.prod ps
+docker compose -f docker-compose.prod.yml --env-file .env.prod logs -f backend
+```
+
+首次构建后端镜像较慢（Maven 下载依赖），请耐心等待。
+
+### 6. 访问
+
+- 前端：`http://<公网IP>`
+- 健康检查：`http://<公网IP>/actuator/health`
+- API 经 Nginx 同域：`/api/...`（浏览器无需直连 8080）
+
+登录后请立即修改默认管理员密码。
+
+### 7. 常用运维
+
+```bash
+# 看日志
+docker compose -f docker-compose.prod.yml --env-file .env.prod logs -f
+
+# 更新代码后重建
+git pull
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+
+# 备份数据库
+docker exec gsms-mysql mysqldump -ugsms -p"$MYSQL_PASSWORD" gsms > backup-$(date +%F).sql
+
+# 停止（保留数据卷）
+docker compose -f docker-compose.prod.yml --env-file .env.prod down
+```
+
+> 内存偏小导致 `npm`/`mvn` 构建失败时：在配置更高的机器构建镜像并 `docker save/load`，或临时加 swap。
+
+---
+
+## 本地快速开始（开发向）
 
 ### 1. 克隆项目
 
@@ -18,8 +100,10 @@ cd gsms
 
 ### 2. 启动服务
 
+默认根目录 `docker-compose.yml` 偏向本机已有 MySQL；云上请用上一节的 **prod** 文件。
+
 ```bash
-# 启动所有服务（MySQL、后端、前端）
+# 启动（按当前 compose 配置）
 docker-compose up -d
 
 # 查看日志

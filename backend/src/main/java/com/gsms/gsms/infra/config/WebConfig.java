@@ -25,12 +25,12 @@ public class WebConfig implements WebMvcConfigurer {
 
     /**
      * 配置跨域资源共享(CORS)
-     * 仅允许配置文件中指定的域名访问
+     * 使用 allowedOriginPatterns，支持通配（如局域网 IP），并可与 allowCredentials 同时使用
      */
     @Override
     public void addCorsMappings(CorsRegistry registry) {
         registry.addMapping("/**")
-                .allowedOrigins(corsProperties.getAllowedOrigins().toArray(new String[0]))
+                .allowedOriginPatterns(corsProperties.getAllowedOrigins().toArray(new String[0]))
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                 .allowedHeaders("*")
                 .allowCredentials(true)

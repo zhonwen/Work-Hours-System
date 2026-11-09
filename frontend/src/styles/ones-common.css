@@ -613,6 +613,18 @@
   border-radius: 4px;
 }
 
+/* Element Plus 控件自带焦点样式；全局 outline 会从 input 内层溢出边框 */
+.el-input__inner:focus-visible,
+.el-textarea__inner:focus-visible,
+.el-input__wrapper:focus-visible,
+.el-select__wrapper:focus-visible,
+.el-button:focus-visible,
+.el-checkbox__original:focus-visible,
+.el-radio__original:focus-visible,
+.el-switch__input:focus-visible {
+  outline: none;
+}
+
 /* ✅ 仅在键盘操作时显示焦点环（鼠标点击不显示） */
 *:focus:not(:focus-visible) {
   outline: none;

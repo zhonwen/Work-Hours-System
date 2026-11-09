@@ -224,7 +224,7 @@ onMounted(() => {
 }
 
 .captcha-image {
-  height: 40px;
+  height: 36px;
   width: 120px;
   border-radius: 4px;
   cursor: pointer;
@@ -232,6 +232,16 @@ onMounted(() => {
   flex-shrink: 0;
   object-fit: cover;
   background: #f5f7fa;
+}
+
+/* 密码框后缀图标垂直居中，避免固定高度下视觉错位 */
+:deep(.el-input__wrapper) {
+  overflow: hidden;
+}
+
+:deep(.el-input__suffix) {
+  display: flex;
+  align-items: center;
 }
 
 .footer-links {

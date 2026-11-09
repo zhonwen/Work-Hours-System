@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * CORS配置属性
+ * CORS 配置属性（值作为 Origin Pattern，支持通配如 http://192.168.*.*:3000）
  */
 @Component
 @ConfigurationProperties(prefix = "cors")

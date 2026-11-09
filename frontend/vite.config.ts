@@ -25,6 +25,7 @@ export default defineConfig({
     },
   },
   server: {
+    host: true, // 监听 0.0.0.0，允许局域网 IP 访问（如 192.168.x.x:3000）
     port: 3000,
     proxy: {
       // 开发环境代理后端 API

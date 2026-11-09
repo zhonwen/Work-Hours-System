@@ -401,6 +401,12 @@ onMounted(() => {
 
 :deep(.el-input__wrapper) {
   padding: 8px 15px;
+  overflow: hidden;
+}
+
+:deep(.el-input__suffix) {
+  display: flex;
+  align-items: center;
 }
 
 :deep(.el-result__subtitle) {

@@ -100,10 +100,13 @@ jwt:
   secret: gsms_dev_secret_key_2025  # 开发环境密钥
   expiration: 86400000              # 24小时（毫秒）
 
-# CORS配置
+# CORS配置（支持局域网 Origin 通配，配合 WebConfig.allowedOriginPatterns）
 cors:
   allowed-origins:
     - http://localhost:3000
     - http://127.0.0.1:3000
     - http://localhost:3002
     - http://127.0.0.1:3002
+    - http://192.168.*.*:3000
+    - http://10.*.*.*:3000
+    - http://172.*.*.*:3000
