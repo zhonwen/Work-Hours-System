@@ -16,8 +16,10 @@ FROM eclipse-temurin:8-jre-alpine
 
 WORKDIR /app
 
-# curl: 健康检查；fontconfig + 字体: Alpine 下 AWT 生成验证码图需要
-RUN apk add --no-cache curl fontconfig ttf-dejavu \
+# curl: 健康检查
+# fontconfig/ttf-dejavu/freetype: 验证码 AWT 画图
+# libgcc/libstdc++: 修复 libfontmanager.so 依赖 libgcc_s.so.1 缺失
+RUN apk add --no-cache curl fontconfig ttf-dejavu freetype libgcc libstdc++ \
     && fc-cache -f
 
 # 创建日志目录
