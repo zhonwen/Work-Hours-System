@@ -104,7 +104,8 @@ public class CaptchaServiceImpl implements CaptchaService {
                         random.nextInt(width), random.nextInt(height));
             }
 
-            g.setFont(new Font("Arial", Font.BOLD, 24));
+            // 使用逻辑字体，避免 Alpine 容器无 Arial 导致画图失败
+            g.setFont(new Font(Font.SANS_SERIF, Font.BOLD, 24));
             int charWidth = width / (code.length() + 1);
             for (int i = 0; i < code.length(); i++) {
                 g.setColor(new Color(30 + random.nextInt(100), 30 + random.nextInt(100), 30 + random.nextInt(100)));
