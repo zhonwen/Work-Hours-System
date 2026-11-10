@@ -13,9 +13,9 @@ ENV VITE_APP_API_BASE_URL=$VITE_APP_API_BASE_URL \
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm install
 
-# 复制源代码并构建
+# 复制源代码并构建（镜像内跳过 vue-tsc，避免与 TypeScript 版本不兼容）
 COPY frontend/ ./
-RUN npm run build
+RUN npx vite build
 
 # 运行阶段 - 使用 Nginx
 FROM nginx:alpine

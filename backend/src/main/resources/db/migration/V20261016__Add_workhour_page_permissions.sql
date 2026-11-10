@@ -5,11 +5,13 @@
 -- ============================================
 
 -- 1. 新增工时页面菜单权限
+-- 不写 permission_type：Flyway 按版本号排序时，本脚本可能早于 V202601154
+--（该脚本才添加 permission_type）；列存在后由 V202601154 的 MENU_% 更新补齐。
 INSERT IGNORE INTO `sys_permission`
-(`name`, `code`, `description`, `permission_type`, `create_user_id`, `update_user_id`)
+(`name`, `code`, `description`, `create_user_id`, `update_user_id`)
 VALUES
-('访问工时日历', 'MENU_WORKHOUR_CALENDAR', '可访问工时日历页面', 2, 1, 1),
-('访问工时列表', 'MENU_WORKHOUR_LIST', '可访问工时列表页面', 2, 1, 1);
+('访问工时日历', 'MENU_WORKHOUR_CALENDAR', '可访问工时日历页面', 1, 1),
+('访问工时列表', 'MENU_WORKHOUR_LIST', '可访问工时列表页面', 1, 1);
 
 -- 2. 移除子菜单对父级工时权限的直接绑定
 DELETE mp

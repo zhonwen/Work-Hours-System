@@ -44,10 +44,11 @@ ALTER TABLE `gsms_work_hour`
   ADD KEY `idx_workhour_leave_type` (`leave_type_id`);
 
 -- 3. 菜单与权限（系统管理 - 请假类型）
+-- 不写 permission_type，兼容该列尚未创建的库（版本号排序问题）
 INSERT IGNORE INTO `sys_permission`
-(`name`, `code`, `description`, `permission_type`, `create_user_id`, `update_user_id`)
+(`name`, `code`, `description`, `create_user_id`, `update_user_id`)
 VALUES
-('访问请假类型', 'MENU_LEAVE_TYPE', '可访问请假类型字典管理', 2, 1, 1);
+('访问请假类型', 'MENU_LEAVE_TYPE', '可访问请假类型字典管理', 1, 1);
 
 INSERT INTO `sys_menu`
 (`id`, `name`, `path`, `component`, `icon`, `parent_id`, `sort`, `type`, `status`, `visible`, `create_user_id`, `update_user_id`)

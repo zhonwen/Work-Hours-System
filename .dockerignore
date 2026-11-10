@@ -12,11 +12,8 @@ docs/
 .vscode/
 *.iml
 
-# Test files
-src/test/
-**/test/
-
-# Logs
+# Test / local junk
+**/src/test/
 logs/
 *.log
 

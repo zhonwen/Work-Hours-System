@@ -63,6 +63,8 @@ services:
       JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
       # 同域 Nginx 反代通常不触发跨域；填公网访问来源（含 http://IP）
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      # 2G 云主机限制堆内存，避免和 MySQL 一起把机器打爆
+      JAVA_TOOL_OPTIONS: ${JAVA_TOOL_OPTIONS:--Xms256m -Xmx512m}
       TZ: Asia/Shanghai
     # 仅本机联调需要时再映射；对外只走 frontend:80
     # ports:
