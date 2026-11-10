@@ -43,8 +43,8 @@ ALTER TABLE `gsms_work_hour`
   ADD KEY `idx_workhour_record_type` (`record_type`),
   ADD KEY `idx_workhour_leave_type` (`leave_type_id`);
 
--- 3. 菜单与权限（系统管理 - 请假类型）
--- 不写 permission_type，兼容该列尚未创建的库（版本号排序问题）
+-- 3. 菜单与权限(系统管理 - 请假类型)
+-- 不写 permission_type, 兼容该列尚未创建的库(版本号排序问题)
 INSERT IGNORE INTO `sys_permission`
 (`name`, `code`, `description`, `create_user_id`, `update_user_id`)
 VALUES

@@ -16,23 +16,28 @@ docs/
 **/src/test/
 logs/
 *.log
-
-# Temporary files
 *.tmp
 *.temp
 *.swp
 *.swo
 *~
 
-# Frontend (not needed in backend build)
-frontend/
-
 # CI/CD
 .github/
 .gitlab-ci.yml
 jenkins/
 
-# Deployment
-deployment/
-docker-compose.yml
-Dockerfile*
+# Compose / secrets（勿打进镜像上下文）
+docker-compose*.yml
+.env
+.env.*
+!.env.prod.example
+
+# 前端构建产物与依赖（镜像内会重新 npm install）
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/.env.local
+
+# 后端本地构建产物
+backend/target/

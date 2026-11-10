@@ -5,8 +5,7 @@
 -- ============================================
 
 -- 1. 新增工时页面菜单权限
--- 不写 permission_type：Flyway 按版本号排序时，本脚本可能早于 V202601154
---（该脚本才添加 permission_type）；列存在后由 V202601154 的 MENU_% 更新补齐。
+-- 不写 permission_type: 本脚本可能早于 V202601154 执行, 类型由后续 MENU_% 更新补齐
 INSERT IGNORE INTO `sys_permission`
 (`name`, `code`, `description`, `create_user_id`, `update_user_id`)
 VALUES
