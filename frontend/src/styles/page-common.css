@@ -553,7 +553,7 @@
 .el-textarea__inner::placeholder,
 .el-select__placeholder,
 .el-range-input::placeholder {
-  font-size: 14px !important;
+  font-size: 12px !important;
 }
 
 /* ========== 减弱动画模式（尊重用户偏好）========== */
