@@ -7,21 +7,17 @@ import com.gsms.gsms.infra.exception.CommonErrorCode;
 import com.gsms.gsms.model.enums.errorcode.ProjectErrorCode;
 import com.gsms.gsms.model.enums.ProjectType;
 import com.gsms.gsms.model.enums.ProjectStatus;
-import com.gsms.gsms.dto.project.ProjectAnnouncementUpdateReq;
 import com.gsms.gsms.dto.project.ProjectQueryReq;
 import com.gsms.gsms.dto.project.ProjectCreateReq;
 import com.gsms.gsms.dto.project.ProjectUpdateReq;
 import com.gsms.gsms.dto.project.ProjectConverter;
 import com.gsms.gsms.dto.project.ProjectInfoResp;
-import com.gsms.gsms.model.entity.ProjectMember;
-import com.gsms.gsms.model.enums.ProjectMemberRole;
 import com.gsms.gsms.infra.common.PageResult;
 import com.gsms.gsms.infra.exception.BusinessException;
 import com.gsms.gsms.infra.utils.UserContext;
 import com.gsms.gsms.repository.ProjectMapper;
 import com.gsms.gsms.repository.ProjectMemberMapper;
 import com.gsms.gsms.repository.UserMapper;
-import com.gsms.gsms.repository.WorkHourMapper;
 import com.gsms.gsms.service.AuthService;
 import com.gsms.gsms.service.ProjectService;
 import com.gsms.gsms.service.CacheService;
@@ -45,16 +41,13 @@ public class ProjectServiceImpl implements ProjectService {
     private final ProjectMapper projectMapper;
     private final ProjectMemberMapper projectMemberMapper;
     private final UserMapper userMapper;
-    private final WorkHourMapper workHourMapper;
     private final AuthService authService;
     private final CacheService cacheService;
 
     public ProjectServiceImpl(ProjectMapper projectMapper, ProjectMemberMapper projectMemberMapper,
-                             UserMapper userMapper, WorkHourMapper workHourMapper,
-                             AuthService authService, CacheService cacheService) {
+                             UserMapper userMapper, AuthService authService, CacheService cacheService) {
         this.projectMapper = projectMapper;
         this.projectMemberMapper = projectMemberMapper;
-        this.workHourMapper = workHourMapper;
         this.userMapper = userMapper;
         this.authService = authService;
         this.cacheService = cacheService;
@@ -74,7 +67,6 @@ public class ProjectServiceImpl implements ProjectService {
         authService.checkProjectAccess(currentUserId, id);
         ProjectInfoResp resp = ProjectInfoResp.from(project);
         enrichProjectInfoResp(resp);
-        resp.setCanEditAnnouncement(canEditAnnouncement(currentUserId, project));
         return resp;
     }
 
@@ -131,17 +123,17 @@ public class ProjectServiceImpl implements ProjectService {
     public ProjectInfoResp create(ProjectCreateReq createReq) {
         Long currentUserId = UserContext.getCurrentUserId();
 
-        // 系统管理员或项目经理可创建项目
-        if (!canManageProjects(currentUserId)) {
+        // 检查当前用户是否具有 PROJECT_MANAGER 角色
+        if (!authService.hasRole(currentUserId, "PROJECT_MANAGER")) {
             throw new BusinessException(ProjectErrorCode.NOT_PROJECT_MANAGER);
         }
 
         // DTO转Entity
         Project project = ProjectConverter.toProject(createReq);
 
-        // 项目负责人须为系统管理员或项目经理
+        // 检查项目的 managerId 是否具有 PROJECT_MANAGER 角色
         Long managerId = project.getManagerId();
-        if (managerId != null && !canManageProjects(managerId)) {
+        if (managerId != null && !authService.hasRole(managerId, "PROJECT_MANAGER")) {
             throw new BusinessException(ProjectErrorCode.PROJECT_MANAGER_NOT_QUALIFIED);
         }
 
@@ -297,81 +289,16 @@ public class ProjectServiceImpl implements ProjectService {
             throw new BusinessException(ProjectErrorCode.PROJECT_NOT_FOUND);
         }
 
-        // 修改项目编码，添加删除日期和项目ID后缀，确保绝对唯一
-        String oldCode = existProject.getCode();
-        String dateSuffix = java.time.LocalDate.now().toString().replace("-", "");
-        String newCode = oldCode + "_deleted_" + dateSuffix + "_" + id;
-        existProject.setCode(newCode);
-        existProject.setUpdateUserId(currentUserId);
-        projectMapper.update(existProject);
-        log.info("修改删除项目编码: projectId={}, oldCode={}, newCode={}", id, oldCode, newCode);
-
-        // 软删除项目
         int result = projectMapper.deleteById(id);
         if (result <= 0) {
             throw new BusinessException(ProjectErrorCode.PROJECT_DELETE_FAILED);
         }
-
-        // 级联软删除该项目下的工时，避免列表/统计残留无项目名的孤儿记录
-        int workHourDeleted = workHourMapper.deleteByProjectId(id);
-        log.info("项目删除完成并级联软删工时: projectId={}, workHourDeleted={}", id, workHourDeleted);
-    }
-
-    @Override
-    @Transactional
-    public ProjectInfoResp updateAnnouncement(Long projectId, ProjectAnnouncementUpdateReq req) {
-        Long currentUserId = UserContext.getCurrentUserId();
-        Project project = projectMapper.selectById(projectId);
-        if (project == null) {
-            throw new BusinessException(ProjectErrorCode.PROJECT_NOT_FOUND);
-        }
-        authService.checkProjectAccess(currentUserId, projectId);
-
-        if (!canEditAnnouncement(currentUserId, project)) {
-            throw new BusinessException(ProjectErrorCode.PROJECT_ANNOUNCEMENT_FORBIDDEN);
-        }
-
-        String content = req.getContent() == null ? "" : req.getContent();
-        if (content.length() > 5000) {
-            throw new BusinessException(ProjectErrorCode.PROJECT_ANNOUNCEMENT_TOO_LONG);
-        }
-
-        Project update = new Project();
-        update.setId(projectId);
-        update.setAnnouncement(content);
-        update.setAnnouncementUpdateUserId(currentUserId);
-        int result = projectMapper.updateAnnouncement(update);
-        if (result <= 0) {
-            throw new BusinessException(ProjectErrorCode.PROJECT_UPDATE_FAILED);
-        }
-
-        log.info("更新项目公告成功: projectId={}, userId={}, length={}", projectId, currentUserId, content.length());
-        return getById(projectId);
-    }
-
-    /**
-     * 系统管理员 / 项目负责人 / 项目内项目管理员 可编辑公告
-     */
-    private boolean canEditAnnouncement(Long userId, Project project) {
-        if (userId == null || project == null) {
-            return false;
-        }
-        if (authService.hasRole(userId, "SYS_ADMIN")) {
-            return true;
-        }
-        if (project.getManagerId() != null && project.getManagerId().equals(userId)) {
-            return true;
-        }
-        ProjectMember member = projectMemberMapper.selectByProjectIdAndUserId(project.getId(), userId);
-        return member != null
-                && member.getRoleType() != null
-                && member.getRoleType().equals(ProjectMemberRole.PROJECT_MANAGER.getCode());
     }
 
     // ========== 内部方法：数据填充 ==========
 
     /**
-     * 填充单个 ProjectInfoResp 的创建人、更新人、公告更新人信息
+     * 填充单个 ProjectInfoResp 的创建人、更新人信息
      */
     private void enrichProjectInfoResp(ProjectInfoResp resp) {
         if (resp.getCreateUserId() != null) {
@@ -381,10 +308,6 @@ public class ProjectServiceImpl implements ProjectService {
         if (resp.getUpdateUserId() != null) {
             String updaterName = cacheService.getUserNicknameById(resp.getUpdateUserId());
             resp.setUpdateUserName(updaterName);
-        }
-        if (resp.getAnnouncementUpdateUserId() != null) {
-            String name = cacheService.getUserNicknameById(resp.getAnnouncementUpdateUserId());
-            resp.setAnnouncementUpdateUserName(name);
         }
     }
 
@@ -423,11 +346,5 @@ public class ProjectServiceImpl implements ProjectService {
         log.info("生成项目编码: 前缀={}, 最大编号={}, 新编码={}", prefix, maxNumber, generatedCode);
 
         return generatedCode;
-    }
-
-    /** 系统管理员或项目经理可创建/担任项目负责人 */
-    private boolean canManageProjects(Long userId) {
-        return authService.hasRole(userId, "SYS_ADMIN")
-                || authService.hasRole(userId, "PROJECT_MANAGER");
     }
 }

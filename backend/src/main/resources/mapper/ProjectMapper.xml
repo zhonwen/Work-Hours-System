@@ -9,9 +9,6 @@
         <result column="project_type" property="projectType"
                 typeHandler="com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler"/>
         <result column="description" property="description"/>
-        <result column="announcement" property="announcement"/>
-        <result column="announcement_update_user_id" property="announcementUpdateUserId"/>
-        <result column="announcement_update_time" property="announcementUpdateTime"/>
         <result column="manager_id" property="managerId"/>
         <result column="status" property="status"
                 typeHandler="com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler"/>
@@ -25,22 +22,15 @@
         <result column="is_deleted" property="isDeleted"/>
     </resultMap>
 
-    <!-- 列表查询字段（不含公告正文，减轻列表体积） -->
+    <!-- 查询所有字段 -->
     <sql id="selectAllFields">
         id, name, code, project_type, description, manager_id, status, plan_start_date, plan_end_date,
         actual_start_date, actual_end_date, create_user_id, update_user_id, create_time, update_time, is_deleted
     </sql>
 
-    <!-- 详情查询字段（含公告） -->
-    <sql id="selectDetailFields">
-        id, name, code, project_type, description, announcement, announcement_update_user_id, announcement_update_time,
-        manager_id, status, plan_start_date, plan_end_date,
-        actual_start_date, actual_end_date, create_user_id, update_user_id, create_time, update_time, is_deleted
-    </sql>
-
     <!-- 根据ID查询项目 -->
     <select id="selectById" parameterType="long" resultMap="ProjectResultMap">
-        SELECT <include refid="selectDetailFields"/>
+        SELECT <include refid="selectAllFields"/>
         FROM gsms_project
         WHERE id = #{id} AND is_deleted = 0
     </select>
@@ -103,7 +93,7 @@
     <select id="selectByCode" parameterType="java.lang.String" resultMap="ProjectResultMap">
         SELECT <include refid="selectAllFields"/>
         FROM gsms_project
-        WHERE code = #{code} AND is_deleted = 0
+        WHERE code = #{code}
     </select>
 
     <!-- 根据编码前缀查询最大编号 -->
@@ -142,18 +132,6 @@
             update_time = CURRENT_TIMESTAMP
         </set>
         WHERE id = #{id}
-    </update>
-
-    <!-- 更新项目公告 -->
-    <update id="updateAnnouncement" parameterType="com.gsms.gsms.model.entity.Project">
-        UPDATE gsms_project
-        SET announcement = #{announcement},
-            announcement_update_user_id = #{announcementUpdateUserId},
-            announcement_update_time = CURRENT_TIMESTAMP,
-            update_user_id = #{announcementUpdateUserId},
-            update_time = CURRENT_TIMESTAMP
-        WHERE id = #{id}
-          AND is_deleted = 0
     </update>
 
     <!-- 根据ID逻辑删除项目 -->
