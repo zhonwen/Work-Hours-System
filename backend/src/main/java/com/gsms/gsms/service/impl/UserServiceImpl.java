@@ -13,9 +13,12 @@ import com.gsms.gsms.dto.user.PasswordChangeReq;
 import com.gsms.gsms.dto.user.PasswordResetReq;
 import com.gsms.gsms.dto.user.UserPreferenceResp;
 import com.gsms.gsms.dto.user.UserPreferenceUpdateReq;
+import com.gsms.gsms.dto.user.UserProfileResp;
+import com.gsms.gsms.dto.user.UserProfileUpdateReq;
 import com.gsms.gsms.dto.user.UserConverter;
 import com.gsms.gsms.infra.common.PageResult;
 import com.gsms.gsms.infra.exception.BusinessException;
+import com.gsms.gsms.infra.exception.CommonErrorCode;
 import com.gsms.gsms.infra.utils.PasswordUtil;
 import com.gsms.gsms.infra.utils.UserContext;
 import com.gsms.gsms.repository.UserMapper;
@@ -24,6 +27,7 @@ import com.gsms.gsms.repository.RoleMapper;
 import com.gsms.gsms.repository.PermissionMapper;
 import com.gsms.gsms.service.UserService;
 import com.gsms.gsms.service.CacheService;
+import com.gsms.gsms.service.FileStorageService;
 import com.gsms.gsms.infra.utils.OperationLogHelper;
 import com.gsms.gsms.model.enums.OperationModule;
 import com.gsms.gsms.model.enums.OperationType;
@@ -31,6 +35,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Arrays;
 import java.util.List;
@@ -50,16 +55,18 @@ public class UserServiceImpl implements UserService {
     private final RoleMapper roleMapper;
     private final PermissionMapper permissionMapper;
     private final OperationLogHelper operationLogHelper;
+    private final FileStorageService fileStorageService;
 
     public UserServiceImpl(UserMapper userMapper, DepartmentMapper departmentMapper, CacheService cacheService,
                              RoleMapper roleMapper, PermissionMapper permissionMapper,
-                             OperationLogHelper operationLogHelper) {
+                             OperationLogHelper operationLogHelper, FileStorageService fileStorageService) {
         this.userMapper = userMapper;
         this.departmentMapper = departmentMapper;
         this.cacheService = cacheService;
         this.roleMapper = roleMapper;
         this.permissionMapper = permissionMapper;
         this.operationLogHelper = operationLogHelper;
+        this.fileStorageService = fileStorageService;
     }
 
     @Override
@@ -372,6 +379,99 @@ public class UserServiceImpl implements UserService {
         cacheService.putUser(updated);
         logger.info("更新用户主题偏好: userId={}, themeId={}", userId, themeId);
         return new UserPreferenceResp(themeId);
+    }
+
+    @Override
+    public UserProfileResp getProfile(Long userId) {
+        return toProfileResp(getUserById(userId));
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public UserProfileResp updateProfile(Long userId, UserProfileUpdateReq req) {
+        User user = getUserById(userId);
+
+        String nickname = req.getNickname() == null ? "" : req.getNickname().trim();
+        if (nickname.isEmpty()) {
+            throw new BusinessException(CommonErrorCode.PARAM_INVALID.getCode(), "昵称不能为空");
+        }
+
+        String phone = blankToNull(req.getPhone());
+        String email = blankToNull(req.getEmail());
+        validatePhoneEmail(phone, email);
+
+        String avatarUrl = user.getAvatarUrl();
+        if (req.getAvatarUrl() != null && !req.getAvatarUrl().trim().isEmpty()) {
+            avatarUrl = normalizePresetAvatar(req.getAvatarUrl().trim());
+        }
+
+        user.setNickname(nickname);
+        user.setDepartmentDisplay(blankToNull(req.getDepartmentDisplay()));
+        user.setPhone(phone);
+        user.setEmail(email);
+        user.setAvatarUrl(avatarUrl);
+        user.setUpdateUserId(userId);
+
+        int result = userMapper.updateProfile(user);
+        if (result <= 0) {
+            throw new BusinessException(UserErrorCode.USER_UPDATE_FAILED);
+        }
+        User updated = userMapper.selectById(userId);
+        cacheService.putUser(updated);
+        logger.info("更新个人资料成功: userId={}", userId);
+        return toProfileResp(updated);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public UserProfileResp uploadAvatar(Long userId, MultipartFile file) {
+        User user = getUserById(userId);
+        String publicPath = fileStorageService.storeAvatar(userId, file);
+        user.setAvatarUrl(publicPath);
+        user.setUpdateUserId(userId);
+        int result = userMapper.update(user);
+        if (result <= 0) {
+            throw new BusinessException(UserErrorCode.USER_UPDATE_FAILED);
+        }
+        User updated = userMapper.selectById(userId);
+        cacheService.putUser(updated);
+        logger.info("上传头像成功: userId={}, avatarUrl={}", userId, publicPath);
+        return toProfileResp(updated);
+    }
+
+    private UserProfileResp toProfileResp(User user) {
+        UserProfileResp resp = new UserProfileResp();
+        resp.setUsername(user.getUsername());
+        resp.setNickname(user.getNickname());
+        resp.setDepartmentDisplay(user.getDepartmentDisplay());
+        resp.setPhone(user.getPhone());
+        resp.setEmail(user.getEmail());
+        resp.setAvatarUrl(user.getAvatarUrl());
+        return resp;
+    }
+
+    private void validatePhoneEmail(String phone, String email) {
+        if (phone != null && !phone.matches("^1[3-9]\\d{9}$")) {
+            throw new BusinessException(UserErrorCode.PHONE_FORMAT_ERROR);
+        }
+        if (email != null && !email.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$")) {
+            throw new BusinessException(UserErrorCode.EMAIL_FORMAT_ERROR);
+        }
+    }
+
+    private String normalizePresetAvatar(String avatarUrl) {
+        if (avatarUrl.matches("^preset:user[1-4]$")) {
+            return avatarUrl;
+        }
+        throw new BusinessException(UserErrorCode.AVATAR_PRESET_INVALID);
+    }
+
+    private String blankToNull(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
     }
 
     /**

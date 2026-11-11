@@ -3,6 +3,10 @@ backend/target/
 backend/.mvn/
 backend/*.log
 backend/.DS_Store
+backend/data/uploads/
+
+# 本地上传目录（头像等）
+data/uploads/
 
 # 前端
 frontend/node_modules/

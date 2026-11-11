@@ -156,6 +156,8 @@ import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
 import { useProjectStore } from '@/stores/project'
 import { getUserMenuTree, type MenuInfo } from '@/api/menu'
+import { getUserProfile } from '@/api/user'
+import { resolveAvatarSrc } from '@/config/avatar'
 
 const router = useRouter()
 const route = useRoute()
@@ -186,7 +188,7 @@ const fetchUserMenus = async () => {
 }
 
 const username = computed(() => authStore.username || '用户')
-const userAvatar = ref('')
+const userAvatar = computed(() => resolveAvatarSrc(authStore.avatarUrl))
 
 // 侧边栏折叠状态（从 localStorage 读取，默认 false）
 const isCollapse = ref(localStorage.getItem('sidebarCollapsed') === 'true')
@@ -282,7 +284,7 @@ const toggleCollapse = () => {
 const handleUserAction = (command: string) => {
   switch (command) {
     case 'profile':
-      ElMessage.info('个人信息功能开发中')
+      router.push('/account/profile')
       break
     case 'settings':
       router.push('/settings')
@@ -305,11 +307,18 @@ const handleUserAction = (command: string) => {
   }
 }
 
-// 组件挂载时加载菜单，并从服务端同步主题偏好
+// 组件挂载时加载菜单，并从服务端同步主题偏好 / 头像
 onMounted(async () => {
   await fetchUserMenus()
   themeStore.restoreTheme()
   themeStore.loadPreferenceFromServer().catch(() => {})
+  getUserProfile()
+    .then((profile) => {
+      if (profile?.avatarUrl) {
+        authStore.setAvatarUrl(profile.avatarUrl)
+      }
+    })
+    .catch(() => {})
 })
 </script>
 

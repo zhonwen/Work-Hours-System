@@ -155,6 +155,32 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/settings/SystemSettings.vue'),
         meta: { title: '系统设置', requiresAuth: true },
       },
+      {
+        path: 'account',
+        component: () => import('@/views/account/AccountLayout.vue'),
+        meta: { title: '帐号设置', requiresAuth: true },
+        redirect: '/account/profile',
+        children: [
+          {
+            path: 'profile',
+            name: 'AccountProfile',
+            component: () => import('@/views/account/ProfileView.vue'),
+            meta: { title: '个人资料', requiresAuth: true },
+          },
+          {
+            path: 'password',
+            name: 'AccountPassword',
+            component: () => import('@/views/account/ChangePasswordView.vue'),
+            meta: { title: '修改密码', requiresAuth: true },
+          },
+          {
+            path: 'about',
+            name: 'AccountAbout',
+            component: () => import('@/views/account/AboutView.vue'),
+            meta: { title: '关于', requiresAuth: true },
+          },
+        ],
+      },
     ],
   },
   {

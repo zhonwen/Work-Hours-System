@@ -127,3 +127,34 @@ export const getUserPreference = () => {
 export const updateUserPreference = (data: { themeId: string }) => {
   return request.put<UserPreference>('/users/preference', data)
 }
+
+/** 个人资料 */
+export interface UserProfile {
+  username?: string
+  nickname: string
+  departmentDisplay?: string
+  phone?: string
+  email?: string
+  avatarUrl?: string
+}
+
+export const getUserProfile = () => {
+  return request.get<UserProfile>('/users/profile')
+}
+
+export const updateUserProfile = (data: {
+  nickname: string
+  departmentDisplay?: string
+  phone?: string
+  email?: string
+  avatarUrl?: string
+}) => {
+  return request.put<UserProfile>('/users/profile', data)
+}
+
+export const uploadUserAvatar = (file: File) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  // 不手动设 Content-Type，由浏览器带 multipart boundary
+  return request.post<UserProfile>('/users/profile/avatar', formData)
+}

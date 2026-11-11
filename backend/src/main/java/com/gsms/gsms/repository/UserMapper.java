@@ -57,6 +57,11 @@ public interface UserMapper extends BaseMapper<User> {
     int update(User user);
 
     /**
+     * 更新个人资料（允许清空手机/邮箱）
+     */
+    int updateProfile(User user);
+
+    /**
      * 根据ID删除用户
      * @param id 用户ID
      * @return 影响行数

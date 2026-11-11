@@ -9,7 +9,10 @@ import com.gsms.gsms.dto.user.PasswordChangeReq;
 import com.gsms.gsms.dto.user.PasswordResetReq;
 import com.gsms.gsms.dto.user.UserPreferenceResp;
 import com.gsms.gsms.dto.user.UserPreferenceUpdateReq;
+import com.gsms.gsms.dto.user.UserProfileResp;
+import com.gsms.gsms.dto.user.UserProfileUpdateReq;
 import com.gsms.gsms.infra.common.PageResult;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * 用户服务接口
@@ -114,4 +117,19 @@ public interface UserService {
      * 更新当前用户偏好
      */
     UserPreferenceResp updatePreference(Long userId, UserPreferenceUpdateReq req);
+
+    /**
+     * 获取当前用户个人资料
+     */
+    UserProfileResp getProfile(Long userId);
+
+    /**
+     * 更新当前用户个人资料
+     */
+    UserProfileResp updateProfile(Long userId, UserProfileUpdateReq req);
+
+    /**
+     * 上传当前用户头像
+     */
+    UserProfileResp uploadAvatar(Long userId, MultipartFile file);
 }

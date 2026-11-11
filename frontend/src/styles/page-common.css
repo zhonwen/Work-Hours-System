@@ -547,6 +547,15 @@
   box-shadow: none !important;
 }
 
+/* ========== 全局 Placeholder ========== */
+::placeholder,
+.el-input__inner::placeholder,
+.el-textarea__inner::placeholder,
+.el-select__placeholder,
+.el-range-input::placeholder {
+  font-size: 14px !important;
+}
+
 /* ========== 减弱动画模式（尊重用户偏好）========== */
 @media (prefers-reduced-motion: reduce) {
   *,

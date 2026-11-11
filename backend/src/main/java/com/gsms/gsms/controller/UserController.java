@@ -11,6 +11,8 @@ import com.gsms.gsms.dto.user.PasswordChangeReq;
 import com.gsms.gsms.dto.user.PasswordResetReq;
 import com.gsms.gsms.dto.user.UserPreferenceResp;
 import com.gsms.gsms.dto.user.UserPreferenceUpdateReq;
+import com.gsms.gsms.dto.user.UserProfileResp;
+import com.gsms.gsms.dto.user.UserProfileUpdateReq;
 import com.gsms.gsms.infra.common.PageResult;
 import com.gsms.gsms.infra.common.Result;
 import com.gsms.gsms.infra.exception.BusinessException;
@@ -25,6 +27,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.validation.Valid;
 
@@ -69,6 +72,38 @@ public class UserController {
         Long userId = UserContext.getCurrentUserId();
         logger.info("更新用户偏好: userId={}, themeId={}", userId, req.getThemeId());
         return Result.success(userService.updatePreference(userId, req));
+    }
+
+    /**
+     * 获取当前用户个人资料
+     */
+    @GetMapping("/profile")
+    @Operation(summary = "获取当前用户个人资料")
+    public Result<UserProfileResp> getProfile() {
+        Long userId = UserContext.getCurrentUserId();
+        return Result.success(userService.getProfile(userId));
+    }
+
+    /**
+     * 更新当前用户个人资料
+     */
+    @PutMapping("/profile")
+    @Operation(summary = "更新当前用户个人资料")
+    public Result<UserProfileResp> updateProfile(@Valid @RequestBody UserProfileUpdateReq req) {
+        Long userId = UserContext.getCurrentUserId();
+        logger.info("更新个人资料: userId={}", userId);
+        return Result.success(userService.updateProfile(userId, req));
+    }
+
+    /**
+     * 上传当前用户头像
+     */
+    @PostMapping("/profile/avatar")
+    @Operation(summary = "上传当前用户头像")
+    public Result<UserProfileResp> uploadAvatar(@RequestParam("file") MultipartFile file) {
+        Long userId = UserContext.getCurrentUserId();
+        logger.info("上传头像: userId={}, size={}", userId, file == null ? 0 : file.getSize());
+        return Result.success(userService.uploadAvatar(userId, file));
     }
 
     /**

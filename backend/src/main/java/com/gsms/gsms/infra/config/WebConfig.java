@@ -7,7 +7,10 @@ import org.springframework.format.FormatterRegistry;
 import org.springframework.web.filter.CharacterEncodingFilter;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+
+import java.nio.file.Paths;
 
 /**
  * Web配置类
@@ -17,10 +20,13 @@ public class WebConfig implements WebMvcConfigurer {
 
     private final JwtInterceptor jwtInterceptor;
     private final CorsProperties corsProperties;
+    private final UploadProperties uploadProperties;
 
-    public WebConfig(JwtInterceptor jwtInterceptor, CorsProperties corsProperties) {
+    public WebConfig(JwtInterceptor jwtInterceptor, CorsProperties corsProperties,
+                     UploadProperties uploadProperties) {
         this.jwtInterceptor = jwtInterceptor;
         this.corsProperties = corsProperties;
+        this.uploadProperties = uploadProperties;
     }
 
     /**
@@ -65,6 +71,27 @@ public class WebConfig implements WebMvcConfigurer {
                         "/v3/api-docs/**",       // OpenAPI 文档放行
                         "/swagger-ui.html"       // Swagger UI 首页放行
                 );
+    }
+
+    /**
+     * 本地上传文件静态访问（头像等，无需 JWT）
+     */
+    @Override
+    public void addResourceHandlers(ResourceHandlerRegistry registry) {
+        String location = Paths.get(uploadProperties.getBaseDir()).toAbsolutePath().normalize()
+                .toUri().toString();
+        if (!location.endsWith("/")) {
+            location = location + "/";
+        }
+        String pattern = uploadProperties.getPublicPathPrefix();
+        if (!pattern.startsWith("/")) {
+            pattern = "/" + pattern;
+        }
+        if (pattern.endsWith("/")) {
+            pattern = pattern.substring(0, pattern.length() - 1);
+        }
+        registry.addResourceHandler(pattern + "/**")
+                .addResourceLocations(location);
     }
 
     /**

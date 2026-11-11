@@ -15,13 +15,15 @@
                 typeHandler="com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler"/>
         <result column="password_reset_required" property="passwordResetRequired"/>
         <result column="theme_id" property="themeId"/>
+        <result column="avatar_url" property="avatarUrl"/>
+        <result column="department_display" property="departmentDisplay"/>
         <result column="update_time" property="updateTime"/>
         <result column="is_deleted" property="isDeleted"/>
     </resultMap>
 
     <!-- 查询所有字段 -->
     <sql id="selectAllFields">
-        id, username, password, nickname, email, phone, department_id, status, password_reset_required, theme_id, create_time, update_time, is_deleted
+        id, username, password, nickname, email, phone, department_id, status, password_reset_required, theme_id, avatar_url, department_display, create_time, update_time, is_deleted
     </sql>
 
     <!-- 根据ID查询用户 -->
@@ -86,10 +88,25 @@
             <if test="status != null">status = #{status, typeHandler=com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler},</if>
             <if test="passwordResetRequired != null">password_reset_required = #{passwordResetRequired},</if>
             <if test="themeId != null and themeId != ''">theme_id = #{themeId},</if>
+            <if test="avatarUrl != null">avatar_url = #{avatarUrl},</if>
+            <if test="departmentDisplay != null">department_display = #{departmentDisplay},</if>
             <if test="updateUserId != null">update_user_id = #{updateUserId},</if>
             update_time = CURRENT_TIMESTAMP
         </set>
         WHERE id = #{id}
+    </update>
+
+    <!-- 更新个人资料（允许清空手机/邮箱） -->
+    <update id="updateProfile" parameterType="com.gsms.gsms.model.entity.User">
+        UPDATE `sys_user`
+        SET nickname = #{nickname},
+            department_display = #{departmentDisplay},
+            phone = #{phone},
+            email = #{email},
+            avatar_url = #{avatarUrl},
+            update_user_id = #{updateUserId},
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND is_deleted = 0
     </update>
 
     <!-- 根据ID逻辑删除用户 -->

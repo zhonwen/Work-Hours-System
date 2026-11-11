@@ -117,88 +117,20 @@
         </template>
       </el-dropdown>
     </div>
-
-    <el-dialog
-      v-model="changePasswordVisible"
-      title="修改密码"
-      width="480px"
-      :close-on-click-modal="false"
-      @close="handleChangePasswordClose"
-    >
-      <el-form
-        ref="changePasswordFormRef"
-        :model="changePasswordForm"
-        :rules="changePasswordRules"
-        label-width="100px"
-      >
-        <el-form-item label="旧密码" prop="oldPassword">
-          <el-input
-            v-model="changePasswordForm.oldPassword"
-            type="password"
-            show-password
-            placeholder="请输入旧密码"
-            autocomplete="current-password"
-          />
-        </el-form-item>
-        <el-form-item label="新密码" prop="newPassword">
-          <el-input
-            v-model="changePasswordForm.newPassword"
-            type="password"
-            show-password
-            placeholder="请输入新密码（6-20位）"
-            autocomplete="new-password"
-          />
-        </el-form-item>
-        <el-form-item label="确认密码" prop="confirmPassword">
-          <el-input
-            v-model="changePasswordForm.confirmPassword"
-            type="password"
-            show-password
-            placeholder="请再次输入新密码"
-            autocomplete="new-password"
-          />
-        </el-form-item>
-        <el-form-item label="验证码" prop="captchaCode">
-          <div class="captcha-row">
-            <el-input
-              v-model="changePasswordForm.captchaCode"
-              placeholder="请输入验证码"
-              maxlength="6"
-              clearable
-            />
-            <img
-              v-if="changeCaptchaImage"
-              :src="changeCaptchaImage"
-              class="captcha-image"
-              alt="验证码"
-              title="点击刷新验证码"
-              @click="refreshChangeCaptcha"
-            />
-            <el-button v-else @click="refreshChangeCaptcha" :loading="changeCaptchaLoading">刷新</el-button>
-          </div>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="changePasswordVisible = false">取消</el-button>
-        <el-button type="primary" :loading="changePasswordLoading" @click="handleSubmitChangePassword">
-          确定
-        </el-button>
-      </template>
-    </el-dialog>
   </el-aside>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import * as ElementPlusIcons from '@element-plus/icons-vue'
 import { useThemeStore } from '@/stores/theme'
 import { useProjectStore } from '@/stores/project'
 import { getUserMenuTree, type MenuInfo } from '@/api/menu'
 import { useAuthStore } from '@/stores/auth'
-import { getCaptcha, changePassword } from '@/api/auth'
-import { encryptPasswordWithCid } from '@/utils/rsaEncrypt'
+import { getUserProfile } from '@/api/user'
+import { resolveAvatarSrc } from '@/config/avatar'
 
 const router = useRouter()
 const route = useRoute()
@@ -220,7 +152,7 @@ const activeMenu = computed(() => route.path)
 
 // 用户名
 const username = computed(() => authStore.username || localStorage.getItem('username') || '用户')
-const userAvatar = ref('')
+const userAvatar = computed(() => resolveAvatarSrc(authStore.avatarUrl))
 
 // 加载用户菜单
 const fetchUserMenus = async () => {
@@ -244,124 +176,14 @@ const toggleCollapse = () => {
   localStorage.setItem('sidebarCollapsed', String(isCollapse.value))
 }
 
-const changePasswordVisible = ref(false)
-const changePasswordLoading = ref(false)
-const changeCaptchaLoading = ref(false)
-const changePasswordFormRef = ref<FormInstance>()
-const changeCaptchaCid = ref('')
-const changeCaptchaPublicKey = ref('')
-const changeCaptchaImage = ref('')
-const changePasswordForm = reactive({
-  oldPassword: '',
-  newPassword: '',
-  confirmPassword: '',
-  captchaCode: ''
-})
-
-const changePasswordRules: FormRules = {
-  oldPassword: [{ required: true, message: '请输入旧密码', trigger: 'blur' }],
-  newPassword: [
-    { required: true, message: '请输入新密码', trigger: 'blur' },
-    { min: 6, max: 20, message: '密码长度在 6 到 20 个字符', trigger: 'blur' }
-  ],
-  confirmPassword: [
-    { required: true, message: '请再次输入新密码', trigger: 'blur' },
-    {
-      validator: (_rule, value, callback) => {
-        if (value !== changePasswordForm.newPassword) {
-          callback(new Error('两次输入的密码不一致'))
-        } else {
-          callback()
-        }
-      },
-      trigger: 'blur'
-    }
-  ],
-  captchaCode: [{ required: true, message: '请输入验证码', trigger: 'blur' }]
-}
-
-const refreshChangeCaptcha = async () => {
-  changeCaptchaLoading.value = true
-  try {
-    const res = await getCaptcha()
-    changeCaptchaCid.value = res.cid
-    changeCaptchaPublicKey.value = res.publicKey
-    changeCaptchaImage.value = res.imageBase64
-    changePasswordForm.captchaCode = ''
-  } catch (error) {
-    console.error('获取验证码失败:', error)
-    ElMessage.error('获取验证码失败')
-  } finally {
-    changeCaptchaLoading.value = false
-  }
-}
-
-const openChangePassword = () => {
-  changePasswordForm.oldPassword = ''
-  changePasswordForm.newPassword = ''
-  changePasswordForm.confirmPassword = ''
-  changePasswordForm.captchaCode = ''
-  changePasswordVisible.value = true
-  refreshChangeCaptcha()
-}
-
-const handleChangePasswordClose = () => {
-  changePasswordFormRef.value?.resetFields()
-  changeCaptchaCid.value = ''
-  changeCaptchaPublicKey.value = ''
-  changeCaptchaImage.value = ''
-}
-
-const handleSubmitChangePassword = async () => {
-  if (!changePasswordFormRef.value) return
-  try {
-    await changePasswordFormRef.value.validate()
-    if (!changeCaptchaCid.value || !changeCaptchaPublicKey.value) {
-      ElMessage.warning('请先获取验证码')
-      await refreshChangeCaptcha()
-      return
-    }
-    changePasswordLoading.value = true
-    const oldCipher = encryptPasswordWithCid(
-      changeCaptchaPublicKey.value,
-      changePasswordForm.oldPassword,
-      changeCaptchaCid.value
-    )
-    const newCipher = encryptPasswordWithCid(
-      changeCaptchaPublicKey.value,
-      changePasswordForm.newPassword,
-      changeCaptchaCid.value
-    )
-    await changePassword({
-      oldPassword: oldCipher,
-      newPassword: newCipher,
-      cid: changeCaptchaCid.value,
-      captchaCode: changePasswordForm.captchaCode
-    })
-    ElMessage.success('密码修改成功，请重新登录')
-    changePasswordVisible.value = false
-    authStore.clearAuth()
-    themeStore.clearPreference()
-    projectStore.clearUserCache()
-    router.push('/login')
-  } catch (error: any) {
-    if (error !== false) {
-      console.error('修改密码失败:', error)
-      await refreshChangeCaptcha()
-    }
-  } finally {
-    changePasswordLoading.value = false
-  }
-}
-
 // 用户操作
 const handleUserAction = (command: string) => {
   switch (command) {
     case 'profile':
-      ElMessage.info('个人信息功能开发中')
+      router.push('/account/profile')
       break
     case 'changePassword':
-      openChangePassword()
+      router.push('/account/password')
       break
     case 'settings':
       router.push('/settings')
@@ -384,11 +206,18 @@ const handleUserAction = (command: string) => {
   }
 }
 
-// 组件挂载时加载菜单，并同步服务端主题偏好
+// 组件挂载时加载菜单，并同步服务端主题偏好 / 头像
 onMounted(async () => {
   await fetchUserMenus()
   themeStore.restoreTheme()
   themeStore.loadPreferenceFromServer().catch(() => {})
+  getUserProfile()
+    .then((profile) => {
+      if (profile?.avatarUrl) {
+        authStore.setAvatarUrl(profile.avatarUrl)
+      }
+    })
+    .catch(() => {})
 })
 
 // 暴露折叠状态供父组件使用

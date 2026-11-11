@@ -30,6 +30,10 @@ spring:
       write-dates-as-timestamps: false
     # 禁用 ISO 8601 格式，使用自定义格式
     default-property-inclusion: non_null
+  servlet:
+    multipart:
+      max-file-size: 2MB
+      max-request-size: 2MB
   # Flyway 数据库迁移配置
   flyway:
     enabled: true
@@ -110,3 +114,10 @@ cors:
     - http://192.168.*.*:3000
     - http://10.*.*.*:3000
     - http://172.*.*.*:3000
+
+# 本地上传（头像等；Docker 可用 UPLOAD_DIR 挂载持久卷）
+gsms:
+  upload:
+    base-dir: ${UPLOAD_DIR:./data/uploads}
+    avatar-max-bytes: 1048576
+    public-path-prefix: /uploads

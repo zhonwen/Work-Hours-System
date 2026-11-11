@@ -82,6 +82,20 @@ public class User {
     private String themeId;
 
     /**
+     * 头像：preset:userN 或 /uploads/avatars/...
+     */
+    @Schema(description = "头像路径或预设标识")
+    @TableField("avatar_url")
+    private String avatarUrl;
+
+    /**
+     * 个人资料部门（自由文本，非组织树）
+     */
+    @Schema(description = "个人资料部门（自由文本）")
+    @TableField("department_display")
+    private String departmentDisplay;
+
+    /**
      * 创建时间
      */
     @Schema(description = "创建时间", example = "2024-01-01 10:30:00")
@@ -199,6 +213,22 @@ public class User {
 
     public void setThemeId(String themeId) {
         this.themeId = themeId;
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
+    }
+
+    public String getDepartmentDisplay() {
+        return departmentDisplay;
+    }
+
+    public void setDepartmentDisplay(String departmentDisplay) {
+        this.departmentDisplay = departmentDisplay;
     }
 
     public LocalDateTime getCreateTime() {

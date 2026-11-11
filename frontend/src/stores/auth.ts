@@ -30,6 +30,7 @@ export const useAuthStore = defineStore('auth', () => {
   const token = ref<string>('')
   const userId = ref<number>(0)
   const username = ref<string>('')
+  const avatarUrl = ref<string>('')
   const permissions = ref<Set<string>>(new Set())
   const userRoles = ref<RoleInfo[]>([])
   /** 权限/角色是否已尝试从后端加载（成功或失败都算完成，避免守卫反复请求） */
@@ -40,7 +41,8 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => !!token.value)
   const currentUser = computed(() => ({
     id: userId.value,
-    username: username.value
+    username: username.value,
+    avatarUrl: avatarUrl.value
   }))
 
   /**
@@ -76,6 +78,7 @@ export const useAuthStore = defineStore('auth', () => {
     authLoaded.value = false
     permissions.value.clear()
     userRoles.value = []
+    avatarUrl.value = ''
     refreshPromise = null
 
     // 解析 token 获取 userId
@@ -98,6 +101,7 @@ export const useAuthStore = defineStore('auth', () => {
     if (username.value) {
       localStorage.setItem('username', username.value)
     }
+    localStorage.removeItem('avatarUrl')
   }
 
   /**
@@ -107,6 +111,7 @@ export const useAuthStore = defineStore('auth', () => {
     token.value = ''
     userId.value = 0
     username.value = ''
+    avatarUrl.value = ''
     permissions.value.clear()
     userRoles.value = []
     authLoaded.value = false
@@ -116,10 +121,20 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('token')
     localStorage.removeItem('userId')
     localStorage.removeItem('username')
+    localStorage.removeItem('avatarUrl')
     // 用户偏好与业务缓存（避免换账号残留）
     localStorage.removeItem('teamMaster_theme')
     localStorage.removeItem('recentProjects')
     localStorage.removeItem('gsms.projectStatistics.projectId')
+  }
+
+  const setAvatarUrl = (url: string) => {
+    avatarUrl.value = url || ''
+    if (avatarUrl.value) {
+      localStorage.setItem('avatarUrl', avatarUrl.value)
+    } else {
+      localStorage.removeItem('avatarUrl')
+    }
   }
 
   /**
@@ -134,6 +149,7 @@ export const useAuthStore = defineStore('auth', () => {
       token.value = savedToken
       userId.value = savedUserId ? parseInt(savedUserId) : 0
       username.value = savedUsername || ''
+      avatarUrl.value = localStorage.getItem('avatarUrl') || ''
 
       // 验证 token 是否有效
       const payload = parseToken(savedToken)
@@ -278,6 +294,7 @@ export const useAuthStore = defineStore('auth', () => {
     token,
     userId,
     username,
+    avatarUrl,
     permissions,
     userRoles,
     authLoaded,
@@ -287,6 +304,7 @@ export const useAuthStore = defineStore('auth', () => {
     // 方法
     setAuth,
     clearAuth,
+    setAvatarUrl,
     restoreAuth,
     getCurrentUserId,
     getToken,

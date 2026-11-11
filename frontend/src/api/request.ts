@@ -25,6 +25,11 @@ service.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`
     }
 
+    // FormData 交由浏览器设置 multipart boundary
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type']
+    }
+
     return config
   },
   (error) => {

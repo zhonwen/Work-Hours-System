@@ -59,6 +59,7 @@ declare module 'vue' {
     ElTooltip: typeof import('element-plus/es')['ElTooltip']
     ElTree: typeof import('element-plus/es')['ElTree']
     ElTreeSelect: typeof import('element-plus/es')['ElTreeSelect']
+    ElUpload: typeof import('element-plus/es')['ElUpload']
     IterationSelector: typeof import('./components/layout/IterationSelector.vue')['default']
     Layout: typeof import('./components/Layout.vue')['default']
     LeftSidebar: typeof import('./components/layout/LeftSidebar.vue')['default']
