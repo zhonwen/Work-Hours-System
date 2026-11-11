@@ -353,18 +353,19 @@
 .task-card-enhanced {
   background: var(--task-card-bg);
   border: 1px solid var(--task-card-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md, 6px);
   padding: 12px;
   margin-bottom: 12px;
   cursor: pointer;
-  box-shadow: var(--task-card-shadow);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  will-change: transform;
+  box-shadow: none;
+  transition: border-color 0.2s ease, background-color 0.2s ease;
 }
 
 .task-card-enhanced:hover {
-  box-shadow: var(--task-card-shadow-hover);
-  transform: translateY(-2px);
+  border-color: var(--primary, #3370fe);
+  background: var(--fill-1, #f7f8fa);
+  box-shadow: none;
+  transform: none;
 }
 
 .task-card-header {
@@ -376,7 +377,7 @@
 
 .task-card-number {
   font-size: 12px;
-  color: #1890ff;
+  color: var(--primary, #3370fe);
   font-family: 'Monaco', 'Consolas', monospace;
   font-weight: 500;
 }
@@ -608,7 +609,7 @@
 
 /* ✅ 焦点状态可见（键盘导航） */
 *:focus-visible {
-  outline: 2px solid var(--module-tab-active, #1890ff);
+  outline: 2px solid var(--primary, #3370fe);
   outline-offset: 2px;
   border-radius: 4px;
 }
@@ -672,7 +673,7 @@ html {
   border-width: 0;
 }
 
-/* ✅ 改进表单可访问性 */
+/* ✅ 改进表单可访问性（不强制 44px，避免撑破全局 32px 控件高度） */
 input[type="text"],
 input[type="email"],
 input[type="password"],
@@ -680,7 +681,6 @@ input[type="number"],
 textarea,
 select {
   font-size: 16px; /* 防止 iOS 自动缩放 */
-  min-height: var(--touch-target-min);
 }
 
 /* ✅ 确保卡片可点击区域足够大 */
@@ -693,7 +693,7 @@ select {
 
 .task-card-enhanced:hover,
 .project-card:hover {
-  outline: 2px solid var(--module-tab-active, #1890ff);
+  outline: 2px solid var(--primary, #3370fe);
   outline-offset: 2px;
 }
 

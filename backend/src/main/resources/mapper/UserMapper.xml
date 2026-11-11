@@ -14,13 +14,14 @@
         <result column="status" property="status"
                 typeHandler="com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler"/>
         <result column="password_reset_required" property="passwordResetRequired"/>
+        <result column="theme_id" property="themeId"/>
         <result column="update_time" property="updateTime"/>
         <result column="is_deleted" property="isDeleted"/>
     </resultMap>
 
     <!-- 查询所有字段 -->
     <sql id="selectAllFields">
-        id, username, password, nickname, email, phone, department_id, status, password_reset_required, create_time, update_time, is_deleted
+        id, username, password, nickname, email, phone, department_id, status, password_reset_required, theme_id, create_time, update_time, is_deleted
     </sql>
 
     <!-- 根据ID查询用户 -->
@@ -84,6 +85,7 @@
             <if test="departmentId != null">department_id = #{departmentId},</if>
             <if test="status != null">status = #{status, typeHandler=com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler},</if>
             <if test="passwordResetRequired != null">password_reset_required = #{passwordResetRequired},</if>
+            <if test="themeId != null and themeId != ''">theme_id = #{themeId},</if>
             <if test="updateUserId != null">update_user_id = #{updateUserId},</if>
             update_time = CURRENT_TIMESTAMP
         </set>

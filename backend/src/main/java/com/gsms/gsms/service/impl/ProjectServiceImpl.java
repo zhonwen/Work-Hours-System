@@ -7,6 +7,7 @@ import com.gsms.gsms.infra.exception.CommonErrorCode;
 import com.gsms.gsms.model.enums.errorcode.ProjectErrorCode;
 import com.gsms.gsms.model.enums.ProjectType;
 import com.gsms.gsms.model.enums.ProjectStatus;
+import com.gsms.gsms.dto.project.ProjectAnnouncementUpdateReq;
 import com.gsms.gsms.dto.project.ProjectQueryReq;
 import com.gsms.gsms.dto.project.ProjectCreateReq;
 import com.gsms.gsms.dto.project.ProjectUpdateReq;
@@ -15,6 +16,8 @@ import com.gsms.gsms.dto.project.ProjectInfoResp;
 import com.gsms.gsms.infra.common.PageResult;
 import com.gsms.gsms.infra.exception.BusinessException;
 import com.gsms.gsms.infra.utils.UserContext;
+import com.gsms.gsms.model.entity.ProjectMember;
+import com.gsms.gsms.model.enums.ProjectMemberRole;
 import com.gsms.gsms.repository.ProjectMapper;
 import com.gsms.gsms.repository.ProjectMemberMapper;
 import com.gsms.gsms.repository.UserMapper;
@@ -27,8 +30,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * 项目服务实现类
@@ -273,7 +274,45 @@ public class ProjectServiceImpl implements ProjectService {
         }
 
         Project updatedProject = projectMapper.selectById(project.getId());
-        return ProjectInfoResp.from(updatedProject);
+        ProjectInfoResp resp = ProjectInfoResp.from(updatedProject);
+        enrichProjectInfoResp(resp);
+        return resp;
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public ProjectInfoResp updateAnnouncement(Long projectId, ProjectAnnouncementUpdateReq req) {
+        Long currentUserId = UserContext.getCurrentUserId();
+        authService.checkProjectAccess(currentUserId, projectId);
+
+        Project existProject = projectMapper.selectById(projectId);
+        if (existProject == null) {
+            throw new BusinessException(ProjectErrorCode.PROJECT_NOT_FOUND);
+        }
+        if (!canEditAnnouncement(currentUserId, existProject)) {
+            throw new BusinessException(ProjectErrorCode.PROJECT_ANNOUNCEMENT_FORBIDDEN);
+        }
+
+        String content = req.getContent() == null ? "" : req.getContent();
+        if (content.length() > 5000) {
+            throw new BusinessException(ProjectErrorCode.PROJECT_ANNOUNCEMENT_TOO_LONG);
+        }
+
+        Project project = new Project();
+        project.setId(projectId);
+        project.setAnnouncement(content);
+        project.setAnnouncementUpdateUserId(currentUserId);
+
+        int result = projectMapper.updateAnnouncement(project);
+        if (result <= 0) {
+            throw new BusinessException(ProjectErrorCode.PROJECT_UPDATE_FAILED);
+        }
+
+        Project updated = projectMapper.selectById(projectId);
+        ProjectInfoResp resp = ProjectInfoResp.from(updated);
+        enrichProjectInfoResp(resp);
+        log.info("更新项目公告成功: projectId={}, userId={}, length={}", projectId, currentUserId, content.length());
+        return resp;
     }
 
     @Override
@@ -298,7 +337,7 @@ public class ProjectServiceImpl implements ProjectService {
     // ========== 内部方法：数据填充 ==========
 
     /**
-     * 填充单个 ProjectInfoResp 的创建人、更新人信息
+     * 填充单个 ProjectInfoResp 的创建人、更新人、公告编辑权限等信息
      */
     private void enrichProjectInfoResp(ProjectInfoResp resp) {
         if (resp.getCreateUserId() != null) {
@@ -309,6 +348,38 @@ public class ProjectServiceImpl implements ProjectService {
             String updaterName = cacheService.getUserNicknameById(resp.getUpdateUserId());
             resp.setUpdateUserName(updaterName);
         }
+        if (resp.getAnnouncementUpdateUserId() != null) {
+            resp.setAnnouncementUpdateUserName(
+                    cacheService.getUserNicknameById(resp.getAnnouncementUpdateUserId()));
+        }
+
+        Long currentUserId = UserContext.getCurrentUserId();
+        if (currentUserId != null && resp.getId() != null) {
+            Project project = new Project();
+            project.setId(resp.getId());
+            project.setManagerId(resp.getManagerId());
+            resp.setCanEditAnnouncement(canEditAnnouncement(currentUserId, project));
+        } else {
+            resp.setCanEditAnnouncement(false);
+        }
+    }
+
+    /**
+     * 系统管理员、项目负责人、项目内项目管理员可编辑公告
+     */
+    private boolean canEditAnnouncement(Long userId, Project project) {
+        if (userId == null || project == null) {
+            return false;
+        }
+        if (authService.hasRole(userId, "SYS_ADMIN") || authService.canViewAllProjects(userId)) {
+            return true;
+        }
+        if (project.getManagerId() != null && project.getManagerId().equals(userId)) {
+            return true;
+        }
+        ProjectMember member = projectMemberMapper.selectByProjectIdAndUserId(project.getId(), userId);
+        return member != null
+                && ProjectMemberRole.PROJECT_MANAGER.getCode().equals(member.getRoleType());
     }
 
     /**

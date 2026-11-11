@@ -6,11 +6,14 @@ import com.gsms.gsms.infra.exception.BusinessException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
+import org.springframework.http.HttpStatus;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.stream.Collectors;
@@ -57,12 +60,23 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * 处理所有未捕获异常（兜底）
+     * 路径参数类型不匹配（如 /users/preference 误匹配 /{id}）
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public Result<String> handleTypeMismatch(HttpServletRequest request, MethodArgumentTypeMismatchException e) {
+        logger.warn("请求地址：{}，参数类型错误：{}", request.getRequestURL(), e.getMessage());
+        return Result.error(CommonErrorCode.PARAM_TYPE_ERROR.getCode(), "参数类型错误");
+    }
+
+    /**
+     * 处理所有未捕获异常（兜底）：业务码统一 500
      */
     @ExceptionHandler(Exception.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Result<String> handleException(HttpServletRequest request, Exception e) {
         logger.error("请求地址：{}，系统异常：{}", request.getRequestURL(), e.getMessage(), e);
-        return Result.error(CommonErrorCode.INTERNAL_ERROR.getCode(), "系统繁忙，请稍后再试");
+        return Result.error(500, "系统繁忙，请稍后再试");
     }
     
     /**
@@ -78,17 +92,19 @@ public class GlobalExceptionHandler {
      * 处理空指针异常
      */
     @ExceptionHandler(NullPointerException.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Result<String> handleNullPointerException(HttpServletRequest request, NullPointerException e) {
         logger.error("请求地址：{}，空指针异常：", request.getRequestURL(), e);
-        return Result.error(CommonErrorCode.INTERNAL_ERROR.getCode(), "系统内部错误");
+        return Result.error(500, "系统内部错误");
     }
     
     /**
      * 处理数据访问异常
      */
     @ExceptionHandler(DataAccessException.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public Result<String> handleDataAccessException(HttpServletRequest request, DataAccessException e) {
         logger.error("请求地址：{}，数据访问异常：{}", request.getRequestURL(), e.getMessage(), e);
-        return Result.error(CommonErrorCode.DATABASE_ERROR.getCode(), "数据访问异常：" + e.getMessage());
+        return Result.error(500, "数据访问异常，请稍后再试");
     }
 }

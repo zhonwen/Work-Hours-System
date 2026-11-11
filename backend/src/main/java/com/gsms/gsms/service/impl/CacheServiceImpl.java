@@ -86,7 +86,17 @@ public class CacheServiceImpl implements CacheService {
         if (id == null) {
             return Optional.empty();
         }
-        return Optional.ofNullable(userCache.get(id));
+        User cached = userCache.get(id);
+        if (cached != null) {
+            return Optional.of(cached);
+        }
+        // 缓存未命中（如启动预热失败）时回源数据库，并回填缓存
+        User user = userMapper.selectById(id);
+        if (user != null) {
+            putUser(user);
+            return Optional.of(user);
+        }
+        return Optional.empty();
     }
 
     @Override
@@ -94,7 +104,17 @@ public class CacheServiceImpl implements CacheService {
         if (username == null || username.isEmpty()) {
             return Optional.empty();
         }
-        return Optional.ofNullable(userUsernameCache.get(username));
+        User cached = userUsernameCache.get(username);
+        if (cached != null) {
+            return Optional.of(cached);
+        }
+        // 缓存未命中（如启动预热失败）时回源数据库，并回填缓存
+        User user = userMapper.selectByUsername(username);
+        if (user != null) {
+            putUser(user);
+            return Optional.of(user);
+        }
+        return Optional.empty();
     }
 
     @Override

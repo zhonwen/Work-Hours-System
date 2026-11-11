@@ -106,30 +106,6 @@
           </div>
 
           <div class="header-right">
-            <!-- 主题切换 -->
-            <el-dropdown trigger="click" @command="handleThemeChange" class="theme-dropdown">
-              <div class="theme-selector">
-                <el-icon><component :is="iconMap.Brush" /></el-icon>
-                <span class="theme-name">{{ themeStore.currentTheme.name }}</span>
-                <el-icon><component :is="iconMap.ArrowDown" /></el-icon>
-              </div>
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item
-                    v-for="(theme, key) in themeStore.themes"
-                    :key="key"
-                    :command="key"
-                    :class="{ 'is-active': themeStore.currentThemeId === key }"
-                  >
-                    <div class="theme-option">
-                      <div class="theme-color-preview" :style="{ backgroundColor: theme.primaryColor }"></div>
-                      <span>{{ theme.name }}</span>
-                    </div>
-                  </el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
-
             <el-dropdown trigger="click" @command="handleUserAction">
               <div class="user-info">
                 <el-avatar :size="32" :src="userAvatar">
@@ -176,12 +152,16 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import * as ElementPlusIcons from '@element-plus/icons-vue'
+import { useAuthStore } from '@/stores/auth'
 import { useThemeStore } from '@/stores/theme'
+import { useProjectStore } from '@/stores/project'
 import { getUserMenuTree, type MenuInfo } from '@/api/menu'
 
 const router = useRouter()
 const route = useRoute()
+const authStore = useAuthStore()
 const themeStore = useThemeStore()
+const projectStore = useProjectStore()
 
 // 动态菜单树
 const menuTree = ref<MenuInfo[]>([])
@@ -205,8 +185,7 @@ const fetchUserMenus = async () => {
   }
 }
 
-// 用户名（从 localStorage 获取）
-const username = ref(localStorage.getItem('username') || '用户')
+const username = computed(() => authStore.username || '用户')
 const userAvatar = ref('')
 
 // 侧边栏折叠状态（从 localStorage 读取，默认 false）
@@ -299,12 +278,6 @@ const toggleCollapse = () => {
   localStorage.setItem('sidebarCollapsed', String(isCollapse.value))
 }
 
-// 切换主题
-const handleThemeChange = (themeId: string) => {
-  themeStore.setTheme(themeId)
-  ElMessage.success(`已切换到${themeStore.currentTheme.name}主题`)
-}
-
 // 用户操作
 const handleUserAction = (command: string) => {
   switch (command) {
@@ -312,7 +285,7 @@ const handleUserAction = (command: string) => {
       ElMessage.info('个人信息功能开发中')
       break
     case 'settings':
-      ElMessage.info('系统设置功能开发中')
+      router.push('/settings')
       break
     case 'logout':
       ElMessageBox.confirm('确定要退出登录吗？', '提示', {
@@ -321,8 +294,9 @@ const handleUserAction = (command: string) => {
         type: 'warning'
       })
         .then(() => {
-          localStorage.removeItem('token')
-          localStorage.removeItem('username')
+          authStore.clearAuth()
+          themeStore.clearPreference()
+          projectStore.clearUserCache()
           ElMessage.success('退出成功')
           router.push('/login')
         })
@@ -331,10 +305,11 @@ const handleUserAction = (command: string) => {
   }
 }
 
-// 组件挂载时恢复主题并加载菜单
+// 组件挂载时加载菜单，并从服务端同步主题偏好
 onMounted(async () => {
   await fetchUserMenus()
   themeStore.restoreTheme()
+  themeStore.loadPreferenceFromServer().catch(() => {})
 })
 </script>
 
@@ -459,13 +434,14 @@ onMounted(async () => {
 
 /* 顶部导航栏样式 */
 .header {
-  background-color: #fff;
-  border-bottom: 1px solid #f0f0f0;
+  background-color: var(--surface, #fff);
+  border-bottom: 1px solid var(--line-1, #e5e6eb);
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0 24px;
-  box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
+  padding: 0 var(--page-pad, 24px);
+  box-shadow: none;
+  height: var(--top-nav-height, 52px);
 }
 
 .header-left {
@@ -538,7 +514,13 @@ onMounted(async () => {
   width: 16px;
   height: 16px;
   border-radius: 4px;
-  border: 1px solid rgba(0, 0, 0, 0.1);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  box-sizing: border-box;
+  flex-shrink: 0;
+}
+
+.theme-color-preview.is-light {
+  border-color: #c9cdd4;
 }
 
 :deep(.el-dropdown-menu__item.is-active) {
@@ -567,8 +549,8 @@ onMounted(async () => {
 
 /* 主内容区样式 */
 .main-content {
-  background-color: #f0f2f5;
-  padding: 12px;
+  background-color: var(--fill-0, #f5f6f7);
+  padding: var(--page-pad, 20px);
   overflow-y: auto;
 }
 
@@ -636,13 +618,15 @@ onMounted(async () => {
 }
 
 .sidebar[data-theme-type="light"] :deep(.el-menu-item:hover) {
-  background-color: var(--theme-primary-light) !important;
-  color: var(--sidebar-text-hover) !important;
+  background-color: var(--fill-2, #f0f1f3) !important;
+  color: var(--text-1, #1f2329) !important;
 }
 
 .sidebar[data-theme-type="light"] :deep(.el-menu-item.is-active) {
-  background-color: var(--theme-primary) !important;
-  color: #fff !important;
+  background-color: var(--primary-tint, #eef3ff) !important;
+  color: var(--primary, #3370fe) !important;
+  box-shadow: none;
+  font-weight: 500;
 }
 
 .sidebar[data-theme-type="light"] :deep(.el-sub-menu__title) {
@@ -664,11 +648,11 @@ onMounted(async () => {
 
 .sidebar[data-theme-type="light"] :deep(.el-menu-item:hover) .menu-icon,
 .sidebar[data-theme-type="light"] :deep(.el-sub-menu__title:hover) .menu-icon {
-  color: var(--sidebar-text-hover);
+  color: var(--text-1, #1f2329);
 }
 
 .sidebar[data-theme-type="light"] :deep(.el-menu-item.is-active) .menu-icon {
-  color: #fff;
+  color: var(--primary, #3370fe);
 }
 
 /* 菜单加载状态 */

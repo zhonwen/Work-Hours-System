@@ -5,145 +5,94 @@
       <h2 class="page-title">{{ pageTitle }}</h2>
     </div>
 
-    <!-- 统计卡片：工时不含请假；本月请假单独展示 -->
+    <!-- 统计条：轻卡细线 -->
     <div class="stats-row stats-row-5">
-      <el-card class="stats-card">
-        <div class="stats-content">
-          <div class="stats-icon today">
-            <el-icon><Clock /></el-icon>
-          </div>
-          <div class="stats-info">
-            <div class="stats-label">今日工时</div>
-            <div class="stats-value">{{ statistics.todayHours || 0 }} 小时</div>
-          </div>
-        </div>
-      </el-card>
-      <el-card class="stats-card">
-        <div class="stats-content">
-          <div class="stats-icon week">
-            <el-icon><Calendar /></el-icon>
-          </div>
-          <div class="stats-info">
-            <div class="stats-label">本周工时</div>
-            <div class="stats-value">{{ statistics.weekHours || 0 }} 小时</div>
-          </div>
-        </div>
-      </el-card>
-      <el-card class="stats-card">
-        <div class="stats-content">
-          <div class="stats-icon month">
-            <el-icon><List /></el-icon>
-          </div>
-          <div class="stats-info">
-            <div class="stats-label">本月工时</div>
-            <div class="stats-value">{{ statistics.monthHours || 0 }} 小时</div>
-          </div>
-        </div>
-      </el-card>
-      <el-card class="stats-card stats-card-leave">
-        <div class="stats-content">
-          <div class="stats-icon leave">
-            <el-icon><Calendar /></el-icon>
-          </div>
-          <div class="stats-info">
-            <div class="stats-label">
-              <span>本月请假</span>
-              <div class="leave-detail-btn"  @click="openLeaveDetail">明细</div>
-            </div>
-            <div class="stats-value">{{ statistics.monthLeaveHours || 0 }} 小时</div>
-          </div>
-        </div>
-      </el-card>
-      <el-card class="stats-card">
-        <div class="stats-content">
-          <div class="stats-icon total">
-            <el-icon><Folder /></el-icon>
-          </div>
-          <div class="stats-info">
-            <div class="stats-label">总计工时</div>
-            <div class="stats-value">{{ statistics.totalHours || 0 }} 小时</div>
-          </div>
-        </div>
-      </el-card>
-    </div>
-
-    <!-- 工具栏（仅浏览，无填报） -->
-    <div class="calendar-toolbar">
-      <div class="toolbar-left">
-        <el-button-group>
-          <el-button :icon="ArrowLeft" @click="handlePrevMonth">上个月</el-button>
-          <el-button @click="handleToday">今天</el-button>
-          <el-button :icon="ArrowRight" @click="handleNextMonth">下个月</el-button>
-        </el-button-group>
-        <div class="current-month">{{ currentMonthText }}</div>
+      <div class="stats-card">
+        <div class="stats-label">今日工时</div>
+        <div class="stats-value">{{ statistics.todayHours || 0 }}<span class="unit">小时</span></div>
       </div>
-      <div v-if="canViewAllWorkHours" class="toolbar-right">
-        <span class="filter-label">查看人员</span>
-        <el-select
-          v-model="selectedUserId"
-          filterable
-          class="user-filter-select"
-          @change="handleUserChange"
-        >
-          <el-option label="我自己" :value="0" />
-          <el-option
-            v-for="u in userOptions"
-            :key="u.id"
-            :label="u.nickname || u.username"
-            :value="u.id"
-          />
-        </el-select>
+      <div class="stats-card">
+        <div class="stats-label">本周工时</div>
+        <div class="stats-value">{{ statistics.weekHours || 0 }}<span class="unit">小时</span></div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-label">本月工时</div>
+        <div class="stats-value">{{ statistics.monthHours || 0 }}<span class="unit">小时</span></div>
+      </div>
+      <div class="stats-card stats-card-leave">
+        <div class="stats-label">
+          <span>本月请假</span>
+          <span class="leave-detail-btn" @click.stop="openLeaveDetail">明细</span>
+        </div>
+        <div class="stats-value">{{ statistics.monthLeaveHours || 0 }}<span class="unit">小时</span></div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-label">累计工时</div>
+        <div class="stats-value">{{ statistics.totalHours || 0 }}<span class="unit">小时</span></div>
       </div>
     </div>
 
-    <!-- 日历网格 -->
-    <div class="month-view" v-loading="loading">
-      <div class="weekdays">
-        <div v-for="day in weekdays" :key="day" class="weekday">{{ day }}</div>
+    <!-- 日历面板：工具栏 + 网格 -->
+    <div class="calendar-panel" v-loading="loading">
+      <div class="calendar-toolbar">
+        <div class="toolbar-left">
+          <el-button size="small" :icon="ArrowLeft" @click="handlePrevMonth" />
+          <el-button size="small" class="month-btn">{{ currentMonthText }}</el-button>
+          <el-button size="small" :icon="ArrowRight" @click="handleNextMonth" />
+          <el-button size="small" @click="handleToday">今天</el-button>
+        </div>
+        <div v-if="canViewAllWorkHours" class="toolbar-right">
+          <el-select
+            v-model="selectedUserId"
+            filterable
+            size="small"
+            class="user-filter-select"
+            @change="handleUserChange"
+          >
+            <el-option label="查看：我的工时" :value="0" />
+            <el-option
+              v-for="u in userOptions"
+              :key="u.id"
+              :label="`查看：${u.nickname || u.username}`"
+              :value="u.id"
+            />
+          </el-select>
+        </div>
       </div>
-      <div class="calendar-grid">
-        <div
-          v-for="cell in calendarCells"
-          :key="cell.date"
-          class="calendar-cell"
-          :class="{
-            today: cell.isToday,
-            weekend: cell.isWeekend,
-            'other-month': cell.isOtherMonth,
-            'has-data': cell.hasData
-          }"
-          @click="handleCellClick(cell)"
-        >
-          <div class="cell-header">
-            <span class="date-number">{{ cell.dayNumber }}</span>
-            <span v-if="cell.totalHours > 0" class="total-hours">
-              <el-icon><Clock /></el-icon>
-              {{ cell.totalHours }}h
-            </span>
-          </div>
-          <div class="cell-body">
-            <div v-if="cell.workHours.length === 0" class="empty-state">
-              {{ cell.isOtherMonth ? '' : '无工时' }}
+
+      <div class="month-view">
+        <div class="calendar-weekdays">
+          <div v-for="day in weekdays" :key="day" class="calendar-weekday">{{ day }}</div>
+        </div>
+        <div class="calendar-grid">
+          <div
+            v-for="cell in calendarCells"
+            :key="cell.date"
+            class="calendar-cell"
+            :class="{
+              'is-today': cell.isToday,
+              'is-out': cell.isOtherMonth
+            }"
+            @click="handleCellClick(cell)"
+          >
+            <span class="calendar-date">{{ cell.dayNumber }}</span>
+            <div
+              v-for="wh in cell.workHours.slice(0, 3)"
+              :key="wh.id"
+              class="calendar-log"
+              :class="{ leave: wh.recordType === 'LEAVE' }"
+            >
+              <span class="log-text">
+                {{
+                  wh.recordType === 'LEAVE'
+                    ? (wh.leaveTypeName || '请假')
+                    : (wh.taskName || wh.projectName || '工时')
+                }}
+              </span>
+              <span class="hours">{{ wh.hours }}h</span>
             </div>
-            <div v-else class="work-hours-list">
-              <div
-                v-for="wh in cell.workHours.slice(0, 3)"
-                :key="wh.id"
-                class="work-hour-item"
-                :class="{ leave: wh.recordType === 'LEAVE' }"
-              >
-                <div class="wh-hours">
-                  {{ wh.hours }}h
-                  {{
-                    wh.recordType === 'LEAVE'
-                      ? (wh.leaveTypeName || '请假')
-                      : (wh.taskName || wh.projectName || '')
-                  }}
-                </div>
-              </div>
-              <div v-if="cell.workHours.length > 3" class="more-hint">
-                +{{ cell.workHours.length - 3 }} 条
-              </div>
+            <div v-if="cell.workHours.length > 3" class="more-hint">
+              +{{ cell.workHours.length - 3 }} 条
             </div>
           </div>
         </div>
@@ -246,7 +195,7 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted, watch, computed } from 'vue'
-import { Clock, Calendar, List, Folder, ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
+import { ArrowLeft, ArrowRight } from '@element-plus/icons-vue'
 import { getMonthRange, getCurrentYearMonth, getMonthText, formatDate, isToday, isWeekend } from '@/utils/dateUtils'
 import {
   getWorkHourList,
@@ -547,8 +496,8 @@ onMounted(() => {
 .stats-row-5 {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: var(--page-gap, 16px);
+  margin-bottom: var(--page-gap, 16px);
 }
 
 @media (max-width: 1200px) {
@@ -563,253 +512,213 @@ onMounted(() => {
   }
 }
 
-.stats-icon.today {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff;
+.stats-card {
+  background: var(--surface, #fff);
+  border: 1px solid var(--line-1, #e5e6eb);
+  border-radius: var(--radius-md, 6px);
+  padding: 14px 16px;
+  box-shadow: none;
 }
 
-.stats-icon.week {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  color: #fff;
+.stats-label {
+  font-size: 12px;
+  color: var(--text-3, #8f959e);
 }
 
-.stats-icon.month {
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-  color: #fff;
+.stats-value {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-1, #1f2329);
+  margin-top: 6px;
+  line-height: 1.2;
 }
 
-.stats-icon.total {
-  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-  color: #fff;
+.stats-value .unit {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-3, #8f959e);
+  margin-left: 2px;
 }
 
-.stats-icon.leave {
-  background: linear-gradient(135deg, #ffb347 0%, #fa8c16 100%);
-  color: #fff;
-}
-
-/* 请假卡：结构同其他卡，文字用橙色区分 */
 .stats-card-leave .stats-label {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
-  /* color: #d46b08; */
 }
 
 .stats-card-leave .stats-value {
-  color: red;
-  opacity: 0.6;
+  color: var(--warning, #d4790c);
 }
 
 .leave-detail-btn {
-  padding: 0;
-  height: auto;
   font-size: 12px;
-  color: #fa8c16;
-  margin-top: 2px;
+  color: var(--primary, #3370fe);
   cursor: pointer;
 }
 
 .leave-detail-btn:hover {
-  color: #d46b08;
+  color: var(--primary-hover, #245bdb);
+  text-decoration: underline;
+}
+
+.calendar-panel {
+  background: var(--surface, #fff);
+  border: 1px solid var(--line-1, #e5e6eb);
+  border-radius: var(--radius-md, 6px);
+  overflow: hidden;
 }
 
 .calendar-toolbar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  padding: 16px;
-  background: #fff;
-  border-radius: 4px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line-1, #e5e6eb);
+  background: var(--surface, #fff);
 }
 
-.toolbar-left {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-}
-
+.toolbar-left,
 .toolbar-right {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.filter-label {
-  font-size: 14px;
-  color: #666;
-  white-space: nowrap;
+.toolbar-right {
+  margin-left: auto;
 }
 
-/* 与左侧 button-group 默认高度对齐，避免选择框显得突兀 */
+.month-btn {
+  min-width: 110px;
+}
+
 .user-filter-select {
   width: 180px;
-}
-
-.user-filter-select :deep(.el-select__wrapper) {
-  min-height: 32px;
-  height: 32px;
-  box-sizing: border-box;
-}
-
-.current-month {
-  font-size: 16px;
-  font-weight: 500;
-  color: #333;
-  min-width: 100px;
+  --el-component-size: var(--control-height, 32px);
 }
 
 .month-view {
-  background: #fff;
-  padding: 16px;
-  border-radius: 4px;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  background: var(--surface, #fff);
 }
 
-.weekdays {
+.calendar-weekdays {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 1px;
-  margin-bottom: 8px;
+  border-top: 1px solid var(--line-1, #e5e6eb);
 }
 
-.weekday {
-  text-align: center;
-  padding: 12px;
-  font-size: 14px;
-  font-weight: 500;
-  color: #666;
-  background: #f5f5f5;
-  border-radius: 4px;
+.calendar-weekday {
+  padding: 8px 12px;
+  font-size: 12px;
+  color: var(--text-2, #646a73);
+  background: var(--fill-1, #f7f8fa);
+  border-bottom: 1px solid var(--line-1, #e5e6eb);
+  border-right: 1px solid var(--line-1, #e5e6eb);
+}
+
+.calendar-weekday:last-child {
+  border-right: none;
 }
 
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
-  gap: 8px;
 }
 
 .calendar-cell {
-  min-height: 120px;
+  min-height: 96px;
   padding: 8px;
-  background: #fff;
-  border: 1px solid #e8e8e8;
-  border-radius: 4px;
+  border-bottom: 1px solid var(--line-1, #e5e6eb);
+  border-right: 1px solid var(--line-1, #e5e6eb);
+  font-size: 13px;
   cursor: pointer;
-  transition: transform 0.2s, opacity 0.2s, border-color 0.2s, background-color 0.2s;
+  background: var(--surface, #fff);
+  transition: background-color 0.15s;
 }
 
-.calendar-cell:hover:not(.other-month) {
-  box-shadow: 0 0 0 2px #1890ff inset;
+.calendar-cell:nth-child(7n) {
+  border-right: none;
 }
 
-.calendar-cell.weekend:not(.other-month) {
-  background: #e6f7ff;
+.calendar-cell:hover:not(.is-out) {
+  background: var(--fill-1, #f7f8fa);
 }
 
-.calendar-cell.other-month {
-  background: #f5f5f5;
-  opacity: 0.6;
+.calendar-cell.is-out {
+  background: var(--fill-1, #f7f8fa);
   cursor: default;
 }
 
-.calendar-cell.other-month.weekend {
-  background: #f5f5f5;
-  opacity: 0.6;
+.calendar-cell.is-today {
+  background: var(--primary-tint, #eef3ff);
 }
 
-.calendar-cell.today {
-  border: 2px solid #1890ff;
-  box-shadow: 0 0 0 1px #1890ff;
-}
-
-.calendar-cell.has-data:not(.other-month):not(.weekend) {
-  background: #f6ffed;
-}
-
-.calendar-cell.has-data.weekend:not(.other-month) {
-  background: #d9f7be;
-}
-
-.cell-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.date-number {
-  font-size: 16px;
-  font-weight: 500;
-  color: #333;
-}
-
-.total-hours {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: #1890ff;
-  font-weight: 500;
-}
-
-.cell-body {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.empty-state {
-  display: flex;
+.calendar-date {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 60px;
-  color: #c0c4cc;
   font-size: 12px;
+  color: var(--text-2, #646a73);
+  min-width: 20px;
+  height: 20px;
 }
 
-.work-hours-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.work-hour-item {
-  padding: 4px 6px;
-  background: #f5f5f5;
-  border-radius: 3px;
-  font-size: 12px;
-}
-
-.work-hour-item.leave {
-  background: #fff7e6;
-  border-left: 2px solid #fa8c16;
-}
-
-.work-hour-item.leave .wh-hours {
-  color: #d46b08;
-}
-
-.wh-hours {
-  color: #666;
+.calendar-cell.is-today .calendar-date {
+  background: var(--primary, #3370fe);
+  color: #fff;
+  border-radius: 50%;
+  width: 20px;
   font-weight: 500;
+}
+
+.calendar-log {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--text-1, #1f2329);
+  background: var(--fill-1, #f7f8fa);
+  border-radius: 3px;
+  padding: 3px 6px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.calendar-log:hover {
+  background: var(--primary-tint, #eef3ff);
+  color: var(--primary, #3370fe);
+}
+
+.calendar-log .log-text {
+  overflow: hidden;
+}
+
+.calendar-log .hours {
+  float: right;
+  color: var(--text-2, #646a73);
+  margin-left: 6px;
+}
+
+.calendar-log.leave {
+  background: var(--warning-tint, #fdf3e7);
+  color: var(--warning, #d4790c);
+}
+
+.calendar-log.leave .hours {
+  color: var(--warning, #d4790c);
+}
+
 .more-hint {
+  margin-top: 4px;
   font-size: 11px;
-  color: #909399;
-  padding-left: 4px;
+  color: var(--text-3, #8f959e);
+  padding-left: 2px;
 }
 
 .detail-summary {
   margin-bottom: 12px;
-  font-size: 14px;
-  color: #606266;
+  font-size: 13px;
+  color: var(--text-2, #646a73);
 }
 
 .detail-empty {

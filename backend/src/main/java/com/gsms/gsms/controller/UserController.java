@@ -9,11 +9,14 @@ import com.gsms.gsms.dto.user.UserCreateReq;
 import com.gsms.gsms.dto.user.UserUpdateReq;
 import com.gsms.gsms.dto.user.PasswordChangeReq;
 import com.gsms.gsms.dto.user.PasswordResetReq;
+import com.gsms.gsms.dto.user.UserPreferenceResp;
+import com.gsms.gsms.dto.user.UserPreferenceUpdateReq;
 import com.gsms.gsms.infra.common.PageResult;
 import com.gsms.gsms.infra.common.Result;
 import com.gsms.gsms.infra.exception.BusinessException;
 import com.gsms.gsms.infra.utils.JwtUtil;
 import com.gsms.gsms.infra.utils.RsaUtil;
+import com.gsms.gsms.infra.utils.UserContext;
 import com.gsms.gsms.model.enums.errorcode.UserErrorCode;
 import com.gsms.gsms.service.CaptchaService;
 import com.gsms.gsms.service.UserService;
@@ -48,9 +51,30 @@ public class UserController {
     }
 
     /**
+     * 获取当前用户偏好（菜单主题等）
+     */
+    @GetMapping("/preference")
+    @Operation(summary = "获取当前用户偏好")
+    public Result<UserPreferenceResp> getPreference() {
+        Long userId = UserContext.getCurrentUserId();
+        return Result.success(userService.getPreference(userId));
+    }
+
+    /**
+     * 更新当前用户偏好
+     */
+    @PutMapping("/preference")
+    @Operation(summary = "更新当前用户偏好")
+    public Result<UserPreferenceResp> updatePreference(@Valid @RequestBody UserPreferenceUpdateReq req) {
+        Long userId = UserContext.getCurrentUserId();
+        logger.info("更新用户偏好: userId={}, themeId={}", userId, req.getThemeId());
+        return Result.success(userService.updatePreference(userId, req));
+    }
+
+    /**
      * 根据ID查询用户
      */
-    @GetMapping("/{id}")
+    @GetMapping("/{id:\\d+}")
     @Operation(summary = "根据ID查询用户")
     public Result<UserInfoResp> getById(@PathVariable Long id) {
         logger.info("查询用户: {}", id);
@@ -92,7 +116,7 @@ public class UserController {
     /**
      * 删除用户
      */
-    @DeleteMapping("/{id}")
+    @DeleteMapping("/{id:\\d+}")
     @Operation(summary = "删除用户")
     public Result<String> delete(@PathVariable Long id) {
         logger.info("删除用户: {}", id);

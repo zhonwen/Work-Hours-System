@@ -149,6 +149,12 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/system/LeaveTypeList.vue'),
         meta: { title: '请假类型', requiresAuth: true },
       },
+      {
+        path: 'settings',
+        name: 'SystemSettings',
+        component: () => import('@/views/settings/SystemSettings.vue'),
+        meta: { title: '系统设置', requiresAuth: true },
+      },
     ],
   },
   {

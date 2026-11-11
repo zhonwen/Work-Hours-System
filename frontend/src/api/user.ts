@@ -114,3 +114,16 @@ export const resetPassword = (data: {
 }) => {
   return request.put('/users/password/reset', data)
 }
+
+/** 用户偏好 */
+export interface UserPreference {
+  themeId: string
+}
+
+export const getUserPreference = () => {
+  return request.get<UserPreference>('/users/preference')
+}
+
+export const updateUserPreference = (data: { themeId: string }) => {
+  return request.put<UserPreference>('/users/preference', data)
+}

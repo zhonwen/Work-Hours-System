@@ -3,106 +3,139 @@
    ============================================ */
 
 :root {
-  /* ========== 现有变量保留（兼容性）========== */
-  /* 这些变量来自 theme.css，保留以确保兼容 */
+  /* ========== 设计稿变量（浅色工作台 / 细线 / 低阴影）========== */
+  --primary: #3370fe;
+  --primary-hover: #245bdb;
+  --primary-active: #1c4cc0;
+  --primary-tint: #eef3ff;
+  --primary-tint-strong: #dbe5ff;
 
-  /* ========== 中性色阶系统（10 级灰度）========== */
-  --gray-50: #f9fafb;
-  --gray-100: #f3f4f6;
-  --gray-200: #e5e7eb;
-  --gray-300: #d1d5db;
-  --gray-400: #9ca3af;
-  --gray-500: #6b7280;
-  --gray-600: #4b5563;
+  --text-1: #1f2329;
+  --text-2: #646a73;
+  --text-3: #8f959e;
+  --text-4: #bbbbc0;
+
+  --line-1: #e5e6eb;
+  --line-2: #dee0e3;
+  --fill-0: #f5f6f7;
+  --fill-1: #f7f8fa;
+  --fill-2: #f0f1f3;
+  --surface: #ffffff;
+
+  --success: #2ea44f;
+  --success-tint: #e8f5ee;
+  --warning: #d4790c;
+  --warning-tint: #fdf3e7;
+  --danger: #d83931;
+  --danger-tint: #fbeae9;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --shadow-float: 0 4px 12px rgba(31, 35, 41, 0.08);
+  --shadow-card: none;
+  --page-gap: 16px;
+  --page-pad: 20px;
+  --control-height: 32px;
+
+  /* 标题层级（全局） */
+  --title-1: 30px;   /* 一级标题 */
+  --title-2: 24px;   /* 二级标题 */
+  --title-3: 20px;   /* 三级标题 */
+  --title-4: 16px;   /* 页面/模块标题（列表页 page-title） */
+  --title-5: 14px;   /* 面板/区块标题 */
+
+  /* ========== 兼容旧变量名 ========== */
+  --gray-50: var(--fill-0);
+  --gray-100: var(--fill-1);
+  --gray-200: var(--line-1);
+  --gray-300: var(--line-2);
+  --gray-400: var(--text-4);
+  --gray-500: var(--text-3);
+  --gray-600: var(--text-2);
   --gray-700: #374151;
   --gray-800: #1f2937;
-  --gray-900: #111827;
+  --gray-900: var(--text-1);
 
-  /* ========== 语义化背景色 ========== */
-  --bg-primary: #ffffff;
-  --bg-secondary: var(--gray-50);
-  --bg-tertiary: var(--gray-100);
-  --bg-elevated: #ffffff;
+  --bg-primary: var(--surface);
+  --bg-secondary: var(--fill-0);
+  --bg-tertiary: var(--fill-1);
+  --bg-elevated: var(--surface);
 
-  /* ========== 语义化文字色 ========== */
-  --text-primary: var(--gray-900);
-  --text-secondary: var(--gray-600);
-  --text-tertiary: var(--gray-500);
-  --text-disabled: var(--gray-400);
+  --text-primary: var(--text-1);
+  --text-secondary: var(--text-2);
+  --text-tertiary: var(--text-3);
+  --text-disabled: var(--text-4);
   --text-inverse: #ffffff;
 
-  /* ========== 语义化边框色 ========== */
-  --border-primary: var(--gray-200);
-  --border-secondary: var(--gray-100);
-  --divider: var(--gray-200);
-
-  /* ========== ONES 风格新增变量 ========== */
+  --border-primary: var(--line-1);
+  --border-secondary: var(--line-1);
+  --divider: var(--line-1);
 
   /* 顶部导航栏 */
-  --top-nav-height: 56px;
-  --top-nav-bg: var(--bg-primary);
-  --top-nav-border: var(--border-secondary);
-  --top-nav-text: var(--text-primary);
-  --top-nav-text-hover: #0066cc; /* ✅ 对比度 6.3:1 (WCAG AA) */
+  --top-nav-height: 52px;
+  --top-nav-bg: var(--surface);
+  --top-nav-border: var(--line-1);
+  --top-nav-text: var(--text-1);
+  --top-nav-text-hover: var(--primary);
 
   /* 功能模块标签 */
-  --module-tab-height: 48px;
-  --module-tab-bg: var(--bg-primary);
-  --module-tab-active: #1890ff;
-  --module-tab-border: var(--border-secondary);
+  --module-tab-height: 44px;
+  --module-tab-bg: var(--surface);
+  --module-tab-active: var(--primary);
+  --module-tab-border: var(--line-1);
 
-  /* 左侧边栏（ONES 风格） */
-  --sidebar-width: 240px;
-  --sidebar-width-collapsed: 64px;
-  --sidebar-bg: var(--bg-primary);
-  --sidebar-border: var(--border-secondary);
-  --sidebar-text: var(--text-secondary);
-  --sidebar-text-hover: #0066cc; /* ✅ 对比度 6.3:1 (WCAG AA) */
-  --sidebar-active-bg: var(--bg-secondary);
+  /* 左侧边栏 */
+  --sidebar-width: 216px;
+  --sidebar-width-collapsed: 56px;
+  --sidebar-bg: var(--surface);
+  --sidebar-border: var(--line-1);
+  --sidebar-text: var(--text-2);
+  --sidebar-text-hover: var(--primary);
+  --sidebar-active-bg: var(--primary-tint);
 
   /* 菜单项 */
-  --menu-item-height: 40px;
-  --menu-item-padding: 12px 16px;
-  --menu-item-gap: 4px;
+  --menu-item-height: 36px;
+  --menu-item-padding: 0 8px;
+  --menu-item-gap: 2px;
 
   /* 看板列 */
-  --kanban-column-bg: var(--bg-tertiary);
-  --kanban-column-border: var(--border-secondary);
-  --kanban-column-header: var(--bg-primary);
+  --kanban-column-bg: var(--fill-1);
+  --kanban-column-border: var(--line-1);
+  --kanban-column-header: var(--surface);
 
-  /* 任务卡片（增强版） */
-  --task-card-bg: var(--bg-primary);
-  --task-card-border: var(--border-secondary);
-  --task-card-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  --task-card-shadow-hover: 0 2px 8px rgba(0, 0, 0, 0.1);
+  /* 任务卡片：细线、无阴影 */
+  --task-card-bg: var(--surface);
+  --task-card-border: var(--line-1);
+  --task-card-shadow: none;
+  --task-card-shadow-hover: none;
 
   /* 状态颜色 */
-  --status-todo: #d48806;        /* ✅ 对比度 4.8:1 (WCAG AA) - 深橙色 */
-  --status-in-progress: #1890ff;  /* ✅ 对比度 4.5:1 (WCAG AA) */
-  --status-done: #059669;        /* ✅ 对比度 4.6:1 (WCAG AA) - 深绿色 */
+  --status-todo: var(--warning);
+  --status-in-progress: var(--primary);
+  --status-done: var(--success);
 
-  /* 优先级颜色（用于图标/圆点） */
-  --priority-low: #6b7280;       /* ✅ 对比度 5.0:1 (WCAG AA) - 深灰色 */
-  --priority-medium: #f59e0b;    /* ✅ 对比度 4.6:1 (WCAG AA) - 深橙色 */
-  --priority-high: #dc2626;      /* ✅ 对比度 6.3:1 (WCAG AA) - 深红色 */
+  /* 优先级颜色 */
+  --priority-low: var(--text-3);
+  --priority-medium: var(--warning);
+  --priority-high: var(--danger);
 
   /* 迭代选择器 */
-  --iteration-select-bg: var(--bg-tertiary);
-  --iteration-select-border: var(--border-primary);
+  --iteration-select-bg: var(--fill-1);
+  --iteration-select-border: var(--line-2);
 
   /* 迭代状态颜色 */
-  --iteration-status-not-started: #9ca3af;  /* ✅ 对比度 4.5:1 (WCAG AA) - 深灰色 */
-  --iteration-status-in-progress: #1890ff;  /* ✅ 对比度 4.5:1 (WCAG AA) */
-  --iteration-status-completed: #059669;    /* ✅ 对比度 4.6:1 (WCAG AA) - 深绿色 */
+  --iteration-status-not-started: var(--text-3);
+  --iteration-status-in-progress: var(--primary);
+  --iteration-status-completed: var(--success);
 
   /* 项目标识 */
-  --project-brand-main-color: var(--text-primary);
-  --project-brand-sub-color: var(--text-secondary);
+  --project-brand-main-color: var(--text-1);
+  --project-brand-sub-color: var(--text-2);
 
   /* 视图标签 */
-  --view-tab-color: var(--text-secondary);
-  --view-tab-active-color: #1890ff;
-  --view-tab-border-color: var(--border-secondary);
+  --view-tab-color: var(--text-2);
+  --view-tab-active-color: var(--primary);
+  --view-tab-border-color: var(--line-1);
 }
 
 /* ========== 暗色模式完整支持 ========== */

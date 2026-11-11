@@ -27,22 +27,22 @@ export const PROJECT_STATUS_MAP: StatusMapConfig = {
   NOT_STARTED: {
     type: 'info',
     text: '未开始',
-    color: '#9ca3af'  /* ✅ 对比度 4.5:1 (WCAG AA) */
+    color: '#8f959e'
   },
   IN_PROGRESS: {
     type: 'primary',
     text: '进行中',
-    color: '#1890ff'  /* ✅ 对比度 4.5:1 (WCAG AA) */
+    color: '#3370fe'
   },
   SUSPENDED: {
     type: 'warning',
     text: '已暂停',
-    color: '#f59e0b'  /* ✅ 对比度 4.6:1 (WCAG AA) */
+    color: '#d4790c'
   },
   ARCHIVED: {
-    type: 'info',
+    type: 'success',
     text: '已归档',
-    color: '#6b7280'  /* ✅ 对比度 5.7:1 (WCAG AA) */
+    color: '#2ea44f'
   }
 }
 

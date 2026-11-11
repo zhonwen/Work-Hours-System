@@ -1,6 +1,8 @@
 import axios, { type AxiosInstance, type AxiosRequestConfig, type AxiosResponse } from 'axios'
 import router from '@/router'
 import { useAuthStore } from '@/stores/auth'
+import { useThemeStore } from '@/stores/theme'
+import { useProjectStore } from '@/stores/project'
 import { message as toast } from '@/utils/message'
 
 // 创建 axios 实例
@@ -71,9 +73,9 @@ service.interceptors.response.use(
       switch (status) {
         case 401: {
           toast.error('未授权，请重新登录')
-          // 清除认证信息并跳转到登录页
-          const authStore = useAuthStore()
-          authStore.clearAuth()
+          useAuthStore().clearAuth()
+          useThemeStore().clearPreference()
+          useProjectStore().clearUserCache()
           router.push('/login')
           break
         }

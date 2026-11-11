@@ -9,6 +9,9 @@
         <result column="project_type" property="projectType"
                 typeHandler="com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler"/>
         <result column="description" property="description"/>
+        <result column="announcement" property="announcement"/>
+        <result column="announcement_update_user_id" property="announcementUpdateUserId"/>
+        <result column="announcement_update_time" property="announcementUpdateTime"/>
         <result column="manager_id" property="managerId"/>
         <result column="status" property="status"
                 typeHandler="com.baomidou.mybatisplus.core.handlers.MybatisEnumTypeHandler"/>
@@ -24,7 +27,8 @@
 
     <!-- 查询所有字段 -->
     <sql id="selectAllFields">
-        id, name, code, project_type, description, manager_id, status, plan_start_date, plan_end_date,
+        id, name, code, project_type, description, announcement, announcement_update_user_id, announcement_update_time,
+        manager_id, status, plan_start_date, plan_end_date,
         actual_start_date, actual_end_date, create_user_id, update_user_id, create_time, update_time, is_deleted
     </sql>
 
@@ -45,7 +49,9 @@
 
     <!-- 查询用户可访问的项目列表（基于项目成员表） -->
     <select id="selectAccessibleProjects" resultMap="ProjectResultMap">
-        SELECT DISTINCT p.id, p.name, p.code, p.project_type, p.description, p.manager_id, p.status,
+        SELECT DISTINCT p.id, p.name, p.code, p.project_type, p.description,
+               p.announcement, p.announcement_update_user_id, p.announcement_update_time,
+               p.manager_id, p.status,
                p.plan_start_date, p.plan_end_date, p.actual_start_date, p.actual_end_date,
                p.create_user_id, p.update_user_id, p.create_time, p.update_time, p.is_deleted
         FROM gsms_project p
@@ -72,7 +78,9 @@
 
     <!-- 根据条件查询用户可访问的项目（基于项目成员表） -->
     <select id="selectAccessibleProjectsByCondition"  resultMap="ProjectResultMap">
-        SELECT DISTINCT p.id, p.name, p.code, p.project_type, p.description, p.manager_id, p.status,
+        SELECT DISTINCT p.id, p.name, p.code, p.project_type, p.description,
+               p.announcement, p.announcement_update_user_id, p.announcement_update_time,
+               p.manager_id, p.status,
                p.plan_start_date, p.plan_end_date, p.actual_start_date, p.actual_end_date,
                p.create_user_id, p.update_user_id, p.create_time, p.update_time, p.is_deleted
         FROM gsms_project p
@@ -132,6 +140,17 @@
             update_time = CURRENT_TIMESTAMP
         </set>
         WHERE id = #{id}
+    </update>
+
+    <!-- 更新项目公告 / 规划板 -->
+    <update id="updateAnnouncement" parameterType="com.gsms.gsms.model.entity.Project">
+        UPDATE gsms_project
+        SET announcement = #{announcement},
+            announcement_update_user_id = #{announcementUpdateUserId},
+            announcement_update_time = CURRENT_TIMESTAMP,
+            update_user_id = #{announcementUpdateUserId},
+            update_time = CURRENT_TIMESTAMP
+        WHERE id = #{id} AND is_deleted = 0
     </update>
 
     <!-- 根据ID逻辑删除项目 -->

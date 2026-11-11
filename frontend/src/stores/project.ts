@@ -205,6 +205,14 @@ export const useProjectStore = defineStore('project', () => {
     currentViewMode.value = 'overview'
   }
 
+  /** 退出登录时清空项目会话缓存 */
+  const clearUserCache = () => {
+    resetProjectState()
+    recentProjects.value = []
+    projectList.value = []
+    localStorage.removeItem('recentProjects')
+  }
+
   /**
    * 从 localStorage 加载最近访问的项目
    */
@@ -253,6 +261,7 @@ export const useProjectStore = defineStore('project', () => {
     setFilters,
     clearFilters,
     resetProjectState,
+    clearUserCache,
     loadRecentFromStorage
   }
 })

@@ -21,10 +21,10 @@ public enum CommonErrorCode implements ErrorCode {
     FORBIDDEN(1403, "无权限访问"),                 // 建议HTTP 403
     NOT_FOUND(1404, "资源不存在"),                 // 建议HTTP 404
     
-    // ========== 系统错误 15xx（建议HTTP 500） ==========
-    INTERNAL_ERROR(1500, "服务器内部错误"),
-    DATABASE_ERROR(1501, "数据库操作异常"),
-    SERVICE_UNAVAILABLE(1503, "服务暂时不可用"),
+    // ========== 系统错误（业务响应码统一 500，与 Result.error() 一致） ==========
+    INTERNAL_ERROR(500, "服务器内部错误"),
+    DATABASE_ERROR(500, "数据库操作异常"),
+    SERVICE_UNAVAILABLE(500, "服务暂时不可用"),
     
     // ========== 其他 ==========
     BUSINESS_ERROR(1999, "业务处理失败");           // 建议HTTP 400

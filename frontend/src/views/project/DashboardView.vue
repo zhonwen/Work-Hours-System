@@ -2007,7 +2007,7 @@ onBeforeUnmount(() => {
 
 .page-title {
   margin: 0;
-  font-size: 18px;
+  font-size: var(--title-4, 16px);
   font-weight: 500;
   color: #333;
 }

@@ -11,6 +11,8 @@ import com.gsms.gsms.dto.user.UserCreateReq;
 import com.gsms.gsms.dto.user.UserUpdateReq;
 import com.gsms.gsms.dto.user.PasswordChangeReq;
 import com.gsms.gsms.dto.user.PasswordResetReq;
+import com.gsms.gsms.dto.user.UserPreferenceResp;
+import com.gsms.gsms.dto.user.UserPreferenceUpdateReq;
 import com.gsms.gsms.dto.user.UserConverter;
 import com.gsms.gsms.infra.common.PageResult;
 import com.gsms.gsms.infra.exception.BusinessException;
@@ -340,6 +342,36 @@ public class UserServiceImpl implements UserService {
                         updatedUser.getNickname(), updatedUser.getId()));
 
         logger.info("管理员重置密码成功: userId={}", req.getUserId());
+    }
+
+    @Override
+    public UserPreferenceResp getPreference(Long userId) {
+        User user = getUserById(userId);
+        String themeId = user.getThemeId();
+        if (themeId == null || themeId.trim().isEmpty()) {
+            themeId = "默认白";
+        }
+        return new UserPreferenceResp(themeId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public UserPreferenceResp updatePreference(Long userId, UserPreferenceUpdateReq req) {
+        User user = getUserById(userId);
+        String themeId = req.getThemeId() == null ? "默认白" : req.getThemeId().trim();
+        if (themeId.isEmpty()) {
+            themeId = "默认白";
+        }
+        user.setThemeId(themeId);
+        user.setUpdateUserId(userId);
+        int result = userMapper.update(user);
+        if (result <= 0) {
+            throw new BusinessException(UserErrorCode.USER_UPDATE_FAILED);
+        }
+        User updated = userMapper.selectById(userId);
+        cacheService.putUser(updated);
+        logger.info("更新用户主题偏好: userId={}, themeId={}", userId, themeId);
+        return new UserPreferenceResp(themeId);
     }
 
     /**

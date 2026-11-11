@@ -781,7 +781,7 @@ onMounted(async () => {
 
 .page-title {
   margin: 0;
-  font-size: 20px;
+  font-size: var(--title-4, 16px);
   font-weight: 500;
   color: #333;
 }

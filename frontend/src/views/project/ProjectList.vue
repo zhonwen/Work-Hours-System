@@ -28,7 +28,7 @@
           <el-option label="已暂停" value="SUSPENDED" />
           <el-option label="已归档" value="ARCHIVED" />
         </el-select>
-        <el-button-group>
+        <!-- <el-button-group>
           <el-button
             :type="viewMode === 'table' ? 'primary' : ''"
             @click="viewMode = 'table'"
@@ -43,7 +43,7 @@
             <el-icon><Grid /></el-icon>
             看板
           </el-button>
-        </el-button-group>
+        </el-button-group> -->
       </div>
     </div>
 
@@ -116,67 +116,58 @@
       </el-row>
     </div>
 
-    <!-- 表格视图（简化版：8列核心信息） -->
+    <!-- 表格视图：对齐设计稿列样式 -->
     <div v-else class="table-view">
-      <el-table :data="projectList" stripe style="width: 100%">
-        <el-table-column prop="name" label="项目名称" min-width="200">
-          <template #default="{ row }">
-            <div class="table-project-name">
-              <div
+      <el-table :data="projectList" style="width: 100%" table-layout="auto">
+        <el-table-column prop="name" label="项目名称" min-width="220">
+          <template #default="{ row, $index }">
+            <div class="table-project-name" @click="handleView(row)">
+              <span
                 class="project-dot"
-                :style="{ backgroundColor: getStatusColor(row.status) }"
-              ></div>
-              <el-link type="primary" @click="handleView(row)">{{ row.name }}</el-link>
+                :style="{ backgroundColor: getProjectDotColor(row, $index) }"
+              ></span>
+              <div class="project-name-text">
+                <div class="cell-main">{{ row.name }}</div>
+                <div class="cell-sub">{{ row.code || '-' }}</div>
+              </div>
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="90">
+        <el-table-column prop="status" label="状态" min-width="100" width="110">
           <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)" size="small">
+            <span class="status-tag" :class="getStatusTagClass(row.status)">
               {{ getStatusText(row.status) }}
-            </el-tag>
+            </span>
           </template>
         </el-table-column>
-        <el-table-column prop="managerName" label="项目经理" width="110">
+        <el-table-column prop="managerName" label="负责人" min-width="100" width="110">
           <template #default="{ row }">
-            {{ getManagerName(row.managerId) || '未设置' }}
+            <span class="cell-nowrap">{{ getManagerName(row.managerId) || '未设置' }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="planStartDate" label="计划开始时间" width="110">
+        <el-table-column prop="planStartDate" label="计划开始" min-width="120" width="120">
           <template #default="{ row }">
-            {{ row.planStartDate || '-' }}
+            <span class="cell-muted cell-nowrap">{{ row.planStartDate || '-' }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="planEndDate" label="计划结束时间" width="110">
+        <el-table-column prop="planEndDate" label="计划结束" min-width="120" width="120">
           <template #default="{ row }">
-            <span :class="{ 'text-danger': isOverdue(row.planEndDate) }">
+            <span class="cell-muted cell-nowrap" :class="{ 'text-danger': isOverdue(row.planEndDate) }">
               {{ row.planEndDate || '-' }}
             </span>
           </template>
         </el-table-column>
-        <el-table-column prop="createUserName" label="创建人" width="100">
+        <el-table-column prop="createTime" label="创建时间" min-width="160" width="160">
           <template #default="{ row }">
-            {{ row.createUserName || '-' }}
+            <span class="cell-muted cell-nowrap">{{ formatDate(row.createTime) }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" width="160">
+        <el-table-column label="操作" width="140" fixed="right">
           <template #default="{ row }">
-            {{ formatDate(row.createTime) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="120" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="success" :icon="Grid" @click="handleGantt(row)">甘特图</el-button>
-            <el-dropdown trigger="click">
-              <el-button link :icon="MoreFilled" />
-              <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item :icon="View" @click.native="handleView(row)">查看详情</el-dropdown-item>
-                  <el-dropdown-item :icon="Edit" @click.native="handleEdit(row)">编辑项目</el-dropdown-item>
-                  <el-dropdown-item :icon="Delete" divided @click.native="handleDelete(row)">删除项目</el-dropdown-item>
-                </el-dropdown-menu>
-              </template>
-            </el-dropdown>
+            <div class="row-actions">
+              <el-button link type="primary" @click="handleEdit(row)">编辑</el-button>
+              <el-button link type="primary" @click="handleGantt(row)">甘特图</el-button>
+            </div>
           </template>
         </el-table-column>
       </el-table>
@@ -666,9 +657,36 @@ const resetForm = () => {
 }
 
 // 获取项目状态信息
-const getStatusColor = (status: string) => getProjectStatusInfo(status).color
-const getStatusType = (status: string) => getProjectStatusInfo(status).type
 const getStatusText = (status: string) => getProjectStatusInfo(status).text
+
+/** 项目色点色表：按 id/序号循环，不跟状态走 */
+const PROJECT_DOT_COLORS = [
+  '#3370fe',
+  '#2ea44f',
+  '#d4790c',
+  '#8b5cf6',
+  '#0891b2',
+  '#db2777',
+  '#65a30d',
+  '#ea580c',
+  '#4f46e5',
+  '#0d9488'
+]
+
+const getProjectDotColor = (row: { id?: number }, index: number) => {
+  const seed = Number(row?.id) > 0 ? Number(row.id) : index
+  return PROJECT_DOT_COLORS[seed % PROJECT_DOT_COLORS.length]
+}
+
+const getStatusTagClass = (status: string) => {
+  const map: Record<string, string> = {
+    NOT_STARTED: 'status-tag--neutral',
+    IN_PROGRESS: 'status-tag--info',
+    SUSPENDED: 'status-tag--warning',
+    ARCHIVED: 'status-tag--success'
+  }
+  return map[status] || 'status-tag--neutral'
+}
 
 // 获取项目经理名称
 const getManagerName = (managerId: number) => {
@@ -677,16 +695,13 @@ const getManagerName = (managerId: number) => {
   return user?.nickname
 }
 
-// 格式化日期
+// 格式化日期时间：固定宽度，避免换行
 const formatDate = (date: string) => {
   if (!date) return '-'
-  return new Date(date).toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
+  const d = new Date(date)
+  if (Number.isNaN(d.getTime())) return date
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 // 判断是否逾期（3天内橙色，已逾期红色）
@@ -765,23 +780,40 @@ onMounted(() => {
   color: #8c8c8c;
 }
 
-/* 表格视图 */
+/* 表格视图：对齐设计稿 */
 .table-project-name {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
+  cursor: pointer;
 }
 
 .project-dot {
   width: 8px;
   height: 8px;
-  border-radius: 50%;
+  border-radius: 2px;
   flex-shrink: 0;
+  margin-top: 6px;
+}
+
+.project-name-text {
+  min-width: 0;
+}
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+}
+
+.cell-nowrap {
+  white-space: nowrap;
 }
 
 /* 逾期警告 */
 .text-danger {
-  color: #f56c6c;
+  color: var(--danger, #d83931);
   font-weight: 500;
 }
 

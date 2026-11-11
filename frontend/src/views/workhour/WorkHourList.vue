@@ -3,7 +3,7 @@
     <!-- 页面头部 -->
     <div class="page-header">
       <div class="header-left">
-        <h2 class="page-title">我的工时</h2>
+        <h2 class="page-title">工时列表</h2>
       </div>
       <div class="header-right">
         <el-button :icon="Plus" @click="handleCreateLeave">请假</el-button>
@@ -11,64 +11,29 @@
       </div>
     </div>
 
-    <!-- 统计卡片 -->
-    <el-row :gutter="16" class="stats-row">
-      <el-col :span="6">
-        <el-card class="stats-card">
-          <div class="stats-content">
-            <div class="stats-icon today">
-              <el-icon><Clock /></el-icon>
-            </div>
-            <div class="stats-info">
-              <div class="stats-label">今日工时</div>
-              <div class="stats-value">{{ statistics.todayHours || 0 }} 小时</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="stats-card">
-          <div class="stats-content">
-            <div class="stats-icon week">
-              <el-icon><Calendar /></el-icon>
-            </div>
-            <div class="stats-info">
-              <div class="stats-label">本周工时</div>
-              <div class="stats-value">{{ statistics.weekHours || 0 }} 小时</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="stats-card">
-          <div class="stats-content">
-            <div class="stats-icon month">
-              <el-icon><DataLine /></el-icon>
-            </div>
-            <div class="stats-info">
-              <div class="stats-label">本月工时</div>
-              <div class="stats-value">{{ statistics.monthHours || 0 }} 小时</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card class="stats-card">
-          <div class="stats-content">
-            <div class="stats-icon total">
-              <el-icon><Histogram /></el-icon>
-            </div>
-            <div class="stats-info">
-              <div class="stats-label">总计工时</div>
-              <div class="stats-value">{{ statistics.totalHours || 0 }} 小时</div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-    </el-row>
+    <!-- 统计条：轻卡细线 -->
+    <div class="stats-row stats-row-4">
+      <div class="stats-card">
+        <div class="stats-label">今日工时</div>
+        <div class="stats-value">{{ statistics.todayHours || 0 }}<span class="unit">小时</span></div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-label">本周工时</div>
+        <div class="stats-value">{{ statistics.weekHours || 0 }}<span class="unit">小时</span></div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-label">本月工时</div>
+        <div class="stats-value">{{ statistics.monthHours || 0 }}<span class="unit">小时</span></div>
+      </div>
+      <div class="stats-card">
+        <div class="stats-label">累计工时</div>
+        <div class="stats-value">{{ statistics.totalHours || 0 }}<span class="unit">小时</span></div>
+      </div>
+    </div>
 
-    <!-- 搜索筛选 -->
-    <el-card class="search-card">
+    <!-- 列表面板：筛选 + 表格 -->
+    <div class="list-panel">
+      <div class="filter-bar">
       <el-form :inline="true" :model="queryForm" class="search-form">
         <el-form-item v-if="canViewAllWorkHours" label="查看范围">
           <el-select
@@ -124,86 +89,88 @@
           <el-button @click="handleReset">重置</el-button>
         </el-form-item>
       </el-form>
-    </el-card>
-
-    <!-- 工时记录列表 -->
-    <el-card class="table-card">
-      <el-table :data="workHourList" stripe v-loading="loading" border>
-        <el-table-column
-          type="index"
-          label="序号"
-          width="64"
-          fixed="left"
-          :index="indexMethod"
-        />
-        <el-table-column
-          v-if="showUserColumn"
-          label="人员"
-          min-width="120"
-          fixed="left"
-          show-overflow-tooltip
-        >
-          <template #default="{ row }">
-            {{ row.userName || '-' }}
-          </template>
-        </el-table-column>
-        <el-table-column label="工作日期" width="120">
-          <template #default="{ row }">
-            {{ row.workDate }}
-          </template>
-        </el-table-column>
-        <el-table-column label="类型" width="90">
-          <template #default="{ row }">
-            <el-tag :type="row.recordType === 'LEAVE' ? 'warning' : 'success'" size="small">
-              {{ row.recordType === 'LEAVE' ? '请假' : '工时' }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="项目/请假类型" min-width="160" :fixed="showUserColumn ? undefined : 'left'" show-overflow-tooltip>
-          <template #default="{ row }">
-            {{ row.recordType === 'LEAVE' ? (row.leaveTypeName || '-') : (row.projectName || '-') }}
-          </template>
-        </el-table-column>
-        <el-table-column label="任务" width="160">
-          <template #default="{ row }">
-            {{ row.recordType === 'LEAVE' ? '-' : (row.taskName || '-') }}
-          </template>
-        </el-table-column>
-        <el-table-column prop="hours" label="时长" width="100">
-          <template #default="{ row }">
-            {{ row.hours }} 小时
-          </template>
-        </el-table-column>
-        <el-table-column prop="content" label="说明" min-width="200" show-overflow-tooltip />
-        <el-table-column label="状态" width="100">
-          <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)">
-              {{ getStatusText(row.status) }}
-            </el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="createTime" label="创建时间" width="180" />
-        <el-table-column label="操作" width="150" fixed="right">
-          <template #default="{ row }">
-            <el-button link type="primary" :icon="Edit" @click="handleEdit(row)">编辑</el-button>
-            <el-button link type="danger" :icon="Delete" @click="handleDelete(row)">删除</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <!-- 分页 -->
-      <div class="pagination-container">
-        <el-pagination
-          v-model:current-page="pagination.pageNum"
-          v-model:page-size="pagination.pageSize"
-          :page-sizes="[10, 20, 50, 100]"
-          :total="pagination.total"
-          layout="total, sizes, prev, pager, next, jumper"
-          @size-change="handleSizeChange"
-          @current-change="handleCurrentChange"
-        />
       </div>
-    </el-card>
+
+      <div class="table-body">
+        <el-table :data="workHourList" stripe v-loading="loading" border>
+          <el-table-column
+            type="index"
+            label="序号"
+            width="64"
+            fixed="left"
+            :index="indexMethod"
+          />
+          <el-table-column
+            v-if="showUserColumn"
+            label="人员"
+            min-width="120"
+            fixed="left"
+            show-overflow-tooltip
+          >
+            <template #default="{ row }">
+              {{ row.userName || '-' }}
+            </template>
+          </el-table-column>
+          <el-table-column label="工作日期" width="120">
+            <template #default="{ row }">
+              {{ row.workDate }}
+            </template>
+          </el-table-column>
+          <el-table-column label="类型" width="90">
+            <template #default="{ row }">
+              <span
+                class="status-tag"
+                :class="row.recordType === 'LEAVE' ? 'status-tag--warning' : 'status-tag--success'"
+              >
+                {{ row.recordType === 'LEAVE' ? '请假' : '工时' }}
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column label="项目/请假类型" min-width="160" :fixed="showUserColumn ? undefined : 'left'" show-overflow-tooltip>
+            <template #default="{ row }">
+              {{ row.recordType === 'LEAVE' ? (row.leaveTypeName || '-') : (row.projectName || '-') }}
+            </template>
+          </el-table-column>
+          <el-table-column label="任务" width="160">
+            <template #default="{ row }">
+              {{ row.recordType === 'LEAVE' ? '-' : (row.taskName || '-') }}
+            </template>
+          </el-table-column>
+          <el-table-column prop="hours" label="时长" width="100">
+            <template #default="{ row }">
+              {{ row.hours }} 小时
+            </template>
+          </el-table-column>
+          <el-table-column prop="content" label="说明" min-width="200" show-overflow-tooltip />
+          <el-table-column label="状态" width="100">
+            <template #default="{ row }">
+              <span class="status-tag" :class="getWorkHourStatusTagClass(row.status)">
+                {{ getStatusText(row.status) }}
+              </span>
+            </template>
+          </el-table-column>
+          <el-table-column prop="createTime" label="创建时间" width="180" />
+          <el-table-column label="操作" width="150" fixed="right">
+            <template #default="{ row }">
+              <el-button link type="primary" :icon="Edit" @click="handleEdit(row)">编辑</el-button>
+              <el-button link type="danger" :icon="Delete" @click="handleDelete(row)">删除</el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+
+        <div class="pagination-container">
+          <el-pagination
+            v-model:current-page="pagination.pageNum"
+            v-model:page-size="pagination.pageSize"
+            :page-sizes="[10, 20, 50, 100]"
+            :total="pagination.total"
+            layout="total, sizes, prev, pager, next, jumper"
+            @size-change="handleSizeChange"
+            @current-change="handleCurrentChange"
+          />
+        </div>
+      </div>
+    </div>
 
     <!-- 创建/编辑对话框 -->
     <el-dialog
@@ -281,7 +248,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
-import { Plus, Edit, Delete, Clock, Calendar, DataLine, Histogram } from '@element-plus/icons-vue'
+import { Plus, Edit, Delete } from '@element-plus/icons-vue'
 import {
   getWorkHourList,
   createWorkHour,
@@ -394,8 +361,19 @@ const formRules = computed<FormRules>(() => {
 })
 
 // 获取工时状态信息
-const getStatusType = (status: string) => getWorkHourStatusInfo(status).type
 const getStatusText = (status: string) => getWorkHourStatusInfo(status).text
+const getWorkHourStatusTagClass = (status: string) => {
+  const type = getWorkHourStatusInfo(status).type
+  const map: Record<string, string> = {
+    success: 'status-tag--success',
+    warning: 'status-tag--warning',
+    danger: 'status-tag--danger',
+    primary: 'status-tag--info',
+    info: 'status-tag--neutral',
+    '': 'status-tag--neutral'
+  }
+  return map[type] || 'status-tag--neutral'
+}
 
 // 获取工时列表
 const fetchWorkHours = async () => {
@@ -701,30 +679,80 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* ========== 工时页面特定样式 ========== */
-
-/* 统计图标渐变色 */
-.stats-icon.today {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: #fff;
+.stats-row-4 {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--page-gap, 16px);
+  margin-bottom: var(--page-gap, 16px);
 }
 
-.stats-icon.week {
-  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-  color: #fff;
+@media (max-width: 900px) {
+  .stats-row-4 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
-.stats-icon.month {
-  background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-  color: #fff;
+.stats-card {
+  background: var(--surface, #fff);
+  border: 1px solid var(--line-1, #e5e6eb);
+  border-radius: var(--radius-md, 6px);
+  padding: 14px 16px;
+  box-shadow: none;
 }
 
-.stats-icon.total {
-  background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
-  color: #fff;
+.stats-label {
+  font-size: 12px;
+  color: var(--text-3, #8f959e);
 }
 
-/* 数字列等宽字体 */
+.stats-value {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--text-1, #1f2329);
+  margin-top: 6px;
+  line-height: 1.2;
+}
+
+.stats-value .unit {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-3, #8f959e);
+  margin-left: 2px;
+}
+
+.list-panel {
+  background: var(--surface, #fff);
+  border: 1px solid var(--line-1, #e5e6eb);
+  border-radius: var(--radius-md, 6px);
+  overflow: hidden;
+}
+
+.filter-bar {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line-1, #e5e6eb);
+}
+
+.filter-bar :deep(.el-form-item) {
+  margin-bottom: 0;
+  margin-right: 12px;
+}
+
+.filter-bar :deep(.el-select),
+.filter-bar :deep(.el-date-editor) {
+  --el-component-size: var(--control-height, 32px);
+}
+
+.table-body {
+  padding: 0;
+}
+
+.pagination-container {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 16px;
+  border-top: 1px solid var(--line-1, #e5e6eb);
+}
+
 :deep(.el-table .number-column) {
   font-variant-numeric: tabular-nums;
 }

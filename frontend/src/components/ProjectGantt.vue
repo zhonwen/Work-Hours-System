@@ -10,8 +10,8 @@
         </el-radio-group>
       </div>
       <div class="toolbar-right">
-        <el-button @click="handleRefresh" :icon="Refresh">刷新</el-button>
-        <el-button @click="handleExport" :icon="Download">导出</el-button>
+        <el-button @click="handleRefresh" type="primary" :icon="Refresh">刷新</el-button>
+        <!-- <el-button @click="handleExport" :icon="Download">导出</el-button> -->
       </div>
     </div>
 
@@ -27,13 +27,18 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Refresh, Download, Loading } from '@element-plus/icons-vue'
 import { gantt } from 'dhtmlx-gantt'
 import 'dhtmlx-gantt/codebase/dhtmlxgantt.css'
 import { getProjectGanttData, updateTaskDates, updateTaskParent, type GanttTask } from '@/api/gantt'
+import {
+  getTaskStatusInfo,
+  getProjectStatusInfo,
+  getIterationStatusInfo
+} from '@/utils/statusMapping'
 
 interface Props {
   projectId: number
@@ -47,30 +52,61 @@ const viewMode = ref('day')
 const loading = ref(false)
 const ganttContainer = ref<HTMLElement>()
 
-// 获取类型图标
-const getTypeIcon = (type: string): string => {
-  const icons: Record<string, string> = {
-    'project': '📊',
-    'iteration': '🔄',
-    'task': '📋'
-  }
-  return icons[type] || '📋'
+/** 类型底色（对齐设计稿语义主色） */
+const TYPE_BASE_COLOR: Record<string, string> = {
+  project: '#3370fe',   // 主色蓝
+  iteration: '#8b5cf6', // 迭代紫
+  task: '#2ea44f'       // 任务绿
 }
 
-// 获取类型颜色
-const getTypeColor = (task: any): string => {
-  if (task.type === 'project') return '#3498db' // 蓝色
-  if (task.type === 'iteration') return '#9b59b6' // 紫色
-  if (task.type === 'task') {
-    // 任务根据优先级显示颜色
-    const priorityColors: Record<string, string> = {
-      'HIGH': '#e74c3c',   // 红色
-      'MEDIUM': '#f39c12', // 橙色
-      'LOW': '#2ecc71'     // 绿色
-    }
-    return priorityColors[task.priority] || '#2ecc71'
+/** 语义色 */
+const SEMANTIC = {
+  primary: '#3370fe',
+  success: '#2ea44f',
+  warning: '#d4790c',
+  danger: '#d83931',
+  muted: '#8f959e'
+}
+
+/**
+ * 条颜色：类型定底色 → 优先级覆盖 → 状态再覆盖（终态优先）
+ */
+const getBarColor = (task: { type?: string; priority?: string; status?: string }): string => {
+  const type = task.type || 'task'
+  let color = TYPE_BASE_COLOR[type] || TYPE_BASE_COLOR.task
+
+  if (type !== 'task') return color
+
+  // 优先级语义覆盖
+  if (task.priority === 'HIGH') color = SEMANTIC.danger
+  else if (task.priority === 'MEDIUM') color = SEMANTIC.primary
+  else if (task.priority === 'LOW') color = SEMANTIC.success
+
+  // 状态语义覆盖（终态/过程态优先于优先级）
+  const status = task.status || ''
+  if (status === 'DONE' || status === 'COMPLETED' || status === 'CLOSED') {
+    color = SEMANTIC.success
+  } else if (status === 'CANCELLED') {
+    color = SEMANTIC.danger
+  } else if (status === 'TESTING' || status === 'REOPENED') {
+    color = SEMANTIC.warning
+  } else if (status === 'IN_PROGRESS') {
+    color = SEMANTIC.primary
+  } else if (status === 'TODO') {
+    // 待办：保留优先级色；无优先级时用中性灰
+    if (!task.priority) color = SEMANTIC.muted
   }
-  return '#2ecc71'
+
+  return color
+}
+
+/** 状态列中文文案 */
+const getStatusLabel = (task: { type?: string; status?: string }): string => {
+  const status = task.status
+  if (!status) return '-'
+  if (task.type === 'project') return getProjectStatusInfo(status).text
+  if (task.type === 'iteration') return getIterationStatusInfo(status).text
+  return getTaskStatusInfo(status).text
 }
 
 // 初始化甘特图
@@ -102,10 +138,16 @@ const initGantt = () => {
         return obj.text || ''
       }
     },
-    { name: 'start_date', label: '开始日期', align: 'center', width: 90 },
+    { name: 'start_date', label: '开始日期', align: 'center', width: 100 },
     { name: 'duration', label: '工期(天)', align: 'center', width: 80 },
     { name: 'owner', label: '负责人', align: 'center', width: 90, template: (obj: any) => obj.owner || '-' },
-    { name: 'status', label: '状态', align: 'center', width: 70, template: (obj: any) => obj.status || '-' }
+    {
+      name: 'status',
+      label: '状态',
+      align: 'center',
+      width: 100,
+      template: (obj: any) => getStatusLabel(obj)
+    }
   ]
 
   // 启用拖拽编辑
@@ -114,33 +156,33 @@ const initGantt = () => {
   gantt.config.drag_resize = true
   gantt.config.drag_move = true
 
-  // 配置时间刻度（中文格式）
+  // 配置时间刻度（中文格式）；加宽日期列避免重叠
   gantt.config.scale_unit = 'day'
   gantt.config.date_scale = '%Y年%m月%d日'
   gantt.config.subscales = [
-    { unit: 'day', step: 1, date: '%M%d日 周%D' }
+    { unit: 'day', step: 1, date: '%m月%d日 周%D' }
   ]
-  gantt.config.scale_height = 50
+  gantt.config.min_column_width = 120
+  gantt.config.scale_height = 56
 
-  // 配置任务条模板（右侧时间轴只显示进度条，不显示文字）
-  gantt.templates.task_class = (start: Date, end: Date, task: any) => {
+  // 任务条 class：类型 + 优先级 + 状态（便于 CSS 兜底）
+  gantt.templates.task_class = (_start: Date, _end: Date, task: any) => {
     const type = task.type || 'task'
-    return `gantt_task_${type}`
+    const parts = [`gantt_task_${type}`]
+    if (task.priority) parts.push(`gantt_priority_${task.priority}`)
+    if (task.status) parts.push(`gantt_status_${task.status}`)
+    return parts.join(' ')
   }
 
   // 右侧时间轴任务条不显示文字（已在左侧显示）
-  gantt.templates.task_text = (start: Date, end: Date, task: any) => {
-    return ''
+  gantt.templates.task_text = () => ''
+
+  gantt.templates.grid_row_class = (_start: Date, _end: Date, task: any) => {
+    return `gantt_row_${task.type || 'task'}`
   }
 
-  gantt.templates.grid_row_class = (start: Date, end: Date, task: any) => {
-    const type = task.type || 'task'
-    return `gantt_row_${type}`
-  }
-
-  gantt.templates.task_row_class = (start: Date, end: Date, task: any) => {
-    const type = task.type || 'task'
-    return `gantt_row_${type}`
+  gantt.templates.task_row_class = (_start: Date, _end: Date, task: any) => {
+    return `gantt_row_${task.type || 'task'}`
   }
 
   // 监听拖拽事件 - 更新任务时间
@@ -228,7 +270,7 @@ const loadGanttData = async () => {
           ownerId: task.ownerId,
           status: task.status,
           priority: task.priority,
-          color: getTypeColor(task),
+          color: getBarColor(task),
           $virtual: false
         }
         ganttTasks.push(ganttTask)
@@ -297,9 +339,10 @@ const handleViewModeChange = () => {
       gantt.config.scale_unit = 'day'
       gantt.config.date_scale = '%Y年%m月%d日'
       gantt.config.subscales = [
-        { unit: 'day', step: 1, date: '%M%d日 周%D' }
+        { unit: 'day', step: 1, date: '%m月%d日 周%D' }
       ]
-      gantt.config.scale_height = 50
+      gantt.config.min_column_width = 120
+      gantt.config.scale_height = 56
       break
     case 'week':
       gantt.config.scale_unit = 'week'
@@ -307,7 +350,8 @@ const handleViewModeChange = () => {
       gantt.config.subscales = [
         { unit: 'day', step: 1, date: '%m/%d 周%D' }
       ]
-      gantt.config.scale_height = 50
+      gantt.config.min_column_width = 72
+      gantt.config.scale_height = 56
       break
     case 'month':
       gantt.config.scale_unit = 'month'
@@ -316,7 +360,8 @@ const handleViewModeChange = () => {
         { unit: 'week', step: 1, date: '第%W周' },
         { unit: 'day', step: 1, date: '%d日' }
       ]
-      gantt.config.scale_height = 50
+      gantt.config.min_column_width = 48
+      gantt.config.scale_height = 56
       break
   }
   gantt.render()
@@ -399,6 +444,49 @@ onBeforeUnmount(() => {
   border-radius: 4px;
 }
 
+/* 左侧表头 + 右侧时间轴表头统一，上下左右居中 */
+:deep(.gantt_grid_scale),
+:deep(.gantt_task_scale),
+:deep(.gantt_scale_line) {
+  background: var(--fill-1, #f7f8fa) !important;
+  border-bottom: 1px solid var(--line-1, #e5e6eb) !important;
+  color: var(--text-2, #646a73);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+:deep(.gantt_grid_head_cell),
+:deep(.gantt_scale_cell) {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  background: var(--fill-1, #f7f8fa) !important;
+  color: var(--text-2, #646a73) !important;
+  border-right: 1px solid var(--line-1, #e5e6eb) !important;
+  border-bottom: 1px solid var(--line-1, #e5e6eb) !important;
+  white-space: nowrap;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: center !important;
+  vertical-align: middle;
+  box-sizing: border-box;
+  padding: 0 8px !important;
+}
+
+:deep(.gantt_grid_scale .gantt_grid_head_cell) {
+  height: 100% !important;
+}
+
+:deep(.gantt_scale_line) {
+  display: flex;
+  align-items: stretch;
+}
+
+:deep(.gantt_scale_line .gantt_scale_cell) {
+  height: 100% !important;
+}
+
 /* 确保折叠/展开按钮可见 */
 :deep(.gantt_tree_icon) {
   width: 20px;
@@ -429,37 +517,85 @@ onBeforeUnmount(() => {
   align-items: center;
 }
 
+/* 类型底色（task.color 未生效时的 CSS 兜底） */
 :deep(.gantt_task_project) {
-  background-color: #3498db;
-  border-color: #2980b9;
+  background-color: #3370fe;
+  border-color: #245bdb;
 }
 
 :deep(.gantt_task_iteration) {
-  background-color: #9b59b6;
-  border-color: #8e44ad;
+  background-color: #8b5cf6;
+  border-color: #7c3aed;
 }
 
 :deep(.gantt_task_task) {
-  background-color: #2ecc71;
-  border-color: #27ae60;
+  background-color: #2ea44f;
+  border-color: #22863a;
+}
+
+/* 优先级语义覆盖 */
+:deep(.gantt_priority_HIGH) {
+  background-color: #d83931 !important;
+  border-color: #b42318 !important;
+}
+
+:deep(.gantt_priority_MEDIUM) {
+  background-color: #3370fe !important;
+  border-color: #245bdb !important;
+}
+
+:deep(.gantt_priority_LOW) {
+  background-color: #2ea44f !important;
+  border-color: #22863a !important;
+}
+
+/* 状态语义覆盖（高于优先级） */
+:deep(.gantt_status_DONE),
+:deep(.gantt_status_COMPLETED),
+:deep(.gantt_status_CLOSED) {
+  background-color: #2ea44f !important;
+  border-color: #22863a !important;
+}
+
+:deep(.gantt_status_CANCELLED) {
+  background-color: #d83931 !important;
+  border-color: #b42318 !important;
+}
+
+:deep(.gantt_status_TESTING),
+:deep(.gantt_status_REOPENED) {
+  background-color: #d4790c !important;
+  border-color: #b45309 !important;
+}
+
+:deep(.gantt_status_IN_PROGRESS) {
+  background-color: #3370fe !important;
+  border-color: #245bdb !important;
 }
 
 :deep(.gantt_row_project) {
-  background-color: #f8f9fa;
-  font-weight: bold;
+  background-color: var(--fill-1, #f7f8fa);
+  font-weight: 600;
 }
 
 :deep(.gantt_row_iteration) {
-  background-color: #f0f0f0;
+  background-color: var(--fill-1, #f7f8fa);
 }
 
 :deep(.gantt_row_task) {
-  background-color: #ffffff;
+  background-color: var(--surface, #ffffff);
 }
 
-/* 高优先级任务 */
-:deep(.gantt_task_priority_HIGH) {
-  background-color: #e74c3c;
-  border-color: #c0392b;
+/* 行 hover */
+:deep(.gantt_grid_data .gantt_row.odd:hover),
+:deep(.gantt_grid_data .gantt_row:hover),
+:deep(.gantt_task_row:hover),
+:deep(.gantt_row:hover) {
+  background-color: #eaf3ff !important;
+}
+
+:deep(.gantt_task_row.gantt_selected),
+:deep(.gantt_row.gantt_selected) {
+  background-color: #eaf3ff !important;
 }
 </style>

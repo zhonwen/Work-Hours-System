@@ -75,6 +75,13 @@ public class User {
     private Integer passwordResetRequired;
 
     /**
+     * 菜单主题偏好ID
+     */
+    @Schema(description = "菜单主题偏好ID")
+    @TableField("theme_id")
+    private String themeId;
+
+    /**
      * 创建时间
      */
     @Schema(description = "创建时间", example = "2024-01-01 10:30:00")
@@ -184,6 +191,14 @@ public class User {
 
     public void setPasswordResetRequired(Integer passwordResetRequired) {
         this.passwordResetRequired = passwordResetRequired;
+    }
+
+    public String getThemeId() {
+        return themeId;
+    }
+
+    public void setThemeId(String themeId) {
+        this.themeId = themeId;
     }
 
     public LocalDateTime getCreateTime() {

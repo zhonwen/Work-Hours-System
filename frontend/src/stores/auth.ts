@@ -101,7 +101,7 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   /**
-   * 清除认证信息
+   * 清除认证信息及用户相关本地缓存
    */
   const clearAuth = () => {
     token.value = ''
@@ -112,10 +112,14 @@ export const useAuthStore = defineStore('auth', () => {
     authLoaded.value = false
     refreshPromise = null
 
-    // 清除 localStorage
+    // 认证信息
     localStorage.removeItem('token')
     localStorage.removeItem('userId')
     localStorage.removeItem('username')
+    // 用户偏好与业务缓存（避免换账号残留）
+    localStorage.removeItem('teamMaster_theme')
+    localStorage.removeItem('recentProjects')
+    localStorage.removeItem('gsms.projectStatistics.projectId')
   }
 
   /**

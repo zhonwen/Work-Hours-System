@@ -7,6 +7,8 @@ import com.gsms.gsms.dto.user.UserCreateReq;
 import com.gsms.gsms.dto.user.UserUpdateReq;
 import com.gsms.gsms.dto.user.PasswordChangeReq;
 import com.gsms.gsms.dto.user.PasswordResetReq;
+import com.gsms.gsms.dto.user.UserPreferenceResp;
+import com.gsms.gsms.dto.user.UserPreferenceUpdateReq;
 import com.gsms.gsms.infra.common.PageResult;
 
 /**
@@ -102,4 +104,14 @@ public interface UserService {
      * @return 权限编码列表
      */
     java.util.List<String> getPermissionCodes(Long userId);
+
+    /**
+     * 获取当前用户偏好（主题等）
+     */
+    UserPreferenceResp getPreference(Long userId);
+
+    /**
+     * 更新当前用户偏好
+     */
+    UserPreferenceResp updatePreference(Long userId, UserPreferenceUpdateReq req);
 }
