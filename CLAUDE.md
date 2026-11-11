@@ -204,8 +204,6 @@ docker-compose up -d
 
 **测试账号：**
 - `admin` / `Admin123` - 管理员
-- `zhangsan03` / `Admin123` - 普通用户
-
 **API 文档：** http://localhost:8080/swagger-ui.html
 
 ---
@@ -231,9 +229,8 @@ TeamChron（统领工时管理平台）是一个面向研发团队的轻量级�
 gsms/
 ├── backend/          # Spring Boot 后端（端口 8080）
 ├── frontend/         # Vue 3 前端（端口 3000）
-├── docs/            # 项目文档
-├── deployment/      # 部署配置
-└── TODO.md          # 待办事项
+├── docs/             # 项目文档（技术方案、开发指南、RBAC 等）
+└── deployment/       # 部署配置
 ```
 
 **技术栈：**
@@ -650,14 +647,13 @@ Swagger UI地址：`http://localhost:8080/swagger-ui.html`
 
 ## 参考文档
 
-- **RBAC 权限系统**：`docs/RBAC_IMPLEMENTATION.md` - 用户、角色、权限管理系统完整实现文档（2026-01-12）
-- **缓存技术决策**：`docs/caching-technical-decisions.md` - 缓存方案对比（ConcurrentHashMap vs Caffeine vs Redis）、Spring 单例原理
-- **数据库优化**：`docs/DATABASE_OPTIMIZATION.md` - 表分类、审计字段、外键约束设计
-- **调试指南**：`docs/DEBUG_PROCESS_WALKTHROUGH.md` - 远程调试、断点、变量查看
+- **技术方案与功能清单**：`docs/技术方案与功能清单.md` - 技术栈、架构、部署与功能总览
+- **开发指南**：`docs/开发指南.md` - 本地开发与 Docker 部署模式
+- **RBAC 权限系统**：`docs/RBAC_IMPLEMENTATION.md` - 用户、角色、权限管理系统完整实现文档
+- **缓存技术决策**：`docs/caching-technical-decisions.md` - 缓存方案对比（ConcurrentHashMap vs Caffeine vs Redis）
 - **前后端联调**：`docs/development/frontend-backend-setup.md` - CORS、代理、认证配置
 - **API 文档**：`docs/api-docs.md` - REST API 接口文档
-- **重构原则**：`docs/refactoring-principles.md` - 代码重构最佳实践
-- **待办事项**：`TODO.md` - API 文档优化、枚举类型标准化、后续扩展功能
+- **部署指南**：`deployment/README.md` - Docker Compose / 腾讯云轻量部署
 
 ## 文件命名规范
 

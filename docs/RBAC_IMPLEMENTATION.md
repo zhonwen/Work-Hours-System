@@ -1702,9 +1702,8 @@ curl -X POST http://localhost:8080/api/users/1/roles \
 ## 📚 参考资料
 
 - **项目规范**: `CLAUDE.md`
-- **前后端协作**: `COLLABORATION.md`
-- **待办事项**: `TODO.md`
-- **数据库设计**: `docs/DATABASE_OPTIMIZATION.md`
+- **技术方案与功能清单**: `docs/技术方案与功能清单.md`
+- **开发指南**: `docs/开发指南.md`
 - **前端架构**: `docs/development/frontend-architecture.md`
 
 ---

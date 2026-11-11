@@ -572,7 +572,7 @@ npm run dev
 - [ ] 容器化部署（Docker + K8s）
 - [ ] 微服务改造
 
-查看详细的 TODO 列表：[TODO.md](TODO.md)
+功能与技术方案总览见：[docs/技术方案与功能清单.md](docs/技术方案与功能清单.md)
 
 ---
 
